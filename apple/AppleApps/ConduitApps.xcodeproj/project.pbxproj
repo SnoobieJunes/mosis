@@ -44,14 +44,14 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		0B5F7B5B376B0F3A775320A4 /* Conduit-tvOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Conduit-tvOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		0B5F7B5B376B0F3A775320A4 /* Conduit-tvOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; name = "Conduit-tvOS.app"; path = Conduit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1D4A800ED1851AA57F1133D9 /* SampleHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleHandler.swift; sourceTree = "<group>"; };
 		46DFC7E05F957684C00E7CE1 /* ConduitKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ConduitKit; path = ../ConduitKit; sourceTree = SOURCE_ROOT; };
 		499EA945C9FE907712414F99 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		4C9FF6D4192A0573C9B314EA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		507D05823AE656F79782D1E3 /* ConduitIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConduitIOSApp.swift; sourceTree = "<group>"; };
-		594C89FBC99F318480FB1F7F /* Conduit-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Conduit-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
-		5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Conduit-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		594C89FBC99F318480FB1F7F /* Conduit-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; name = "Conduit-macOS.app"; path = Conduit.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B1915623F7A3C54B53A19F7 /* Conduit.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Conduit.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B67E45574AA6072BD57FB76 /* Conduit.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Conduit.entitlements; sourceTree = "<group>"; };
 		6B4A1E0011DD3B6EA5D8C3C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		72A645129E9A48B381A6AEE1 /* TVRootView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TVRootView.swift; sourceTree = "<group>"; };
@@ -59,7 +59,7 @@
 		75EB1BE90544600611445022 /* ConduitBroadcast.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ConduitBroadcast.entitlements; sourceTree = "<group>"; };
 		84037632B5B2FC1B4C43340E /* Conduit.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Conduit.entitlements; sourceTree = "<group>"; };
 		884B969D5211CA2BC9755F86 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		B956DA3C1C29526DCECD5F17 /* ConduitBroadcast.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ConduitBroadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		B956DA3C1C29526DCECD5F17 /* ConduitBroadcast.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = ConduitBroadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D317332CF396745527C5444A /* ConduitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConduitMacApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -144,7 +144,7 @@
 		DFC9CC020832F90CFB536C61 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */,
+				5B1915623F7A3C54B53A19F7 /* Conduit.app */,
 				594C89FBC99F318480FB1F7F /* Conduit-macOS.app */,
 				0B5F7B5B376B0F3A775320A4 /* Conduit-tvOS.app */,
 				B956DA3C1C29526DCECD5F17 /* ConduitBroadcast.appex */,
@@ -248,7 +248,7 @@
 				6C4BFB046D49C73D09B657E0 /* ConduitUI */,
 			);
 			productName = "Conduit-iOS";
-			productReference = 5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */;
+			productReference = 5B1915623F7A3C54B53A19F7 /* Conduit.app */;
 			productType = "com.apple.product-type.application";
 		};
 /* End PBXNativeTarget section */
@@ -420,6 +420,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ConduitBroadcast/ConduitBroadcast.entitlements;
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitBroadcast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -439,6 +440,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ConduitIOS/Conduit.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitIOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -455,6 +457,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = ConduitBroadcast/ConduitBroadcast.entitlements;
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitBroadcast/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
@@ -474,6 +477,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ConduitIOS/Conduit.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitIOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",

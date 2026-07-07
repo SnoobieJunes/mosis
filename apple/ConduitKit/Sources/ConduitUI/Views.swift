@@ -69,6 +69,13 @@ public struct RootView: View {
                 IncomingOfferSheet(fromName: model.peerName(offer.fromDeviceID), offer: offer.offer, model: model)
             }
         }
+        // Phase 7: a second person asking to view the screen you're sharing.
+        .sheet(isPresented: Binding(
+            get: { model.viewerGrantPeerID != nil },
+            set: { if !$0 { model.resolveViewerGrant(scope: nil) } }
+        )) {
+            ViewerGrantPrompt(model: model)
+        }
         .fileImporter(
             isPresented: Binding(
                 get: { filePickerTarget != nil },
