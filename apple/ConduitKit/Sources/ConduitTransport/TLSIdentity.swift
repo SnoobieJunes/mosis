@@ -48,73 +48,47 @@ public struct TransportTLSMaterial: Codable, Sendable, Equatable {
 }
 
 /// Materializes a SecIdentity for Network.framework from stored TLS material.
-/// SecIdentity requires the key and certificate to live in the keychain; adds
-/// are idempotent (duplicates tolerated).
+///
+/// Route: serialize a transient PKCS#12 in memory and hand it to
+/// SecPKCS12Import, which mints an identity for ANY process — signed app,
+/// sandboxed app, or bare `swift test` runner. Keychain-write routes to a
+/// SecIdentity are closed to unsigned processes on macOS 26
+/// (errSecMissingEntitlement); see PKCS12Writer for the probe notes.
 public enum TLSIdentityMaterializer {
-    public static func secIdentity(for material: TransportTLSMaterial, label: String) throws -> SecIdentity {
-        let keyAttributes: [CFString: Any] = [
-            kSecAttrKeyType: kSecAttrKeyTypeECSECPrimeRandom,
-            kSecAttrKeyClass: kSecAttrKeyClassPrivate,
-            kSecAttrKeySizeInBits: 256,
-        ]
-        var error: Unmanaged<CFError>?
-        guard let secKey = SecKeyCreateWithData(material.privateKeyX963 as CFData, keyAttributes as CFDictionary, &error) else {
-            throw TransportError.tlsIdentityUnavailable("SecKeyCreateWithData: \(String(describing: error?.takeRetainedValue()))")
-        }
-        guard let secCert = SecCertificateCreateWithData(nil, material.certificateDER as CFData) else {
-            throw TransportError.tlsIdentityUnavailable("SecCertificateCreateWithData failed")
-        }
+    /// Protects an in-memory container that lives for one import call;
+    /// real key custody belongs to the identity store.
+    private static let transientPassphrase = "conduit-transient-pfx"
 
-        let tag = Data(label.utf8)
-        let addKey: [CFString: Any] = [
-            kSecClass: kSecClassKey,
-            kSecValueRef: secKey,
-            kSecAttrLabel: label,
-            kSecAttrApplicationTag: tag,
-        ]
-        let addKeyStatus = SecItemAdd(addKey as CFDictionary, nil)
-        guard addKeyStatus == errSecSuccess || addKeyStatus == errSecDuplicateItem else {
-            throw TransportError.tlsIdentityUnavailable("SecItemAdd(key) status \(addKeyStatus)")
-        }
+    /// SecPKCS12Import intermittently fails MAC verification when invoked
+    /// concurrently from multiple threads (observed on macOS 26). Imports are
+    /// rare (node startup), so serialize them.
+    private static let importLock = NSLock()
 
-        let addCert: [CFString: Any] = [
-            kSecClass: kSecClassCertificate,
-            kSecValueRef: secCert,
-            kSecAttrLabel: label,
-        ]
-        let addCertStatus = SecItemAdd(addCert as CFDictionary, nil)
-        guard addCertStatus == errSecSuccess || addCertStatus == errSecDuplicateItem else {
-            throw TransportError.tlsIdentityUnavailable("SecItemAdd(cert) status \(addCertStatus)")
+    public static func secIdentity(for material: TransportTLSMaterial) throws -> SecIdentity {
+        importLock.lock()
+        defer { importLock.unlock() }
+        let key: P256.Signing.PrivateKey
+        do {
+            key = try P256.Signing.PrivateKey(x963Representation: material.privateKeyX963)
+        } catch {
+            throw TransportError.tlsIdentityUnavailable("stored TLS key unreadable: \(error)")
         }
-
-        #if os(macOS)
-        var identity: SecIdentity?
-        let status = SecIdentityCreateWithCertificate(nil, secCert, &identity)
-        guard status == errSecSuccess, let identity else {
-            throw TransportError.tlsIdentityUnavailable("SecIdentityCreateWithCertificate status \(status)")
+        let pfx = try PKCS12Writer.build(
+            certificateDER: material.certificateDER,
+            privateKeyPKCS8: key.derRepresentation,
+            passphrase: transientPassphrase
+        )
+        let options: [CFString: Any] = [kSecImportExportPassphrase: transientPassphrase]
+        var rawItems: CFArray?
+        let status = SecPKCS12Import(pfx as CFData, options as CFDictionary, &rawItems)
+        guard status == errSecSuccess,
+              let items = rawItems as? [[CFString: Any]],
+              let first = items.first,
+              let identityRef = first[kSecImportItemIdentity],
+              CFGetTypeID(identityRef as CFTypeRef) == SecIdentityGetTypeID()
+        else {
+            throw TransportError.tlsIdentityUnavailable("SecPKCS12Import status \(status)")
         }
-        return identity
-        #else
-        let query: [CFString: Any] = [
-            kSecClass: kSecClassIdentity,
-            kSecReturnRef: true,
-            kSecMatchLimit: kSecMatchLimitAll,
-        ]
-        var result: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
-        guard status == errSecSuccess, let identities = result as? [SecIdentity] else {
-            throw TransportError.tlsIdentityUnavailable("identity query status \(status)")
-        }
-        for candidate in identities {
-            var certRef: SecCertificate?
-            guard SecIdentityCopyCertificate(candidate, &certRef) == errSecSuccess,
-                  let certRef else { continue }
-            let der = SecCertificateCopyData(certRef) as Data
-            if der == material.certificateDER {
-                return candidate
-            }
-        }
-        throw TransportError.tlsIdentityUnavailable("no identity matched the stored certificate")
-        #endif
+        return (identityRef as! SecIdentity)
     }
 }

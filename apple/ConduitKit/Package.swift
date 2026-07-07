@@ -27,10 +27,11 @@ let package = Package(
         .target(name: "ConduitCapabilities", dependencies: ["ConduitProtocol", "ConduitSession", "ConduitTransport"]),
         .target(name: "ConduitUI", dependencies: ["ConduitProtocol", "ConduitTransport", "ConduitSession", "ConduitCapabilities"]),
         .executableTarget(name: "conduit-vectorgen", dependencies: ["ConduitProtocol", "ConduitSession"]),
+        .target(name: "ConduitTestSupport", dependencies: ["ConduitTransport"], path: "Tests/ConduitTestSupport"),
         .testTarget(name: "ConduitProtocolTests", dependencies: ["ConduitProtocol"]),
-        .testTarget(name: "ConduitSessionTests", dependencies: ["ConduitSession", "ConduitProtocol"]),
+        .testTarget(name: "ConduitSessionTests", dependencies: ["ConduitSession", "ConduitProtocol", "ConduitTransport", "ConduitTestSupport"]),
         .testTarget(name: "ConduitTransportTests", dependencies: ["ConduitTransport"]),
-        .testTarget(name: "ConduitCapabilitiesTests", dependencies: ["ConduitCapabilities"]),
+        .testTarget(name: "ConduitCapabilitiesTests", dependencies: ["ConduitCapabilities", "ConduitTestSupport"]),
         .testTarget(name: "ConduitE2ETests", dependencies: ["ConduitProtocol", "ConduitTransport", "ConduitSession", "ConduitCapabilities"]),
     ],
     swiftLanguageModes: [.v6]

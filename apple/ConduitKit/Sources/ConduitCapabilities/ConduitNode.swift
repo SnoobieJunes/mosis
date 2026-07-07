@@ -14,23 +14,19 @@ public struct NodeConfiguration: Sendable {
     public var receiveDirectory: URL
     /// Where peers.json and partial transfers live.
     public var stateDirectory: URL
-    /// Keychain label for the TLS identity items.
-    public var keychainLabel: String
 
     public init(
         deviceName: String,
         deviceClass: DeviceClass,
         appVersion: String,
         receiveDirectory: URL,
-        stateDirectory: URL,
-        keychainLabel: String = "org.conduit.tls"
+        stateDirectory: URL
     ) {
         self.deviceName = deviceName
         self.deviceClass = deviceClass
         self.appVersion = appVersion
         self.receiveDirectory = receiveDirectory
         self.stateDirectory = stateDirectory
-        self.keychainLabel = keychainLabel
     }
 
     /// What this platform cannot do (spec §4), advertised honestly in HELLO.
@@ -68,6 +64,9 @@ public actor ConduitNode {
     /// Devices the user wants connected; reconnect-with-backoff targets these
     /// identities, never addresses (spec §5.2).
     private var desiredConnections: Set<String> = []
+    /// Debug/tests: explicit host:port per device, used when discovery can't
+    /// see the peer (also the seam loopback E2E tests use, avoiding mDNS).
+    private var manualEndpoints: [String: (host: String, port: UInt16)] = [:]
     private var connectLoops: [String: Task<Void, Never>] = [:]
     private var pairingWaiters: [UUID: CheckedContinuation<Bool, Never>] = [:]
     private var acceptTask: Task<Void, Never>?
@@ -88,7 +87,6 @@ public actor ConduitNode {
 
         self.backend = try LANBackend(
             material: bundle.tlsMaterial,
-            keychainLabel: config.keychainLabel,
             listenerPolicyProvider: {
                 pairingAcceptance.get()
                     ? .acceptAnyForPairing
@@ -265,9 +263,22 @@ public actor ConduitNode {
             emit(.pairingFailed(reason: "device no longer visible"))
             return
         }
+        await runInitiatorPairing {
+            try await self.backend.connect(to: target.endpoint, policy: .acceptAnyForPairing)
+        }
+    }
+
+    /// Direct-address pairing (debug UI and tests; no discovery involved).
+    public func beginPairing(host: String, port: UInt16) async {
+        await runInitiatorPairing {
+            try await self.backend.connect(host: host, port: port, policy: .acceptAnyForPairing)
+        }
+    }
+
+    private func runInitiatorPairing(_ open: @Sendable () async throws -> any ByteStreamConnection) async {
         do {
             let localBody = try PairingFlow.makeLocalBody(bundle: bundle)
-            let connection = try await backend.connect(to: target.endpoint, policy: .acceptAnyForPairing)
+            let connection = try await open()
             let framed = FramedConnection(connection)
             let outcome = await PairingFlow.initiate(framed: framed, localBody: localBody) { [weak self] prompt in
                 await self?.awaitPairingDecision(prompt) ?? false
@@ -332,6 +343,14 @@ public actor ConduitNode {
         startConnectLoop(deviceID)
     }
 
+    /// Connect via an explicit address (debug UI and tests). The address is
+    /// remembered for reconnects of this device within the process lifetime.
+    public func connect(toDevice deviceID: String, host: String, port: UInt16) async {
+        manualEndpoints[deviceID] = (host, port)
+        desiredConnections.insert(deviceID)
+        startConnectLoop(deviceID)
+    }
+
     public func disconnect(deviceID: String) async {
         desiredConnections.remove(deviceID)
         connectLoops.removeValue(forKey: deviceID)?.cancel()
@@ -374,15 +393,22 @@ public actor ConduitNode {
 
     private func attemptConnection(_ deviceID: String) async -> Bool {
         guard let peer = await peerStore.peer(id: deviceID) else { return false }
-        guard let target = lastDiscovered.first(where: { $0.deviceID == deviceID }) else {
-            emit(.sessionStateChanged(deviceID: deviceID, state: .connecting, backend: nil))
+        let discovered = lastDiscovered.first(where: { $0.deviceID == deviceID })
+        let manual = manualEndpoints[deviceID]
+        emit(.sessionStateChanged(deviceID: deviceID, state: .connecting, backend: nil))
+        guard discovered != nil || manual != nil else {
             return false // not visible yet; back off and retry
         }
-        emit(.sessionStateChanged(deviceID: deviceID, state: .connecting, backend: nil))
         do {
-            let connection = try await backend.connect(
-                to: target.endpoint, policy: .pinned([peer.tlsPubkeySHA256])
-            )
+            let policy = TLSVerifyPolicy.pinned([peer.tlsPubkeySHA256])
+            let connection: any ByteStreamConnection
+            if let discovered {
+                connection = try await backend.connect(to: discovered.endpoint, policy: policy)
+            } else if let manual {
+                connection = try await backend.connect(host: manual.host, port: manual.port, policy: policy)
+            } else {
+                return false
+            }
             let framed = FramedConnection(connection)
             let link = PeerLink(
                 peer: peer, framed: framed, localHello: makeLocalHello(),

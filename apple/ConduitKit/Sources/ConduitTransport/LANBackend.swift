@@ -154,10 +154,9 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
 
     public init(
         material: TransportTLSMaterial,
-        keychainLabel: String,
         listenerPolicyProvider: @escaping @Sendable () -> TLSVerifyPolicy
     ) throws {
-        let secIdentity = try TLSIdentityMaterializer.secIdentity(for: material, label: keychainLabel)
+        let secIdentity = try TLSIdentityMaterializer.secIdentity(for: material)
         guard let wrapped = sec_identity_create(secIdentity) else {
             throw TransportError.tlsIdentityUnavailable("sec_identity_create returned nil")
         }
@@ -323,6 +322,10 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
                         case .failed(let error):
                             if !resumed.withValue({ let was = $0; $0 = true; return was }) {
                                 cont.resume(throwing: TransportError.connectFailed("\(error)"))
+                            }
+                        case .cancelled:
+                            if !resumed.withValue({ let was = $0; $0 = true; return was }) {
+                                cont.resume(throwing: TransportError.connectFailed("cancelled"))
                             }
                         case .waiting(let error):
                             transportLog.info("connect waiting: \(String(describing: error), privacy: .public)")
