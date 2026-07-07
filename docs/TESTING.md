@@ -1,4 +1,4 @@
-# Conduit — Testing & Setup Guide (Phases 1–4)
+# Conduit — Testing & Setup Guide (Phases 1–5)
 
 Everything you need to (a) run the automated suites that prove the protocol,
 codec, transport, and interop work, and (b) do the real-hardware acceptance
@@ -70,6 +70,22 @@ What it proves, by area:
 > If a run ever hangs, it's almost always a single async test waiting on a
 > socket; `swift test --filter <SuiteName>` narrows it. The suites are green as
 > committed.
+
+### 1b-kt. Kotlin: conformance + session smoke (the third implementation)
+
+Needs a JDK + `kotlinc` (Android Studio bundles JDK 21; `brew install kotlin`):
+
+```bash
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+cd android/core
+kotlinc $(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/conduit-core.jar
+java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 42/42 byte-exact
+java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke                     # pair + file + clipboard
+```
+
+Proves the native Kotlin core agrees with Swift + Go byte-for-byte (including
+the Ed25519 derivation) and that its pairing/HELLO/file/clipboard logic works
+with real crypto. This is the code the Android app runs over TLS sockets.
 
 ### 1b. Go: unit + conformance + cross-build
 
@@ -263,6 +279,28 @@ confirm the code the daemon prints in its terminal (type `y`).
       test for "a third party could implement from the doc alone."
 
 ---
+
+## 6b. Hardware acceptance — Phase 5 (Android client)
+
+The Kotlin core is proven on the JVM (§1b-kt). The Android app is
+Android-Studio-and-device-gated. Open `android/` in Android Studio (Ladybug+
+with the Android SDK), run on a device (API 28+).
+
+**Acceptance checklist (spec §9 Phase 5):**
+- [ ] Android ↔ iPhone **file transfer** over LAN (Android speaks the same v1
+      protocol — proven by conformance).
+- [ ] Android ↔ Android over **Wi-Fi Aware** (on `FEATURE_WIFI_AWARE` hardware).
+- [ ] Android **controls the Mac** (Android as controller).
+- [ ] Mac **views the Android screen** (MediaProjection source).
+- [ ] **Phone-as-BT-keyboard** types into an iPad with Conduit *not* installed —
+      the headline feature, `BluetoothHidDevice` (trackpad UI → "Bluetooth HID"
+      mode).
+- [ ] Written **Aware interop status** filled in (`docs/android-devices.md`).
+
+The Android superpowers (input receiver via AccessibilityService, notification
+source via NotificationListenerService, screen source via MediaProjection, BT
+HID, Wi-Fi Aware) each need their permission granted and a real device to
+validate; see `android/README.md`.
 
 ## 7. Known walls & what is *not* expected to work yet
 

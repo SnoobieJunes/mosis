@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Input-receiver AccessibilityService config (spec §9 Phase 5 step 5).
+     Declared honestly for Play review: this service exists solely to let a
+     paired, user-approved device control this one, and can inject gestures. It
+     is disabled until the user turns it on in system settings. -->
+<accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    android:description="@string/accessibility_description"
+    android:accessibilityEventTypes="typeAllMask"
+    android:accessibilityFeedbackType="feedbackGeneric"
+    android:canPerformGestures="true"
+    android:notificationTimeout="100" />

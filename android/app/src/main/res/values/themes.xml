@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Compose supplies the real theme; this is the launch/base theme. -->
+    <style name="Theme.Conduit" parent="android:Theme.Material.NoActionBar" />
+</resources>

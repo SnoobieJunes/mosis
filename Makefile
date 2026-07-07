@@ -22,6 +22,16 @@ go-conformance:
 go-test:
 	cd $(CORE) && go test ./...
 
+## Kotlin implementation must reproduce every vector byte-for-byte too.
+## Uses Android Studio's bundled JDK if JAVA_HOME is unset.
+KOTLIN_CORE := android/core
+kotlin-conformance:
+	cd $(KOTLIN_CORE) && kotlinc $$(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/conduit-core.jar
+	java -cp /tmp/conduit-core.jar org.conduit.core.Conformance $(VECTORS)
+
+kotlin-smoke:
+	java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke
+
 ## Cross-compile the Go daemons for the desktop matrix.
 cross-build:
 	cd $(CORE) && GOOS=linux   GOARCH=amd64 go build ./...
@@ -32,9 +42,9 @@ cross-build:
 swift-test:
 	cd $(SWIFT_PKG) && swift test --filter "VectorConformance|PairingVectorConformance|ScreenMessageCodecTests|ScreenFrameFramingTests"
 
-## The Phase 4 release gate: both implementations green on the same vectors.
-conformance: go-conformance
-	@echo "Go conformance passed. Run 'make swift-test' for the Swift half (needs Xcode)."
+## The release gate: all three implementations green on the same vectors.
+conformance: go-conformance kotlin-conformance
+	@echo "Go + Kotlin conformance passed. Run 'make swift-test' for the Swift half (needs Xcode)."
 	@echo "Run 'make interop' for the live Swift<->Go handshake test."
 
 ## Live cross-implementation interop (spec §9 Phase 4 acceptance).

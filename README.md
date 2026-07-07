@@ -12,15 +12,17 @@ Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
 Wire protocol: [`docs/protocol.md`](docs/protocol.md).
 Decisions: [`docs/adr/`](docs/adr).
 
-## Status: Phases 1–4 implemented
+## Status: Phases 1–5 implemented
 
 | Piece | State |
 |---|---|
 | `ConduitKit` Swift package (Protocol · Transport · Session · Capabilities · UI) | ✅ builds, Swift 6 strict concurrency |
-| **Go `conduit-core`** (wire · identity · transport · session · capabilities) | ✅ passes the same golden vectors byte-for-byte |
+| **Go `conduit-core`** (wire · identity · transport · session · capabilities) | ✅ passes the golden vectors byte-for-byte |
+| **Kotlin core** (`android/core`, pure JVM) — third implementation | ✅ 42/42 vectors byte-exact + JVM session smoke |
 | **Live Swift↔Go interop**: pair, file transfer, clipboard, notification | ✅ real Go node ↔ Swift node over loopback TLS |
 | **`conduitd` daemon** (Windows/Linux/macOS) + cross-compilation | ✅ builds for all three; runs on macOS |
-| Wire protocol **v1 frozen** (canonical JSON, ADR 0008) + `proto/conduit.proto` schema | ✅ two implementations, `docs/protocol.md` |
+| **Android app** (Compose + NSD/TLS + BT-HID/Accessibility/MediaProjection/Aware) | ◐ built + architected; Android Studio + device gated |
+| Wire protocol **v1 frozen** (canonical JSON, ADR 0008) + `proto/conduit.proto` schema | ✅ three implementations, `docs/protocol.md` |
 | LAN transport: Bonjour + TCP, TLS 1.3, mutual certs, key pinning | ✅ real-handshake tests incl. unpinned rejection |
 | Identity (Ed25519) + pairing (6-digit code + word pair, TOFU) | ✅ MITM-substitution covered by tests |
 | Sessions: HELLO negotiation, ping/RTT, degraded, reconnect by identity | ✅ |
@@ -72,7 +74,8 @@ proto/         conduit.proto schema (informative) + vectors/ (append-only golden
 apple/         ConduitKit package + iOS/macOS apps + broadcast extension
 core/          Go conduit-core: wire · identity · transport · session · capability
                · platform (input inject) · cmd/{conduitd,conformance,interop}
-android/       (Phase 5) Kotlin client
+android/       Kotlin client: core/ (pure-JVM protocol, conformance-tested)
+               + app/ (Compose + Android superpowers). See android/README.md
 unsupported/   gray-API modules, never in store builds
 tools/         conformance runner + CI (.github/workflows/conformance.yml)
 ```
