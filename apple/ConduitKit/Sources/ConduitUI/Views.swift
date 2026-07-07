@@ -16,8 +16,16 @@ public struct RootView: View {
 
     public var body: some View {
         NavigationStack {
-            DevicesScreen(model: model, filePickerTarget: $filePickerTarget)
+            VStack(spacing: 0) {
+                if let controllerID = model.inputControlledByPeerID {
+                    ControlledIndicatorBanner(peerName: model.peerName(controllerID), model: model)
+                }
+                DevicesScreen(model: model, filePickerTarget: $filePickerTarget)
+            }
                 .navigationTitle("Conduit")
+                .navigationDestination(for: PinnedPeer.self) { peer in
+                    RemoteControlView(model: model, peer: peer)
+                }
                 .toolbar {
                     ToolbarItem {
                         Toggle(isOn: $model.acceptPairing) {
@@ -70,6 +78,51 @@ public struct RootView: View {
         } message: {
             Text(model.lastError ?? "")
         }
+        .alert("Allow remote control?", isPresented: Binding(
+            get: { model.inputConsentPeerID != nil },
+            set: { if !$0 { model.resolveInputConsent(accept: false) } }
+        )) {
+            Button("Deny", role: .cancel) { model.resolveInputConsent(accept: false) }
+            Button("Allow") { model.resolveInputConsent(accept: true) }
+        } message: {
+            Text("\(model.inputConsentPeerID.map(model.peerName) ?? "A device") wants to control this Mac's pointer and keyboard. You can stop it any time from the banner.")
+        }
+        .alert("Enable Accessibility", isPresented: Binding(
+            get: { model.inputPermissionPrompt != nil },
+            set: { if !$0 { model.dismissInputPermissionPrompt() } }
+        )) {
+            Button("Open Settings") { model.openInputPermissionSettings() }
+            Button("Not now", role: .cancel) { model.dismissInputPermissionPrompt() }
+        } message: {
+            Text(model.inputPermissionPrompt ?? "")
+        }
+    }
+}
+
+/// Persistent on-screen indicator + one-tap kill switch shown on the receiver
+/// while a peer is controlling it (spec §9 Phase 2 invariant).
+struct ControlledIndicatorBanner: View {
+    let peerName: String
+    @Bindable var model: AppModel
+
+    var body: some View {
+        HStack(spacing: 10) {
+            Image(systemName: "dot.radiowaves.left.and.right")
+                .symbolEffect(.variableColor.iterative, options: .repeating)
+            Text("\(peerName) is controlling this device")
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+            Spacer()
+            Button("Stop", role: .destructive) {
+                model.stopBeingControlled()
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.orange.opacity(0.9))
+        .foregroundStyle(.white)
     }
 }
 
@@ -160,6 +213,13 @@ struct PairedPeerRow: View {
                 Spacer()
                 // The mosis verb pair (spec §8): Connect = session toward me, Share = push mine.
                 if isConnected {
+                    if model.canControl(peer) {
+                        // Connect (pull): drive this peer as a trackpad/keyboard.
+                        NavigationLink(value: peer) {
+                            Label("Control", systemImage: "cursorarrow.rays")
+                        }
+                        .buttonStyle(.borderedProminent)
+                    }
                     Menu("Share") {
                         Button("Share File…") { filePickerTarget = peer }
                         Button("Send Clipboard") { model.sendClipboard(to: peer) }

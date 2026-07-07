@@ -19,6 +19,12 @@ public enum MessageType: String, Codable, Sendable, CaseIterable {
     case pairConfirm = "PAIR_CONFIRM"
     case pairReject = "PAIR_REJECT"
     case bulkAttach = "BULK_ATTACH"
+    // Phase 2 (spec §9): remote input + media control.
+    case inputRequest = "INPUT_REQUEST"
+    case inputStatus = "INPUT_STATUS"
+    case inputEvent = "INPUT_EVENT"
+    case inputAttach = "INPUT_ATTACH"
+    case mediaControl = "MEDIA_CONTROL"
 }
 
 /// The envelope fields every control message carries (spec §6):

@@ -3,7 +3,7 @@ import ConduitProtocol
 import ConduitTransport
 
 /// A paired device: identity pinned at pairing, trusted thereafter (spec §7).
-public struct PinnedPeer: Codable, Sendable, Equatable, Identifiable {
+public struct PinnedPeer: Codable, Sendable, Equatable, Hashable, Identifiable {
     public var deviceID: String
     public var name: String
     public var deviceClassRaw: String

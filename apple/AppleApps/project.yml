@@ -37,15 +37,17 @@ targets:
       base:
         PRODUCT_NAME: Conduit
         PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.mac
+        # Hardened runtime, NOT sandboxed: the App Sandbox has no entitlement
+        # that permits CGEvent injection into other apps, which is Phase 2's
+        # Mac receiver role. Non-sandboxed + Accessibility (TCC) is the standard
+        # for input tools (Karabiner, BTT, Synergy). See docs/adr/0005.
         ENABLE_HARDENED_RUNTIME: true
+        ENABLE_APP_SANDBOX: false
     entitlements:
       path: ConduitMac/Conduit.entitlements
       properties:
-        com.apple.security.app-sandbox: true
-        com.apple.security.network.client: true
-        com.apple.security.network.server: true
-        com.apple.security.files.downloads.read-write: true
-        com.apple.security.files.user-selected.read-only: true
+        # Non-sandboxed: no sandbox key. Hardened-runtime exceptions only.
+        com.apple.security.automation.apple-events: false
     info:
       path: ConduitMac/Info.plist
       properties:

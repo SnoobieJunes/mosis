@@ -12,18 +12,21 @@ Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
 Wire protocol: [`docs/protocol.md`](docs/protocol.md).
 Decisions: [`docs/adr/`](docs/adr).
 
-## Status: Phase 1 (Apple MVP) implemented
+## Status: Phases 1–2 implemented
 
 | Piece | State |
 |---|---|
 | `ConduitKit` Swift package (Protocol · Transport · Session · Capabilities · UI) | ✅ builds, Swift 6 strict concurrency |
-| Wire protocol v0.2 Phase 1 messages + TLV framing + golden vectors | ✅ `proto/vectors`, conformance tests |
+| Wire protocol v0.2 Phase 1–2 messages + TLV framing + golden vectors | ✅ `proto/vectors`, conformance tests |
 | LAN transport: Bonjour + TCP, TLS 1.3, mutual certs, key pinning | ✅ real-handshake tests incl. unpinned rejection |
 | Identity (Ed25519) + pairing (6-digit code + word pair, TOFU) | ✅ MITM-substitution covered by tests |
 | Sessions: HELLO negotiation, ping/RTT, degraded, reconnect by identity | ✅ |
 | File transfer: chunked, windowed, bulk lane, SHA-256, resume | ✅ two-node E2E over real sockets |
 | Clipboard: explicit send/receive both directions | ✅ |
-| iOS + macOS apps (peer bubbles, Connect/Share, pairing sheet, stats HUD) | ✅ build; on-device validation pending |
+| **Remote input**: phone→Mac trackpad/keyboard/media, 120 Hz coalescing, DTLS datagram lane | ✅ full-path E2E with fake injector |
+| **macOS CGEvent injector**: pointer/scroll/click/key, multi-monitor clamp, secure-input guard, media keys | ✅ non-sandboxed (ADR 0005) |
+| **Consent gate + persistent indicator + kill switch** (spec invariant) | ✅ |
+| iOS + macOS apps (peer bubbles, Connect/Share, trackpad surface, pairing sheet, stats HUD) | ✅ build + launch; on-device validation pending |
 | Wi-Fi Aware backend | 🚩 flagged off pending entitlement (ADR 0003) |
 
 ## Build & test
@@ -32,7 +35,7 @@ Requires Xcode 26+ on macOS 26+.
 
 ```bash
 cd apple/ConduitKit
-swift test                        # 46 tests: protocol, pairing, TLS, E2E
+swift test                        # 56 tests: protocol, pairing, TLS, input, E2E
 
 cd ../AppleApps
 xcodegen generate                 # brew install xcodegen (project.yml is source of truth)
@@ -42,6 +45,11 @@ open ConduitApps.xcodeproj        # select your team, run Conduit-macOS / Condui
 First run on devices: enable **Accept pairing** on one device, tap the other
 under **Nearby**, compare the code + word pair on both screens, confirm both.
 Expect the local-network permission prompt once per device.
+
+To drive the Mac from the phone: connect, tap **Control**, and grant
+Accessibility when macOS prompts (the app guides you to the Settings pane).
+A persistent orange banner on the Mac shows who's in control with a one-tap
+**Stop**. The Mac app is not sandboxed — input injection requires it (ADR 0005).
 
 ## Layout (spec §10)
 

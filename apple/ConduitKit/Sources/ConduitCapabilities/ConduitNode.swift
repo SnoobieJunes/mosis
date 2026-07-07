@@ -53,6 +53,11 @@ public actor ConduitNode {
 
     private let sendEngine: FileSendEngine
     private let receiveEngine: FileReceiveEngine
+    /// Present only on platforms that can inject input (macOS). Its presence
+    /// is what makes this device advertise the input-inject capability.
+    private let inputReceiveEngine: InputReceiveEngine?
+    private let inputControllerEngine: InputControllerEngine
+    private var inputConsentWaiters: [String: CheckedContinuation<Bool, Never>] = [:]
 
     public nonisolated let events: AsyncStream<ConduitEvent>
     private let eventsContinuation: AsyncStream<ConduitEvent>.Continuation
@@ -73,7 +78,13 @@ public actor ConduitNode {
     private var browseTask: Task<Void, Never>?
     private var started = false
 
-    public init(config: NodeConfiguration, identityStore: any IdentityStore) throws {
+    /// `inputInjector` is injected for testability; when nil the node uses the
+    /// platform default (MacInputInjector on macOS, none elsewhere).
+    public init(
+        config: NodeConfiguration,
+        identityStore: any IdentityStore,
+        inputInjector: (any InputInjector)? = nil
+    ) throws {
         self.config = config
         self.bundle = try IdentityBootstrap.loadOrCreate(
             store: identityStore, name: config.deviceName, deviceClass: config.deviceClass
@@ -113,6 +124,47 @@ public actor ConduitNode {
             partialsDirectory: config.stateDirectory.appendingPathComponent("partials"),
             emit: { continuation.yield($0) }
         )
+
+        // Input: the controller half exists everywhere (any device can drive a
+        // Mac); the receive half exists only where an injector is supplied.
+        // The platform default (MacInputInjector on macOS) is chosen by the app
+        // layer, not here — so tests and non-Mac hosts can be injector-free.
+        self.inputControllerEngine = InputControllerEngine(
+            backend: backend, emit: { continuation.yield($0) }
+        )
+        if let injector = inputInjector {
+            // Consent is resolved by the app via resolveInputConsent(); the node
+            // bridges the engine's async request to that UI round-trip.
+            let selfBox = NodeSelfBox()
+            self.inputReceiveEngine = InputReceiveEngine(
+                injector: injector,
+                backend: backend,
+                emit: { continuation.yield($0) },
+                requestConsent: { peerID in
+                    await selfBox.node?.awaitInputConsent(peerID: peerID) ?? false
+                }
+            )
+            self.selfBox = selfBox
+        } else {
+            self.inputReceiveEngine = nil
+            self.selfBox = nil
+        }
+    }
+
+    /// Weak self-reference the input-consent closure captures without a cycle.
+    private final class NodeSelfBox: @unchecked Sendable {
+        weak var node: ConduitNode?
+    }
+    private let selfBox: NodeSelfBox?
+
+    /// The platform's default input injector (MacInputInjector on macOS, none
+    /// elsewhere). Apps pass this into `init`; tests pass their own or nil.
+    public static func defaultInjector() -> (any InputInjector)? {
+        #if os(macOS)
+        return MacInputInjector()
+        #else
+        return nil
+        #endif
     }
 
     // MARK: Introspection
@@ -130,6 +182,7 @@ public actor ConduitNode {
     public func start() async throws {
         guard !started else { return }
         started = true
+        selfBox?.node = self
 
         let (port, inbound) = try await backend.start()
         listenPort = port
@@ -427,13 +480,21 @@ public actor ConduitNode {
     }
 
     private func makeLocalHello() -> HelloBody {
-        HelloBody(
+        var capabilities = [CapabilityID.file, CapabilityID.clipboard]
+        // input-inject and media-target are advertised only where we can act on
+        // them — i.e. where an injector exists (macOS). Direction matters
+        // (spec §4): the phone omits these yet still drives a Mac that has them.
+        if inputReceiveEngine != nil {
+            capabilities.append(CapabilityID.inputInject)
+            capabilities.append(CapabilityID.mediaTarget)
+        }
+        return HelloBody(
             identity: identity.deviceID,
             name: config.deviceName,
             deviceClass: config.deviceClass,
             appVersion: config.appVersion,
             pubkey: identity.publicKeyRaw,
-            capabilities: [CapabilityID.file, CapabilityID.clipboard],
+            capabilities: capabilities,
             platformWalls: NodeConfiguration.defaultPlatformWalls(),
             listenPort: listenPort
         )
@@ -449,10 +510,17 @@ public actor ConduitNode {
             switch state {
             case .ready:
                 if let link = sessions[deviceID] {
+                    if let remote = await link.remoteHello {
+                        emit(.remoteCapabilities(deviceID: deviceID, capabilities: remote.capabilities))
+                    }
                     await sendEngine.retryPending(peerDeviceID: deviceID, over: link)
                 }
             case .closed:
                 sessions.removeValue(forKey: deviceID)
+                await inputReceiveEngine?.handleSessionClosed(peerDeviceID: deviceID)
+                if await inputControllerEngine.controllingPeerID == deviceID {
+                    await inputControllerEngine.stopControlling()
+                }
                 if desiredConnections.contains(deviceID) {
                     startConnectLoop(deviceID)
                 }
@@ -479,6 +547,21 @@ public actor ConduitNode {
             await sendEngine.handleMessage(message)
         case .bulkAttach:
             nodeLog.warning("BULK_ATTACH on a session connection; ignoring")
+        // Phase 2 — remote input. Receiver-side handling:
+        case .inputRequest:
+            guard let engine = inputReceiveEngine, let link = sessions[deviceID] else { return }
+            await engine.handleRequest(from: link)
+        case .inputEvent(let event):
+            guard let engine = inputReceiveEngine else { return }
+            await engine.handleControlEvent(event, from: deviceID)
+        case .mediaControl(let control):
+            guard let engine = inputReceiveEngine else { return }
+            await engine.handleMedia(control, from: deviceID)
+        // Controller-side handling:
+        case .inputStatus(let status):
+            await inputControllerEngine.handleStatus(status, from: deviceID)
+        case .inputAttach:
+            nodeLog.warning("INPUT_ATTACH on a session connection; belongs on the datagram lane")
         default:
             nodeLog.warning("unrouted message \(message.typeString, privacy: .public)")
         }
@@ -532,6 +615,92 @@ public actor ConduitNode {
             return await link.state
         }
         return .idle
+    }
+
+    // MARK: Remote input API (Phase 2)
+
+    /// Controller side: ask to drive a peer. Requires the peer to advertise
+    /// input-inject; the grant/refusal arrives as an inputControl* event.
+    public func requestInputControl(of deviceID: String) async {
+        guard let link = sessions[deviceID] else {
+            emit(.inputControlFailed(reason: "no active session"))
+            return
+        }
+        await inputControllerEngine.requestControl(of: link)
+    }
+
+    public func stopInputControl() async {
+        await inputControllerEngine.stopControlling()
+    }
+
+    public func sendPointerMove(dx: Double, dy: Double) async {
+        await inputControllerEngine.sendMove(dx: dx, dy: dy)
+    }
+
+    public func sendScroll(dx: Double, dy: Double) async {
+        await inputControllerEngine.sendScroll(dx: dx, dy: dy)
+    }
+
+    public func sendClick(_ button: PointerButton, action: InputAction, clickCount: Int = 1) async {
+        await inputControllerEngine.sendClick(button, action: action, clickCount: clickCount)
+    }
+
+    public func sendText(_ text: String, modifiers: [InputModifier] = []) async {
+        await inputControllerEngine.sendText(text, modifiers: modifiers)
+    }
+
+    public func sendSpecialKey(_ name: String, modifiers: [InputModifier] = []) async {
+        await inputControllerEngine.sendSpecialKey(name, modifiers: modifiers)
+    }
+
+    public func sendMedia(_ action: MediaAction, value: Double? = nil) async {
+        await inputControllerEngine.sendMedia(action, value: value)
+    }
+
+    /// Receiver side: the kill switch (spec invariant — instantly revocable).
+    public func revokeInputControl() async {
+        await inputReceiveEngine?.revoke(reason: "kill switch")
+    }
+
+    public func inputReceiveActivePeer() async -> String? {
+        await inputReceiveEngine?.activePeerDeviceID
+    }
+
+    /// The app answers an inputConsentRequested prompt through here.
+    public func resolveInputConsent(peerDeviceID: String, accept: Bool) {
+        inputConsentWaiters.removeValue(forKey: peerDeviceID)?.resume(returning: accept)
+    }
+
+    /// Whether this device can be controlled at all (has an injector).
+    public var canReceiveInput: Bool {
+        inputReceiveEngine != nil
+    }
+
+    /// Whether the OS currently permits injection (macOS: Accessibility/TCC).
+    public func inputPermissionGranted() async -> Bool {
+        await inputReceiveEngine?.isPermitted ?? false
+    }
+
+    public func inputPermissionInstructions() async -> String? {
+        await inputReceiveEngine?.permissionInstructions
+    }
+
+    /// Opens the OS settings pane where the user grants injection permission.
+    public func openInputPermissionSettings() async {
+        await inputReceiveEngine?.openPermissionSettings()
+    }
+
+    /// Bridges the receive engine's consent request to the app's UI round-trip.
+    fileprivate func awaitInputConsent(peerID: String) async -> Bool {
+        await withCheckedContinuation { continuation in
+            // A duplicate request while one is pending: refuse the newcomer.
+            if inputConsentWaiters[peerID] != nil {
+                continuation.resume(returning: false)
+                return
+            }
+            inputConsentWaiters[peerID] = continuation
+            emit(.inputConsentRequested(peerDeviceID: peerID, promptID: UUID()))
+        }
     }
 
     private func emit(_ event: ConduitEvent) {

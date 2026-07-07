@@ -50,6 +50,10 @@ public enum ConduitEvent: Sendable {
     case discoveredPeersChanged([DiscoveredPeer])
     case pinnedPeersChanged([PinnedPeer])
     case sessionStateChanged(deviceID: String, state: SessionState, backend: TransportBackendKind?)
+    /// The remote peer's advertised capabilities, surfaced when a session
+    /// reaches ready so the UI can enable direction-specific actions (e.g.
+    /// "control this Mac" only if it advertises input-inject).
+    case remoteCapabilities(deviceID: String, capabilities: [String])
     case rttUpdated(deviceID: String, millis: Double)
     case pairingPrompt(PairingPromptInfo)
     case pairingCompleted(PinnedPeer)
@@ -60,5 +64,23 @@ public enum ConduitEvent: Sendable {
     case transferFailed(fileID: String, reason: String)
     case clipboardReceived(fromDeviceID: String, body: ClipboardPushBody)
     case clipboardSent(toDeviceID: String)
+    // Phase 2 — remote input (spec §9 Phase 2).
+    /// Receiver: control by a peer became active/inactive. Drives the
+    /// persistent on-screen indicator invariant.
+    case inputActiveChanged(peerDeviceID: String, active: Bool)
+    /// Receiver: a peer asked for control and the app should prompt the user.
+    case inputConsentRequested(peerDeviceID: String, promptID: UUID)
+    /// Receiver: injection is blocked because Accessibility is off.
+    case inputPermissionNeeded(instructions: String)
+    /// Receiver: a key was refused because the focused field is secure input.
+    case inputSecureFieldBlocked
+    /// Controller: control of a peer started (with its secure-input state).
+    case inputControlStarted(peerDeviceID: String, secureInput: Bool)
+    /// Controller: control ended cleanly.
+    case inputControlEnded(peerDeviceID: String)
+    /// Controller: control could not start / was refused.
+    case inputControlFailed(reason: String)
+    /// Controller: the receiver reported entering/leaving a secure-input field.
+    case inputRemoteSecureInput(peerDeviceID: String, active: Bool)
     case nodeLog(String)
 }

@@ -20,9 +20,17 @@ try FileManager.default.createDirectory(at: outputDir, withIntermediateDirectori
 
 func hex(_ data: Data) -> String { data.hexString }
 
-func writeJSON(_ object: [String: Any], to name: String) throws {
+func writeJSON(_ object: [String: Any], to name: String, skipIfExists: Bool = false) throws {
+    let url = outputDir.appendingPathComponent(name)
+    // Some vectors carry non-deterministic material (Ed25519 signatures are
+    // randomized by CryptoKit). Regenerating them would churn a committed,
+    // append-only vector even though it still verifies — so leave it in place.
+    if skipIfExists, FileManager.default.fileExists(atPath: url.path) {
+        print("kept \(name) (append-only; contains non-deterministic material)")
+        return
+    }
     let data = try JSONSerialization.data(withJSONObject: object, options: [.prettyPrinted, .sortedKeys])
-    try data.write(to: outputDir.appendingPathComponent(name))
+    try data.write(to: url)
     print("wrote \(name)")
 }
 
@@ -77,6 +85,19 @@ let messages: [(String, Message)] = [
     ("pair_reject", .pairReject(PairRejectBody(reason: "code mismatch"))),
     ("bulk_attach", .bulkAttach(BulkAttachBody(
         fileID: "0E984725-C51C-4BF4-9960-E1C80E27ABA0", bulkToken: "746f6b656e2d746f6b656e"))),
+    // Phase 2 — remote input + media control.
+    ("input_request", .inputRequest),
+    ("input_status_active", .inputStatus(InputStatusBody(
+        active: true, udpPort: 52_114, datagramToken: "746f6b656e", secureInput: false))),
+    ("input_status_denied", .inputStatus(InputStatusBody(active: false, reason: "declined"))),
+    ("input_move", .inputEvent(.move(dx: 12.5, dy: -3.25))),
+    ("input_scroll", .inputEvent(.scroll(dx: 0, dy: -40))),
+    ("input_click", .inputEvent(.click(.right, action: .tap, clickCount: 1))),
+    ("input_key_text", .inputEvent(.text("Hi", modifiers: [.command]))),
+    ("input_key_special", .inputEvent(.specialKey("return", modifiers: []))),
+    ("input_attach", .inputAttach(InputAttachBody(token: "746f6b656e"))),
+    ("media_toggle", .mediaControl(MediaControlBody(action: .toggle))),
+    ("media_volume", .mediaControl(MediaControlBody(action: .volume, value: -1))),
 ]
 
 var messageVectors: [[String: Any]] = []
@@ -152,6 +173,6 @@ try writeJSON([
             "signature_hex": hex(bindingSig),
         ],
     ],
-], to: "pairing.json")
+], to: "pairing.json", skipIfExists: true)
 
 print("done")

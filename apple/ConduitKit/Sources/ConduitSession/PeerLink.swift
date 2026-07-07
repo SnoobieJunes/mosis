@@ -112,6 +112,14 @@ public actor PeerLink {
         negotiatedCapabilities.contains(id)
     }
 
+    /// Whether the REMOTE peer advertised a capability, regardless of what we
+    /// advertise. Direction-specific capabilities (input-inject, media-target)
+    /// are checked this way: the phone drives the Mac without injecting itself
+    /// (spec §4).
+    public func remoteAdvertises(_ id: String) -> Bool {
+        remoteHello?.capabilities.contains(id) ?? false
+    }
+
     public func send(_ message: Message) async throws {
         guard state == .ready || state == .degraded else { throw SessionError.notReady }
         try await framed.send(message)

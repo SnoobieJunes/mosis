@@ -10,9 +10,11 @@ public enum DeviceClass: String, Codable, Sendable, CaseIterable {
 public enum CapabilityID {
     public static let file = "file"
     public static let clipboard = "clipboard"
-    /// Reserved for later phases; listed so HELLO negotiation code has one home.
-    public static let mediaControl = "media-control"
-    public static let inputSend = "input-send"
+    /// Advertiser can RECEIVE InputEvent and inject it into its OS (Phase 2).
+    /// Direction-specific: controllers check the remote's list, not the intersection.
+    public static let inputInject = "input-inject"
+    /// Advertiser's system Now Playing can be driven via MediaControl (Phase 2).
+    public static let mediaTarget = "media-target"
 }
 
 /// Payload of HELLO and HELLO_ACK (identical shape, spec §6).
@@ -258,6 +260,11 @@ public enum Message: Sendable, Equatable {
     case pairConfirm
     case pairReject(PairRejectBody)
     case bulkAttach(BulkAttachBody)
+    case inputRequest
+    case inputStatus(InputStatusBody)
+    case inputEvent(InputEventBody)
+    case inputAttach(InputAttachBody)
+    case mediaControl(MediaControlBody)
     /// Unknown `type`: ignored with a logged warning (spec §6 invariant), never fatal.
     case unknown(type: String)
 
@@ -277,6 +284,11 @@ public enum Message: Sendable, Equatable {
         case .pairConfirm: MessageType.pairConfirm.rawValue
         case .pairReject: MessageType.pairReject.rawValue
         case .bulkAttach: MessageType.bulkAttach.rawValue
+        case .inputRequest: MessageType.inputRequest.rawValue
+        case .inputStatus: MessageType.inputStatus.rawValue
+        case .inputEvent: MessageType.inputEvent.rawValue
+        case .inputAttach: MessageType.inputAttach.rawValue
+        case .mediaControl: MessageType.mediaControl.rawValue
         case .unknown(let type): type
         }
     }

@@ -149,8 +149,21 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
     private let listenerPolicyProvider: @Sendable () -> TLSVerifyPolicy
 
     private let listener = Locked<NWListener?>(nil)
+    private let datagramListener = Locked<NWListener?>(nil)
     private let browser = Locked<NWBrowser?>(nil)
     private let inboundContinuation = Locked<AsyncStream<any ByteStreamConnection>.Continuation?>(nil)
+
+    // Internal seams for the DTLS datagram lane (DatagramLane.swift).
+    var identityForLanes: sec_identity_t { identity }
+    var listenerPolicyProviderForLanes: @Sendable () -> TLSVerifyPolicy { listenerPolicyProvider }
+    var laneQueue: DispatchQueue { queue }
+
+    func retainDatagramListener(_ listener: NWListener) {
+        datagramListener.withValue { current in
+            current?.cancel()
+            current = listener
+        }
+    }
 
     public init(
         material: TransportTLSMaterial,
@@ -355,6 +368,10 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
     public func shutdown() {
         stopBrowsing()
         listener.withValue { current in
+            current?.cancel()
+            current = nil
+        }
+        datagramListener.withValue { current in
             current?.cancel()
             current = nil
         }

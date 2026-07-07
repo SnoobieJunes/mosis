@@ -1,7 +1,7 @@
-# Conduit wire protocol — v0.2 (draft, Phase 1 surface)
+# Conduit wire protocol — v0.2 (draft, Phase 1–2 surface)
 
 Status: JSON control messages (debuggable while unstable, spec §6); protobuf
-freeze happens in Phase 4. Everything network-visible in the Phase 1
+freeze happens in Phase 4. Everything network-visible in the Phase 1–2
 implementation is documented here. Golden vectors: [`proto/vectors/`](../proto/vectors)
 (append-only; conformance suites in Swift today, Go/Kotlin later).
 
@@ -96,6 +96,41 @@ Every control message:
 | `PAIR_CONFIRM` | `{}` |
 | `PAIR_REJECT` | `reason` |
 | `BULK_ATTACH` | `file_id`, `bulk_token` — first and only control frame on a bulk connection |
+| `INPUT_REQUEST` | `{}` — controller asks to drive the receiver |
+| `INPUT_STATUS` | `active`, `reason?`, `udp_port?`, `datagram_token?`, `secure_input?` — receiver → controller grant lifecycle + datagram invite |
+| `INPUT_EVENT` | `kind` (`move·scroll·click·key`), `dx?`, `dy?`, `button?` (`left·right·middle`), `action?` (`down·up·tap`), `click_count?`, `key?`, `text?`, `modifiers?` (`shift·control·option·command·function`) |
+| `INPUT_ATTACH` | `token` — first frame on a DTLS datagram lane, binds it to a grant |
+| `MEDIA_CONTROL` | `action` (`play·pause·toggle·next·prev·seek·volume·mute`), `value?` (seek seconds / volume steps) |
+
+## Remote input (Phase 2)
+
+Direction (spec §4): a device advertising `input-inject` can RECEIVE
+INPUT_EVENT and inject it into its OS; `media-target` marks a device whose
+system Now Playing can be driven. Controllers check the **remote** peer's
+capability list, not the intersection — a phone drives a Mac without ever
+being able to inject itself.
+
+Flow: controller sends `INPUT_REQUEST` → receiver gets per-session user
+consent, then replies `INPUT_STATUS{active}` (or `{active:false, reason}`).
+An active status MAY carry `udp_port` + `datagram_token` inviting a DTLS
+datagram lane (same pinned-key trust as TCP). The controller sends
+`INPUT_ATTACH{token}` as the lane's first frame, then streams coalesced
+`INPUT_EVENT` moves/scrolls there (loss-tolerant); clicks and keys always go
+on the reliable control lane.
+
+Invariants:
+- **Modifiers are stateless.** Every key event carries its complete modifier
+  set; a dropped message can never wedge a modifier on the receiver.
+- **Deltas only.** Pointer moves are relative; absolute coordinates are never
+  sent (multi-monitor origins are the receiver's problem to clamp).
+- **Coalescing.** Controllers batch motion at ≤120 Hz, summing deltas; a click
+  or key flushes pending motion first so it never overtakes the cursor.
+- **Consent + indicator + kill switch.** Injection requires per-session accept
+  on the receiver, a persistent on-screen indicator while active, and an
+  instant revoke (grant also auto-expires after 5 min idle).
+- **Secure input.** While the receiver's focused field is a secure-input
+  (password) box, key events are refused and `secure_input:true` is reported —
+  never silently dropped.
 
 ## File transfer semantics
 

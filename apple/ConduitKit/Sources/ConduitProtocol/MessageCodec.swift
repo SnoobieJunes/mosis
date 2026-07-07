@@ -36,6 +36,11 @@ public enum MessageCodec {
         case .pairConfirm: return try env(.pairConfirm, EmptyBody())
         case .pairReject(let body): return try env(.pairReject, body)
         case .bulkAttach(let body): return try env(.bulkAttach, body)
+        case .inputRequest: return try env(.inputRequest, EmptyBody())
+        case .inputStatus(let body): return try env(.inputStatus, body)
+        case .inputEvent(let body): return try env(.inputEvent, body)
+        case .inputAttach(let body): return try env(.inputAttach, body)
+        case .mediaControl(let body): return try env(.mediaControl, body)
         case .unknown(let type):
             throw MessageCodecError.missingEnvelopeField("cannot encode unknown type \(type)")
         }
@@ -76,6 +81,11 @@ public enum MessageCodec {
         case .pairConfirm: message = .pairConfirm
         case .pairReject: message = .pairReject(try body(PairRejectBody.self))
         case .bulkAttach: message = .bulkAttach(try body(BulkAttachBody.self))
+        case .inputRequest: message = .inputRequest
+        case .inputStatus: message = .inputStatus(try body(InputStatusBody.self))
+        case .inputEvent: message = .inputEvent(try body(InputEventBody.self))
+        case .inputAttach: message = .inputAttach(try body(InputAttachBody.self))
+        case .mediaControl: message = .mediaControl(try body(MediaControlBody.self))
         }
         return (meta, message)
     }
