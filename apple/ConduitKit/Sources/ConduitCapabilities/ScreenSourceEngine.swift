@@ -16,11 +16,37 @@ public actor ScreenSourceEngine {
     static let maxLagFrames: UInt32 = 45     // ~1.5s at 30fps → back off
     static let goodLagFrames: UInt32 = 6
 
+    /// An additional viewer of the SAME capture (spec §9 Phase 7 step 4:
+    /// multi-viewer). Reference type so the sender can bump its seq without
+    /// rewriting the whole Sharing each frame.
+    final class SecondaryViewer {
+        let deviceID: String
+        let screenSessionID: String
+        let wireSessionID: UInt16
+        let bulk: FramedConnection
+        let scope: PermissionScope
+        var sentSeq: UInt32 = 0
+        var ackTask: Task<Void, Never>?
+        init(deviceID: String, screenSessionID: String, wireSessionID: UInt16,
+             bulk: FramedConnection, scope: PermissionScope) {
+            self.deviceID = deviceID
+            self.screenSessionID = screenSessionID
+            self.wireSessionID = wireSessionID
+            self.bulk = bulk
+            self.scope = scope
+        }
+    }
+
     struct Sharing {
         let screenSessionID: String
         let wireSessionID: UInt16
         let peerDeviceID: String
         let offer: ScreenOfferBody
+        /// Dimensions/codec of the live capture, so additional viewers reuse them.
+        let width: Int
+        let height: Int
+        let fps: Int
+        let codec: ScreenVideoCodec
         var bulk: FramedConnection?
         var encoder: VideoEncoder?
         var senderTask: Task<Void, Never>?
@@ -28,6 +54,8 @@ public actor ScreenSourceEngine {
         var frameFeed: AsyncStream<(EncodedVideoFrame, CMTime)>.Continuation?
         var sentSeq: UInt32 = 0
         var currentBitrate = initialBitrate
+        /// Additional viewers watching the same capture (view-only or control).
+        var secondaries: [String: SecondaryViewer] = [:]
     }
 
     private let capturer: (any ScreenCapturer)?
@@ -36,6 +64,9 @@ public actor ScreenSourceEngine {
     private let bulkOpener: @Sendable (PinnedPeer, String, UInt16) async throws -> FramedConnection
     /// Asks the source UI to choose a display/window; nil = user cancelled.
     private let pickSource: @Sendable (String, [CaptureSourceDescriptor]) async -> CaptureSourceDescriptor?
+    /// Asks the source user to grant a second viewer a scope; nil = deny
+    /// (spec §9 Phase 7 step 4 social permissions).
+    private let grantViewer: @Sendable (String, String) async -> PermissionScope?
 
     private var sharing: Sharing?
     private var nextWireSession: UInt16 = 1
@@ -44,12 +75,14 @@ public actor ScreenSourceEngine {
         capturer: (any ScreenCapturer)?,
         emit: @escaping @Sendable (ConduitEvent) -> Void,
         bulkOpener: @escaping @Sendable (PinnedPeer, String, UInt16) async throws -> FramedConnection,
-        pickSource: @escaping @Sendable (String, [CaptureSourceDescriptor]) async -> CaptureSourceDescriptor?
+        pickSource: @escaping @Sendable (String, [CaptureSourceDescriptor]) async -> CaptureSourceDescriptor?,
+        grantViewer: @escaping @Sendable (String, String) async -> PermissionScope? = { _, _ in nil }
     ) {
         self.capturer = capturer
         self.emit = emit
         self.bulkOpener = bulkOpener
         self.pickSource = pickSource
+        self.grantViewer = grantViewer
     }
 
     public var canSource: Bool { capturer != nil }
@@ -59,8 +92,18 @@ public actor ScreenSourceEngine {
 
     public func handleRequest(_ request: ScreenRequestBody, from link: PeerLink) async {
         guard let capturer else { return }
-        guard sharing == nil else {
-            try? await link.send(.screenReject(ScreenRejectBody(reason: "already sharing a screen")))
+        // Already sharing → this is a request to JOIN the live screen. Prompt the
+        // source user to grant a scope (multi-viewer social permission), rather
+        // than rejecting outright.
+        if sharing != nil {
+            if sharing?.peerDeviceID == link.peer.deviceID || sharing?.secondaries[link.peer.deviceID] != nil {
+                return   // already a viewer
+            }
+            if let scope = await grantViewer(link.peer.deviceID, CapabilityID.screenView) {
+                await addViewer(to: link, scope: scope)
+            } else {
+                try? await link.send(.screenReject(ScreenRejectBody(reason: "not granted")))
+            }
             return
         }
         guard await capturer.isPermitted() else {
@@ -110,7 +153,8 @@ public actor ScreenSourceEngine {
         )
         var session = Sharing(
             screenSessionID: screenSessionID, wireSessionID: wireSessionID,
-            peerDeviceID: link.peer.deviceID, offer: offer
+            peerDeviceID: link.peer.deviceID, offer: offer,
+            width: width, height: height, fps: fps, codec: codec
         )
         session.frameFeed = continuation
 
@@ -191,10 +235,10 @@ public actor ScreenSourceEngine {
             session.sentSeq &+= 1
             sharing = session
             let ptsMillis = UInt64(max(0, CMTimeGetSeconds(pts) * 1000))
+            let packed = ScreenFramePacking.pack(frame)
             let screenFrame = ScreenFrame(
                 sessionID: session.wireSessionID, seq: seq,
-                isKeyframe: frame.isKeyframe, ptsMillis: ptsMillis,
-                data: ScreenFramePacking.pack(frame)
+                isKeyframe: frame.isKeyframe, ptsMillis: ptsMillis, data: packed
             )
             do {
                 try await bulk.sendScreenFrame(screenFrame)
@@ -202,7 +246,87 @@ public actor ScreenSourceEngine {
                 await stopSharing(reason: "frame send failed")
                 return
             }
+            // Fan the same encoded frame out to every additional viewer.
+            for viewer in session.secondaries.values {
+                let vSeq = viewer.sentSeq
+                viewer.sentSeq &+= 1
+                let vFrame = ScreenFrame(
+                    sessionID: viewer.wireSessionID, seq: vSeq,
+                    isKeyframe: frame.isKeyframe, ptsMillis: ptsMillis, data: packed
+                )
+                do {
+                    try await viewer.bulk.sendScreenFrame(vFrame)
+                } catch {
+                    await revokeViewer(deviceID: viewer.deviceID, reason: "send failed")
+                }
+            }
         }
+    }
+
+    // MARK: Multi-viewer (spec §9 Phase 7 step 4)
+
+    /// Whether a screen share is live that another viewer could join.
+    public var isSharingActive: Bool { sharing != nil }
+    public var sharingSourceName: String? { sharing?.offer.sourceName }
+
+    /// Adds an additional viewer to the live capture with the given scope. Sends
+    /// it its own offer, opens its bulk lane, and requests a keyframe so it
+    /// starts promptly. The viewer side is unchanged — it just gets an offer +
+    /// stream like any Phase 3 viewer.
+    public func addViewer(to link: PeerLink, scope: PermissionScope) async {
+        guard let sharing else {
+            try? await link.send(.screenReject(ScreenRejectBody(reason: "no active screen share")))
+            return
+        }
+        let screenSessionID = UUID().uuidString
+        let wireSessionID = nextWireSession; nextWireSession &+= 1
+        let bulkToken = Data((0..<16).map { _ in UInt8.random(in: 0...255) }).hexString
+        let offer = ScreenOfferBody(
+            screenSessionID: screenSessionID, wireSessionID: wireSessionID, codec: sharing.codec,
+            width: sharing.width, height: sharing.height, fps: sharing.fps,
+            captureKind: sharing.offer.captureKind, sourceName: sharing.offer.sourceName, bulkToken: bulkToken
+        )
+        do {
+            try await link.send(.screenOffer(offer))
+        } catch {
+            return
+        }
+        guard let host = link.framed.remoteHost, let port = await link.remoteHello?.listenPort else {
+            try? await link.send(.screenEnd(ScreenEndBody(screenSessionID: screenSessionID, reason: "no reachable listener")))
+            return
+        }
+        do {
+            let bulk = try await bulkOpener(link.peer, host, port)
+            await bulk.adoptSessionID(UUID().uuidString)
+            try await bulk.send(.screenAttach(ScreenAttachBody(screenSessionID: screenSessionID, bulkToken: bulkToken)))
+            let viewer = SecondaryViewer(
+                deviceID: link.peer.deviceID, screenSessionID: screenSessionID,
+                wireSessionID: wireSessionID, bulk: bulk, scope: scope
+            )
+            self.sharing?.secondaries[link.peer.deviceID] = viewer
+            self.sharing?.encoder?.requestKeyframe()   // so the new viewer starts now
+            emit(.viewerJoined(peerDeviceID: link.peer.deviceID, scope: scope.rawValue))
+        } catch {
+            try? await link.send(.screenEnd(ScreenEndBody(screenSessionID: screenSessionID, reason: "bulk connect failed")))
+        }
+    }
+
+    /// Revokes an additional viewer live (spec: revoked live). No-op for the
+    /// primary viewer (stop the whole share instead).
+    public func revokeViewer(deviceID: String, reason: String = "revoked") async {
+        guard let viewer = sharing?.secondaries[deviceID] else { return }
+        viewer.ackTask?.cancel()
+        try? await viewer.bulk.send(.screenEnd(ScreenEndBody(screenSessionID: viewer.screenSessionID, reason: reason)))
+        viewer.bulk.closeUnderlying()
+        sharing?.secondaries.removeValue(forKey: deviceID)
+        emit(.viewerRevoked(peerDeviceID: deviceID))
+    }
+
+    public func activeViewerScopes() -> [String: String] {
+        guard let sharing else { return [:] }
+        var out: [String: String] = [sharing.peerDeviceID: PermissionScope.control.rawValue]
+        for (id, v) in sharing.secondaries { out[id] = v.scope.rawValue }
+        return out
     }
 
     // MARK: Ack feedback → adaptive bitrate + keyframe
@@ -253,6 +377,12 @@ public actor ScreenSourceEngine {
             try? await bulk.send(.screenEnd(ScreenEndBody(screenSessionID: session.screenSessionID, reason: reason)))
             bulk.closeUnderlying()
         }
+        // Tear down every additional viewer too.
+        for viewer in session.secondaries.values {
+            viewer.ackTask?.cancel()
+            try? await viewer.bulk.send(.screenEnd(ScreenEndBody(screenSessionID: viewer.screenSessionID, reason: reason)))
+            viewer.bulk.closeUnderlying()
+        }
         emit(.screenSourceEnded(peerDeviceID: session.peerDeviceID))
         if let reason { emit(.nodeLog("screen share ended: \(reason)")) }
     }
@@ -260,6 +390,8 @@ public actor ScreenSourceEngine {
     public func handleSessionClosed(peerDeviceID: String) async {
         if sharing?.peerDeviceID == peerDeviceID {
             await stopSharing(reason: "viewer disconnected")
+        } else if sharing?.secondaries[peerDeviceID] != nil {
+            await revokeViewer(deviceID: peerDeviceID, reason: "viewer disconnected")
         }
     }
 

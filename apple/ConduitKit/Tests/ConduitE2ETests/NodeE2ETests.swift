@@ -54,6 +54,36 @@ actor EventHub {
         }
     }
 
+    /// Current number of buffered events; pass to `waitFor(since:)` to ignore
+    /// already-seen events (needed when the same event type recurs, e.g. a
+    /// second pairing whose prompt must not match the first's stale one).
+    func mark() -> Int { buffer.count }
+
+    func waitFor(
+        since index: Int,
+        timeoutSeconds: Double = 30,
+        _ check: @escaping @Sendable (ConduitEvent) -> Bool
+    ) async throws -> ConduitEvent {
+        if let existing = buffer.dropFirst(index).first(where: check) {
+            return existing
+        }
+        // Register a FUTURE-ONLY waiter: the buffer[index...] was already
+        // checked, so we must not re-scan the whole buffer (which would match a
+        // stale earlier event of the same type).
+        return try await withTimeout(seconds: timeoutSeconds) {
+            await withCheckedContinuation { continuation in
+                Task { await self.enqueueFutureOnly(check: check, continuation: continuation) }
+            }
+        }
+    }
+
+    private func enqueueFutureOnly(
+        check: @escaping @Sendable (ConduitEvent) -> Bool,
+        continuation: CheckedContinuation<ConduitEvent, Never>
+    ) {
+        waiters.append((check, continuation))
+    }
+
     private func enqueue(
         check: @escaping @Sendable (ConduitEvent) -> Bool,
         continuation: CheckedContinuation<ConduitEvent, Never>

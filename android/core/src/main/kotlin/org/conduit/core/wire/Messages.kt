@@ -44,6 +44,11 @@ object MessageType {
     const val SCREEN_REJECT = "SCREEN_REJECT"; const val SCREEN_ATTACH = "SCREEN_ATTACH"
     const val SCREEN_ACK = "SCREEN_ACK"; const val SCREEN_END = "SCREEN_END"
     const val NOTIFICATION = "NOTIFICATION"
+    // Phase 7: device state + social permissions.
+    const val DEVICE_STATE = "DEVICE_STATE"
+    const val PERMISSION_REQUEST = "PERMISSION_REQUEST"
+    const val PERMISSION_GRANT = "PERMISSION_GRANT"
+    const val PERMISSION_REVOKE = "PERMISSION_REVOKE"
 }
 
 /** Encodes/decodes control-message envelopes to/from canonical JSON. */

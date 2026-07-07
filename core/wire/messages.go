@@ -54,6 +54,11 @@ const (
 	TypeScreenEnd     MessageType = "SCREEN_END"
 	// Phase 4-5: notifications.
 	TypeNotification MessageType = "NOTIFICATION"
+	// Phase 7: device state + social permissions.
+	TypeDeviceState       MessageType = "DEVICE_STATE"
+	TypePermissionRequest MessageType = "PERMISSION_REQUEST"
+	TypePermissionGrant   MessageType = "PERMISSION_GRANT"
+	TypePermissionRevoke  MessageType = "PERMISSION_REVOKE"
 )
 
 // Envelope carries every control message. Frozen shape (spec §6):
@@ -220,6 +225,33 @@ type ScreenEndBody struct {
 	Reason          *string `json:"reason,omitempty"`
 }
 
+// --- Phase 7: device state + social permissions. ---
+
+type DeviceStateBody struct {
+	Battery         *float64 `json:"battery,omitempty"`
+	Charging        bool     `json:"charging"`
+	Docked          bool     `json:"docked"`
+	Foreground      bool     `json:"foreground"`
+	DisplayAttached bool     `json:"display_attached"`
+}
+
+type PermissionRequestBody struct {
+	Capability string `json:"capability"`
+	Scope      string `json:"scope"` // view-only | control
+}
+
+type PermissionGrantBody struct {
+	Capability string `json:"capability"`
+	Scope      string `json:"scope"`
+	Peer       string `json:"peer"`
+	TTL        *int   `json:"ttl,omitempty"`
+}
+
+type PermissionRevokeBody struct {
+	Capability string `json:"capability"`
+	Peer       string `json:"peer"`
+}
+
 // Message pairs a decoded body with its type.
 type Message struct {
 	Type MessageType
@@ -333,6 +365,18 @@ func decodeBody(t MessageType, payload []byte) (interface{}, error) {
 		return unmarshalBody(payload, &b)
 	case TypeNotification:
 		var b NotificationBody
+		return unmarshalBody(payload, &b)
+	case TypeDeviceState:
+		var b DeviceStateBody
+		return unmarshalBody(payload, &b)
+	case TypePermissionRequest:
+		var b PermissionRequestBody
+		return unmarshalBody(payload, &b)
+	case TypePermissionGrant:
+		var b PermissionGrantBody
+		return unmarshalBody(payload, &b)
+	case TypePermissionRevoke:
+		var b PermissionRevokeBody
 		return unmarshalBody(payload, &b)
 	default:
 		// Unknown type: inert, not an error (spec §6 invariant).

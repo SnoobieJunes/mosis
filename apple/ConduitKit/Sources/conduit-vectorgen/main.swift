@@ -120,6 +120,19 @@ let messages: [(String, Message)] = [
         id: "msg-42", actions: ["Reply", "Mark as Read"]))),
     ("notification_minimal", .notification(NotificationBody(
         appName: "Calendar", title: "Standup", body: "in 5 minutes", id: "evt-9"))),
+    // Phase 7 — device state + social permissions.
+    ("device_state", .deviceState(DeviceStateBody(
+        battery: 0.82, charging: true, docked: true, foreground: false, displayAttached: true))),
+    ("device_state_desktop", .deviceState(DeviceStateBody(
+        battery: nil, charging: false, docked: false, foreground: true, displayAttached: false))),
+    ("permission_request", .permissionRequest(PermissionRequestBody(
+        capability: "screen-view", scope: .viewOnly))),
+    ("permission_grant", .permissionGrant(PermissionGrantBody(
+        capability: "screen-view", scope: .viewOnly,
+        peer: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", ttl: 3600))),
+    ("permission_revoke", .permissionRevoke(PermissionRevokeBody(
+        capability: "screen-view",
+        peer: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"))),
 ]
 
 var messageVectors: [[String: Any]] = []

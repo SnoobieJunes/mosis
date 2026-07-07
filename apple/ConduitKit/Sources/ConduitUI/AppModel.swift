@@ -69,6 +69,13 @@ public final class AppModel {
     public let castManager = CastManager()
     public var showCastSheet = false
 
+    // Phase 7 — social permissions + contexts.
+    /// Source: a peer is asking to join the live screen share (drives a grant prompt).
+    public var viewerGrantPeerID: String?
+    public var viewerGrantScope: String?
+    /// Contexts: name of a profile currently offered for the context (one-tap).
+    public var offeredProfileName: String?
+
     /// Spec §8: the stats overlay doubles as the debug HUD.
     public var showStats = false
 
@@ -258,6 +265,19 @@ public final class AppModel {
             screenKbps = 0
         case .screenFailed(let reason):
             toast = "Screen: \(reason)"
+        case .permissionRequested(let peerID, _, let scope, _):
+            viewerGrantPeerID = peerID
+            viewerGrantScope = scope
+        case .viewerJoined(let peerID, let scope):
+            toast = "\(peerName(peerID)) joined your screen (\(scope))"
+        case .viewerRevoked(let peerID):
+            toast = "Revoked \(peerName(peerID))"
+        case .deviceStateReceived:
+            break
+        case .profileOffered(_, let name):
+            offeredProfileName = name
+        case .suggestionSurfaced(let text, _, _):
+            toast = text
         case .notificationReceived(let from, let body):
             let sender = peerName(from)
             NotificationBridge.postAlways(
@@ -480,6 +500,29 @@ public final class AppModel {
     public func stopCasting() {
         castManager.stopCasting()
         castManager.stopDiscovery()
+    }
+
+    // MARK: Social permissions (Phase 7)
+
+    /// Source: grant a peer view-only / control on the live screen, or deny (nil).
+    public func resolveViewerGrant(scope: PermissionScope?) {
+        guard let peerID = viewerGrantPeerID else { return }
+        viewerGrantPeerID = nil
+        viewerGrantScope = nil
+        let node = node
+        Task { await node?.resolveViewerGrant(peerDeviceID: peerID, scope: scope) }
+    }
+
+    /// Source: revoke an additional viewer live.
+    public func revokeViewer(_ deviceID: String) {
+        let node = node
+        Task { await node?.revokeViewer(deviceID: deviceID) }
+    }
+
+    /// Viewer: ask to join a peer's live screen share.
+    public func requestScreenJoin(from peer: PinnedPeer) {
+        let node = node
+        Task { await node?.requestScreenJoin(from: peer.deviceID) }
     }
 
     // iOS screen broadcast (Phase 3 step 4).

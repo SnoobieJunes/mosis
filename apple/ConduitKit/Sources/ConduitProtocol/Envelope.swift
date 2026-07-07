@@ -35,6 +35,11 @@ public enum MessageType: String, Codable, Sendable, CaseIterable {
     case screenEnd = "SCREEN_END"
     // Phase 4-5 (spec §6): notification mirroring.
     case notification = "NOTIFICATION"
+    // Phase 7 (spec §6): device state + social permissions.
+    case deviceState = "DEVICE_STATE"
+    case permissionRequest = "PERMISSION_REQUEST"
+    case permissionGrant = "PERMISSION_GRANT"
+    case permissionRevoke = "PERMISSION_REVOKE"
 }
 
 /// The envelope fields every control message carries (spec §6):

@@ -103,5 +103,19 @@ public enum ConduitEvent: Sendable {
     case screenFailed(reason: String)
     /// Phase 4: a notification mirrored from a source device, to display.
     case notificationReceived(fromDeviceID: String, body: NotificationBody)
+    // Phase 7 — social permissions + multi-viewer.
+    /// Source: a peer asks to join the live screen share; the UI prompts to grant
+    /// view-only or control (or deny).
+    case permissionRequested(peerDeviceID: String, capability: String, scope: String, promptID: UUID)
+    /// Source: an additional viewer joined the share with a scope.
+    case viewerJoined(peerDeviceID: String, scope: String)
+    /// Source: an additional viewer was revoked (live).
+    case viewerRevoked(peerDeviceID: String)
+    /// Controller/viewer: a device-state update arrived from a peer (context).
+    case deviceStateReceived(fromDeviceID: String, body: DeviceStateBody)
+    /// Contexts: a matching profile is offered for the current context (one-tap).
+    case profileOffered(profileID: String, name: String)
+    /// Contexts: the suggestion engine surfaced an automation to confirm.
+    case suggestionSurfaced(text: String, contextKey: String, actionKey: String)
     case nodeLog(String)
 }

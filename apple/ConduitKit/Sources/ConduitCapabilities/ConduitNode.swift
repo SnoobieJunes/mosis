@@ -70,6 +70,8 @@ public actor ConduitNode {
     private let screenViewerEngine: ScreenViewerEngine
     private var screenPickWaiters: [String: CheckedContinuation<CaptureSourceDescriptor?, Never>] = [:]
     private var pendingScreenSources: [String: [CaptureSourceDescriptor]] = [:]
+    /// Pending viewer-grant prompts (multi-viewer social permissions, Phase 7).
+    private var viewerGrantWaiters: [String: CheckedContinuation<PermissionScope?, Never>] = [:]
     private var iosBroadcastWireSession: UInt16 = 1
 
     public nonisolated let events: AsyncStream<ConduitEvent>
@@ -176,6 +178,9 @@ public actor ConduitNode {
                 bulkOpener: bulkOpener,
                 pickSource: { peerID, sources in
                     await selfBox.node?.awaitScreenPick(peerID: peerID, sources: sources) ?? nil
+                },
+                grantViewer: { peerID, capability in
+                    await selfBox.node?.awaitViewerGrant(peerID: peerID, capability: capability) ?? nil
                 }
             )
         } else {
@@ -643,6 +648,22 @@ public actor ConduitNode {
             await screenViewerEngine.stopViewing(screenSessionID: body.screenSessionID)
         case .screenAttach, .screenAck:
             nodeLog.warning("screen bulk message on a session connection; belongs on the screen lane")
+        // Phase 7 — social permissions + device state.
+        case .permissionRequest(let request):
+            // A viewer explicitly asks to join the live screen share.
+            guard request.capability == CapabilityID.screenView,
+                  let engine = screenSourceEngine, let link = sessions[deviceID] else { return }
+            if let scope = await awaitViewerGrant(peerID: deviceID, capability: request.capability) {
+                await engine.addViewer(to: link, scope: scope)
+                try? await link.send(.permissionGrant(PermissionGrantBody(
+                    capability: request.capability, scope: scope, peer: identity.deviceID)))
+            } else {
+                try? await link.send(.permissionRevoke(PermissionRevokeBody(capability: request.capability, peer: deviceID)))
+            }
+        case .permissionGrant, .permissionRevoke:
+            emit(.nodeLog("permission update from \(deviceID): \(message.typeString)"))
+        case .deviceState(let body):
+            emit(.deviceStateReceived(fromDeviceID: deviceID, body: body))
         default:
             nodeLog.warning("unrouted message \(message.typeString, privacy: .public)")
         }
@@ -824,6 +845,46 @@ public actor ConduitNode {
         guard let continuation = screenPickWaiters.removeValue(forKey: peerDeviceID) else { return }
         let sources = pendingScreenSources.removeValue(forKey: peerDeviceID) ?? []
         continuation.resume(returning: sources.first { $0.id == sourceID })
+    }
+
+    // MARK: Multi-viewer social permissions API (Phase 7)
+
+    /// Bridges the screen engine's grant request to a UI prompt.
+    fileprivate func awaitViewerGrant(peerID: String, capability: String) async -> PermissionScope? {
+        await withCheckedContinuation { continuation in
+            if viewerGrantWaiters[peerID] != nil {
+                continuation.resume(returning: nil)
+                return
+            }
+            viewerGrantWaiters[peerID] = continuation
+            emit(.permissionRequested(peerDeviceID: peerID, capability: capability, scope: "view-only", promptID: UUID()))
+        }
+    }
+
+    /// The source app answers a permissionRequested prompt: grant a scope or deny.
+    public func resolveViewerGrant(peerDeviceID: String, scope: PermissionScope?) {
+        viewerGrantWaiters.removeValue(forKey: peerDeviceID)?.resume(returning: scope)
+    }
+
+    /// Viewer side: ask to join a peer's live screen share (view-only).
+    public func requestScreenJoin(from deviceID: String) async {
+        guard let link = sessions[deviceID] else { return }
+        try? await link.send(.permissionRequest(PermissionRequestBody(capability: CapabilityID.screenView, scope: .viewOnly)))
+    }
+
+    /// Source side: revoke an additional viewer of the live share, live.
+    public func revokeViewer(deviceID: String) async {
+        await screenSourceEngine?.revokeViewer(deviceID: deviceID, reason: "revoked by source")
+    }
+
+    /// Source side: current viewers of the live share → scope.
+    public func screenViewerScopes() async -> [String: String] {
+        await screenSourceEngine?.activeViewerScopes() ?? [:]
+    }
+
+    /// Send this device's live state to a connected peer (context signaling).
+    public func sendDeviceState(_ state: DeviceStateBody, to deviceID: String) async {
+        try? await sessions[deviceID]?.send(.deviceState(state))
     }
 
     /// The source app reads the offered sources for its picker via this snapshot.

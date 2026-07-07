@@ -48,6 +48,10 @@ public enum MessageCodec {
         case .screenAck(let body): return try env(.screenAck, body)
         case .screenEnd(let body): return try env(.screenEnd, body)
         case .notification(let body): return try env(.notification, body)
+        case .deviceState(let body): return try env(.deviceState, body)
+        case .permissionRequest(let body): return try env(.permissionRequest, body)
+        case .permissionGrant(let body): return try env(.permissionGrant, body)
+        case .permissionRevoke(let body): return try env(.permissionRevoke, body)
         case .unknown(let type):
             throw MessageCodecError.missingEnvelopeField("cannot encode unknown type \(type)")
         }
@@ -100,6 +104,10 @@ public enum MessageCodec {
         case .screenAck: message = .screenAck(try body(ScreenAckBody.self))
         case .screenEnd: message = .screenEnd(try body(ScreenEndBody.self))
         case .notification: message = .notification(try body(NotificationBody.self))
+        case .deviceState: message = .deviceState(try body(DeviceStateBody.self))
+        case .permissionRequest: message = .permissionRequest(try body(PermissionRequestBody.self))
+        case .permissionGrant: message = .permissionGrant(try body(PermissionGrantBody.self))
+        case .permissionRevoke: message = .permissionRevoke(try body(PermissionRevokeBody.self))
         }
         return (meta, message)
     }

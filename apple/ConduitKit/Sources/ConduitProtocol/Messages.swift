@@ -280,6 +280,10 @@ public enum Message: Sendable, Equatable {
     case screenAck(ScreenAckBody)
     case screenEnd(ScreenEndBody)
     case notification(NotificationBody)
+    case deviceState(DeviceStateBody)
+    case permissionRequest(PermissionRequestBody)
+    case permissionGrant(PermissionGrantBody)
+    case permissionRevoke(PermissionRevokeBody)
     /// Unknown `type`: ignored with a logged warning (spec §6 invariant), never fatal.
     case unknown(type: String)
 
@@ -311,6 +315,10 @@ public enum Message: Sendable, Equatable {
         case .screenAck: MessageType.screenAck.rawValue
         case .screenEnd: MessageType.screenEnd.rawValue
         case .notification: MessageType.notification.rawValue
+        case .deviceState: MessageType.deviceState.rawValue
+        case .permissionRequest: MessageType.permissionRequest.rawValue
+        case .permissionGrant: MessageType.permissionGrant.rawValue
+        case .permissionRevoke: MessageType.permissionRevoke.rawValue
         case .unknown(let type): type
         }
     }

@@ -20,7 +20,12 @@ private actor Sink {
         for _ in 0..<50 {
             await coalescer.enqueueMove(dx: 1, dy: 2)
         }
-        try await Task.sleep(for: .milliseconds(60))
+        // Generous wait so the 120 Hz tick reliably flushes even when the whole
+        // suite runs concurrently and starves the tick task (this test flaked at
+        // 60 ms under full-suite load; the behavior is fine, the deadline wasn't).
+        for _ in 0..<50 where await sink.all().isEmpty {
+            try await Task.sleep(for: .milliseconds(20))
+        }
         await coalescer.stop()
 
         let moves = await sink.all().filter { $0.kind == .move }

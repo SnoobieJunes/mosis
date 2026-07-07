@@ -79,7 +79,7 @@ final class FakeScreenCapturer: ScreenCapturer, @unchecked Sendable {
     }
 }
 
-private extension TestNode {
+extension TestNode {
     static func launchWithScreen(
         name: String, deviceClass: DeviceClass, capturer: FakeScreenCapturer?
     ) async throws -> TestNode {
