@@ -12,19 +12,29 @@ Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
 Wire protocol: [`docs/protocol.md`](docs/protocol.md).
 Decisions: [`docs/adr/`](docs/adr).
 
-## Status: Phases 1–6 implemented
+## Status: Phases 1–7 implemented
+
+> Working codename **Conduit** (shipping name undecided — "Conduit" is taken).
+> Before a launch, read **`docs/TESTING_PLAN.md`**: it lays out, phase by phase,
+> what's proven by automated tests vs. what's device-gated, and is blunt about
+> what is **not** working yet (Wi-Fi Aware, virtual-display drivers, Matter/Cast).
 
 | Piece | State |
 |---|---|
 | `ConduitKit` Swift package (Protocol · Transport · Session · Capabilities · UI) | ✅ builds, Swift 6 strict concurrency |
 | **Go `conduit-core`** (wire · identity · transport · session · capabilities) | ✅ passes the golden vectors byte-for-byte |
-| **Kotlin core** (`android/core`, pure JVM) — third implementation | ✅ 42/42 vectors byte-exact + JVM session smoke |
+| **Kotlin core** (`android/core`, pure JVM) — third implementation | ✅ 47/47 vectors byte-exact + JVM session smoke |
 | **Live Swift↔Go interop**: pair, file transfer, clipboard, notification | ✅ real Go node ↔ Swift node over loopback TLS |
 | **`conduitd` daemon** (Windows/Linux/macOS) + cross-compilation | ✅ builds for all three; runs on macOS |
 | **Android app** (Compose + NSD/TLS + BT-HID/Accessibility/MediaProjection/Aware) | ◐ built + architected; Android Studio + device gated |
 | **tvOS viewer** (Apple TV — screen viewer + on-TV pairing) | ✅ builds for tvOS |
 | **Convenience senders**: AirPlay + Google Cast + Matter Casting (re-cast a viewed screen to a TV) | ✅ HLS re-publisher verified end-to-end; AirPlay built-in, Cast/Matter SDK-gated (ADR 0011) |
 | **Virtual display** (tablet as extra monitor): Windows IddCx, Linux evdi, macOS `unsupported/` | ◐ driver skeletons + design (ADR 0012); native/driver gated |
+| **Contexts & Routines**: profiles (region/dock/display/time/peer) → one-tap offer | ✅ ProfileEngine + ContextCoordinator, suggest-then-confirm, unit-tested |
+| **On-device suggestion engine**: mines a local log for habits, proposes automations | ✅ heuristic tested; data never leaves device; Foundation Models lens device-gated |
+| **Multi-viewer + social permissions**: source→N viewers, per-peer view-only/control, live revoke | ✅ `MultiViewerE2ETests` (2nd viewer view-only → frames → revoked live) |
+| **Matter scenes** (Office profile → desk scene): Apple Matter framework | ◐ `MatterSceneController` behind `CONDUIT_MATTER_SCENES`; needs a Matter home (ADR 0013) |
+| **Geofencing / App Intents / Shortcuts**: context triggers + Siri | ◐ CoreLocation + AppIntents adapters; device-gated |
 | Wire protocol **v1 frozen** (canonical JSON, ADR 0008) + `proto/conduit.proto` schema | ✅ three implementations, `docs/protocol.md` |
 | LAN transport: Bonjour + TCP, TLS 1.3, mutual certs, key pinning | ✅ real-handshake tests incl. unpinned rejection |
 | Identity (Ed25519) + pairing (6-digit code + word pair, TOFU) | ✅ MITM-substitution covered by tests |
@@ -48,7 +58,7 @@ Requires Xcode 26+ on macOS 26+.
 
 ```bash
 cd apple/ConduitKit
-swift test                        # 71 tests: protocol, pairing, TLS, input, video, E2E
+swift test                        # 91 tests: protocol, pairing, TLS, input, video, contexts, multi-viewer, E2E
 
 cd ../AppleApps
 xcodegen generate                 # brew install xcodegen (project.yml is source of truth)
