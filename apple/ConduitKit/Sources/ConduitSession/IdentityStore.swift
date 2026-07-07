@@ -103,6 +103,34 @@ public struct FileIdentityStore: IdentityStore {
     }
 }
 
+/// Keychain first, file second. Dev builds without full signing cannot write
+/// the keychain on macOS 26 (errSecMissingEntitlement); falling back keeps the
+/// app bootable while properly signed builds get keychain custody.
+public struct FallbackIdentityStore: IdentityStore {
+    public let primary: any IdentityStore
+    public let fallback: any IdentityStore
+
+    public init(primary: any IdentityStore, fallback: any IdentityStore) {
+        self.primary = primary
+        self.fallback = fallback
+    }
+
+    public func load() throws -> IdentityBundle? {
+        if let bundle = ((try? primary.load()) ?? nil) {
+            return bundle
+        }
+        return try fallback.load()
+    }
+
+    public func save(_ bundle: IdentityBundle) throws {
+        do {
+            try primary.save(bundle)
+        } catch {
+            try fallback.save(bundle)
+        }
+    }
+}
+
 /// Loads the existing identity or mints one on first launch.
 public enum IdentityBootstrap {
     public static func loadOrCreate(store: any IdentityStore, name: String, deviceClass: DeviceClass) throws -> IdentityBundle {

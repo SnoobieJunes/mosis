@@ -1,0 +1,442 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		59097CB68D9CFFBB89A3DC29 /* ConduitUI in Frameworks */ = {isa = PBXBuildFile; productRef = FD2CEE5738C86C77DDC22742 /* ConduitUI */; };
+		59FDC167320471BE043F4457 /* ConduitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6C4BFB046D49C73D09B657E0 /* ConduitUI */; };
+		79AA3E6925ADEDC12D71C593 /* ConduitIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507D05823AE656F79782D1E3 /* ConduitIOSApp.swift */; };
+		A7BCCFAD1C7F3D0412DCC53E /* ConduitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D317332CF396745527C5444A /* ConduitMacApp.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		46DFC7E05F957684C00E7CE1 /* ConduitKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ConduitKit; path = ../ConduitKit; sourceTree = SOURCE_ROOT; };
+		4C9FF6D4192A0573C9B314EA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		507D05823AE656F79782D1E3 /* ConduitIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConduitIOSApp.swift; sourceTree = "<group>"; };
+		594C89FBC99F318480FB1F7F /* Conduit-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Conduit-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Conduit-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		5B67E45574AA6072BD57FB76 /* Conduit.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Conduit.entitlements; sourceTree = "<group>"; };
+		884B969D5211CA2BC9755F86 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		D317332CF396745527C5444A /* ConduitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConduitMacApp.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		190E998C54F28A3FDCB367C6 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59FDC167320471BE043F4457 /* ConduitUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		6AB7751783880961024207BA /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				59097CB68D9CFFBB89A3DC29 /* ConduitUI in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		047D305206A9EDAD611CAC0E = {
+			isa = PBXGroup;
+			children = (
+				E8D22B571BF06E4A7315C483 /* ConduitIOS */,
+				10D5B733FF6EF6A1255ACBCC /* ConduitMac */,
+				F0013ABD7CCC1A4AC56E9AA1 /* Packages */,
+				DFC9CC020832F90CFB536C61 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		10D5B733FF6EF6A1255ACBCC /* ConduitMac */ = {
+			isa = PBXGroup;
+			children = (
+				5B67E45574AA6072BD57FB76 /* Conduit.entitlements */,
+				D317332CF396745527C5444A /* ConduitMacApp.swift */,
+				4C9FF6D4192A0573C9B314EA /* Info.plist */,
+			);
+			path = ConduitMac;
+			sourceTree = "<group>";
+		};
+		DFC9CC020832F90CFB536C61 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */,
+				594C89FBC99F318480FB1F7F /* Conduit-macOS.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		E8D22B571BF06E4A7315C483 /* ConduitIOS */ = {
+			isa = PBXGroup;
+			children = (
+				507D05823AE656F79782D1E3 /* ConduitIOSApp.swift */,
+				884B969D5211CA2BC9755F86 /* Info.plist */,
+			);
+			path = ConduitIOS;
+			sourceTree = "<group>";
+		};
+		F0013ABD7CCC1A4AC56E9AA1 /* Packages */ = {
+			isa = PBXGroup;
+			children = (
+				46DFC7E05F957684C00E7CE1 /* ConduitKit */,
+			);
+			name = Packages;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		81AF205366A2831325D63C5D /* Conduit-macOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 21D261BFD601AB6D8F650D33 /* Build configuration list for PBXNativeTarget "Conduit-macOS" */;
+			buildPhases = (
+				9EF26132EFA48235D9690F90 /* Sources */,
+				6AB7751783880961024207BA /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Conduit-macOS";
+			packageProductDependencies = (
+				FD2CEE5738C86C77DDC22742 /* ConduitUI */,
+			);
+			productName = "Conduit-macOS";
+			productReference = 594C89FBC99F318480FB1F7F /* Conduit-macOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F1DA299FA59B88C8F5A57FAC /* Conduit-iOS */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 2AAF7FB02B83EEB333CC64B8 /* Build configuration list for PBXNativeTarget "Conduit-iOS" */;
+			buildPhases = (
+				A59FA7A466EDD6FD92439686 /* Sources */,
+				190E998C54F28A3FDCB367C6 /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = "Conduit-iOS";
+			packageProductDependencies = (
+				6C4BFB046D49C73D09B657E0 /* ConduitUI */,
+			);
+			productName = "Conduit-iOS";
+			productReference = 5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		ECA94A89233D62DB2ABE571C /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 2600;
+				TargetAttributes = {
+					81AF205366A2831325D63C5D = {
+						ProvisioningStyle = Automatic;
+					};
+					F1DA299FA59B88C8F5A57FAC = {
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = C219A2E4B91AF1D44B2971AF /* Build configuration list for PBXProject "ConduitApps" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 047D305206A9EDAD611CAC0E;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				2F20B75033F4C810CFCB0915 /* XCLocalSwiftPackageReference "../ConduitKit" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = DFC9CC020832F90CFB536C61 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F1DA299FA59B88C8F5A57FAC /* Conduit-iOS */,
+				81AF205366A2831325D63C5D /* Conduit-macOS */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		9EF26132EFA48235D9690F90 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A7BCCFAD1C7F3D0412DCC53E /* ConduitMacApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A59FA7A466EDD6FD92439686 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				79AA3E6925ADEDC12D71C593 /* ConduitIOSApp.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		4DA6906AC2110900887438B9 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ConduitMac/Conduit.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ConduitMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.mac;
+				PRODUCT_NAME = Conduit;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		5F3A8624507E2D5819547C2B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ConduitMac/Conduit.entitlements;
+				COMBINE_HIDPI_IMAGES = YES;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = ConduitMac/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.mac;
+				PRODUCT_NAME = Conduit;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		6C992E372748B1146AE86D8D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = ConduitIOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios;
+				PRODUCT_NAME = Conduit;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		A4A9F1F5980EB45583E68BE6 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_IDENTITY = "iPhone Developer";
+				INFOPLIST_FILE = ConduitIOS/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios;
+				PRODUCT_NAME = Conduit;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		B64DC6F3309DFBDCD52CCBB8 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		E6EDDDA4641A51CFF210641C /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_STYLE = Automatic;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				GENERATE_INFOPLIST_FILE = NO;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.0;
+				MACOSX_DEPLOYMENT_TARGET = 15.0;
+				MARKETING_VERSION = 0.1.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		21D261BFD601AB6D8F650D33 /* Build configuration list for PBXNativeTarget "Conduit-macOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				4DA6906AC2110900887438B9 /* Debug */,
+				5F3A8624507E2D5819547C2B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		2AAF7FB02B83EEB333CC64B8 /* Build configuration list for PBXNativeTarget "Conduit-iOS" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				6C992E372748B1146AE86D8D /* Debug */,
+				A4A9F1F5980EB45583E68BE6 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C219A2E4B91AF1D44B2971AF /* Build configuration list for PBXProject "ConduitApps" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				B64DC6F3309DFBDCD52CCBB8 /* Debug */,
+				E6EDDDA4641A51CFF210641C /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		2F20B75033F4C810CFCB0915 /* XCLocalSwiftPackageReference "../ConduitKit" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../ConduitKit;
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		6C4BFB046D49C73D09B657E0 /* ConduitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ConduitUI;
+		};
+		FD2CEE5738C86C77DDC22742 /* ConduitUI */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ConduitUI;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = ECA94A89233D62DB2ABE571C /* Project object */;
+}

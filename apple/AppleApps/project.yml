@@ -1,0 +1,90 @@
+# XcodeGen project definition. Regenerate with: xcodegen generate
+# (brew install xcodegen). The generated .xcodeproj is committed for
+# convenience; this file is the source of truth.
+name: ConduitApps
+options:
+  bundleIdPrefix: org.auston.conduit
+  deploymentTarget:
+    iOS: "18.0"
+    macOS: "15.0"
+  createIntermediateGroups: true
+  xcodeVersion: "26.0"
+
+packages:
+  ConduitKit:
+    path: ../ConduitKit
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    CODE_SIGN_STYLE: Automatic
+    # Set your Apple Developer team once in Xcode (Signing & Capabilities);
+    # bundle IDs are placeholders until the product name is decided (spec §12
+    # open decision 1) — rename before any TestFlight upload.
+    CURRENT_PROJECT_VERSION: 1
+    MARKETING_VERSION: 0.1.0
+    GENERATE_INFOPLIST_FILE: false
+
+targets:
+  Conduit-macOS:
+    type: application
+    platform: macOS
+    sources: [ConduitMac]
+    dependencies:
+      - package: ConduitKit
+        product: ConduitUI
+    settings:
+      base:
+        PRODUCT_NAME: Conduit
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.mac
+        ENABLE_HARDENED_RUNTIME: true
+    entitlements:
+      path: ConduitMac/Conduit.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.network.server: true
+        com.apple.security.files.downloads.read-write: true
+        com.apple.security.files.user-selected.read-only: true
+    info:
+      path: ConduitMac/Info.plist
+      properties:
+        CFBundleDisplayName: Conduit
+        LSApplicationCategoryType: public.app-category.utilities
+        NSLocalNetworkUsageDescription: >-
+          Conduit discovers your own devices on your local network and connects
+          to them directly to move files and clipboard content between them.
+          Nothing leaves your network.
+        NSBonjourServices: ["_cndt-app._tcp"]
+        NSHumanReadableCopyright: ""
+
+  Conduit-iOS:
+    type: application
+    platform: iOS
+    sources: [ConduitIOS]
+    dependencies:
+      - package: ConduitKit
+        product: ConduitUI
+    settings:
+      base:
+        PRODUCT_NAME: Conduit
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.ios
+        TARGETED_DEVICE_FAMILY: "1,2"
+    info:
+      path: ConduitIOS/Info.plist
+      properties:
+        CFBundleDisplayName: Conduit
+        NSLocalNetworkUsageDescription: >-
+          Conduit discovers your own devices on your local network and connects
+          to them directly to move files and clipboard content between them.
+          Nothing leaves your network.
+        NSBonjourServices: ["_cndt-app._tcp"]
+        UIFileSharingEnabled: true
+        LSSupportsOpeningDocumentsInPlace: true
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIApplicationSceneManifest:
+          UIApplicationSupportsMultipleScenes: false

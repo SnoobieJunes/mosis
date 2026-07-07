@@ -486,19 +486,23 @@ public actor ConduitNode {
 
     // MARK: Capabilities API (UI entry points)
 
-    public func sendFile(url: URL, to deviceID: String) async {
+    /// Returns the transfer's fileID so callers can correlate later events
+    /// (e.g. releasing a security-scoped URL on completion).
+    @discardableResult
+    public func sendFile(url: URL, to deviceID: String) async -> String? {
         guard let link = sessions[deviceID] else {
             emit(.transferFailed(fileID: url.lastPathComponent, reason: "no active session"))
-            return
+            return nil
         }
         guard await link.hasCapability(CapabilityID.file) else {
             emit(.transferFailed(fileID: url.lastPathComponent, reason: "peer does not support file transfer"))
-            return
+            return nil
         }
         do {
-            try await sendEngine.offerFile(url: url, to: link)
+            return try await sendEngine.offerFile(url: url, to: link)
         } catch {
             emit(.transferFailed(fileID: url.lastPathComponent, reason: "\(error)"))
+            return nil
         }
     }
 

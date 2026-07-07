@@ -1,0 +1,26 @@
+{
+  "description" : "Pairing math vectors. material = SHA256('conduit-pairing-v1' | min(pubA,pubB) | max(pubA,pubB)); code = BE_u32(material[0..4]) % 1e6 zero-padded to 6; words = wordlist[material[4]], wordlist[material[5]] over the frozen 256-word list. Binding sig = Ed25519('conduit-tls-binding-v1' | tls_key_hash); verification must succeed forever (only verification stability is required of implementations). APPEND-ONLY.",
+  "vectors" : [
+    {
+      "code" : "831662",
+      "name" : "pairing_basic",
+      "pub_a_hex" : "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f",
+      "pub_b_hex" : "fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0efeeedecebeae9e8e7e6e5e4e3e2e1e0",
+      "word_a" : "walrus",
+      "word_b" : "wren"
+    },
+    {
+      "device_id" : "10ba682c8ad13513971e8b56881aab8bd702bb807796eca81932c735a94d6e6d",
+      "ed25519_pub_hex" : "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+      "name" : "identity_derivation"
+    },
+    {
+      "ed25519_pub_hex" : "d04ab232742bb4ab3a1368bd4615e4e6d0224ab71a016baf8520a332c9778737",
+      "ed25519_seed_hex" : "1111111111111111111111111111111111111111111111111111111111111111",
+      "name" : "tls_binding",
+      "signature_hex" : "87ac6ceec28d83da29275ace097570b5718669800d99f7794dd3531580b8d0e08e1922932295a6f53131f5a31d099bb82a17d8d95a87b7e69eae4a5571523f0d",
+      "tls_key_hash_hex" : "4242424242424242424242424242424242424242424242424242424242424242"
+    }
+  ],
+  "wordlist_sha256" : "2a4bd68886b539758536324ce002b1356ffed708396497b3154f2fc080d108eb"
+}

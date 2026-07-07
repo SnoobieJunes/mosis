@@ -1,0 +1,13 @@
+{
+  "description" : "Binary file-chunk frame: TLV kind 0x02, payload = uuid(16) | seq u64 BE | flags u8 (bit0 last) | data. APPEND-ONLY.",
+  "vectors" : [
+    {
+      "data_hex" : "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "file_id" : "0E984725-C51C-4BF4-9960-E1C80E27ABA0",
+      "frame_hex" : "02000000590e984725c51c4bf49960e1c80e27aba0000000000000020101000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f",
+      "is_last" : true,
+      "name" : "chunk_basic",
+      "seq" : 513
+    }
+  ]
+}
