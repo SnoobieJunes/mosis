@@ -21,6 +21,20 @@ public final class ScreenRenderTarget: @unchecked Sendable {
     /// actually decoded and reached the layer without inspecting the GPU.
     public var enqueuedCount: Int { counter.get() }
 
+    private let failureCounter = Locked(0)
+    /// How many times the display layer entered a `.failed` state (each one
+    /// triggers a flush + keyframe request). Surfaced in the debug HUD; a
+    /// climbing count means the decode path keeps dying.
+    public var layerFailureCount: Int { failureCounter.get() }
+
+    /// Invoked (on the main queue) when the layer fails and is flushed, so the
+    /// viewer engine can ask the source for a fresh keyframe — without one, the
+    /// flushed layer has nothing decodable to resume from and stays black.
+    private let needsKeyframeHandler = Locked<(@Sendable () -> Void)?>(nil)
+    public func setNeedsKeyframeHandler(_ handler: (@Sendable () -> Void)?) {
+        needsKeyframeHandler.set(handler)
+    }
+
     /// Optional secondary sink for the same decoded sample buffers, used by the
     /// convenience senders (AirPlay / Cast / Matter) to re-publish the received
     /// stream to a TV without disturbing on-screen display (Phase 6 step 6).
@@ -42,16 +56,27 @@ public final class ScreenRenderTarget: @unchecked Sendable {
         counter.withValue { $0 += 1 }
         tee.get()?(sampleBuffer)
         let box = SendableBox(sampleBuffer)
-        DispatchQueue.main.async { [displayLayer] in
+        DispatchQueue.main.async { [displayLayer, failureCounter, needsKeyframeHandler] in
             let sampleBuffer = box.value
+            var didFail = false
             if #available(iOS 17.0, macOS 14.0, *) {
                 if displayLayer.sampleBufferRenderer.status == .failed {
+                    didFail = true
                     displayLayer.sampleBufferRenderer.flush()
                 }
                 displayLayer.sampleBufferRenderer.enqueue(sampleBuffer)
             } else {
-                if displayLayer.status == .failed { displayLayer.flush() }
+                if displayLayer.status == .failed {
+                    didFail = true
+                    displayLayer.flush()
+                }
                 displayLayer.enqueue(sampleBuffer)
+            }
+            // A flushed layer resumes only from a keyframe; ask for one and count
+            // the failure so the HUD shows a dying decode path instead of a freeze.
+            if didFail {
+                failureCounter.withValue { $0 += 1 }
+                needsKeyframeHandler.get()?()
             }
         }
     }

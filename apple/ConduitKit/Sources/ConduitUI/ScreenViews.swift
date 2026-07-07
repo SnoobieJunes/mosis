@@ -95,6 +95,19 @@ public struct ScreenViewerScreen: View {
             ScreenLayerView(render: render)
                 .aspectRatio(CGFloat(offer.width) / CGFloat(max(1, offer.height)), contentMode: .fit)
 
+            if model.screenViewerConnecting {
+                VStack(spacing: 12) {
+                    ProgressView()
+                        .controlSize(.large)
+                        .tint(.white)
+                    Text("Connecting to \(offer.sourceName)…")
+                        .font(.callout)
+                        .foregroundStyle(.white.opacity(0.85))
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .transition(.opacity)
+            }
+
             if model.showStats {
                 statsBar
                     .padding(.top, 8)

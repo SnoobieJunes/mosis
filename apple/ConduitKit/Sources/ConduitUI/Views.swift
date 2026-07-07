@@ -17,11 +17,23 @@ public struct RootView: View {
     public var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
+                // Both headline features need a TCC grant the user gives by
+                // hand, and both fail quietly without it — say so up front.
+                #if os(macOS)
+                PermissionWarningBanner(model: model)
+                #endif
                 if let controllerID = model.inputControlledByPeerID {
                     ControlledIndicatorBanner(peerName: model.peerName(controllerID), model: model)
                 }
                 if let sourcingID = model.screenSourcingToPeerID {
+                    // iOS broadcasts run in the ReplayKit extension — a separate
+                    // process the app can only observe (and stop) indirectly, so
+                    // it gets its own status-truthful banner.
+                    #if os(iOS)
+                    BroadcastStatusBanner(peerName: model.peerName(sourcingID), model: model)
+                    #else
                     ScreenSourceBanner(peerName: model.peerName(sourcingID), model: model)
+                    #endif
                 }
                 DevicesScreen(model: model, filePickerTarget: $filePickerTarget)
             }
@@ -38,6 +50,16 @@ public struct RootView: View {
                     }
                 }
                 .toolbar {
+                    #if os(macOS)
+                    ToolbarItem {
+                        Button {
+                            model.showPermissions = true
+                        } label: {
+                            Label("Permissions", systemImage: "lock.shield")
+                        }
+                        .help("Screen Recording, Accessibility, and Local Network status")
+                    }
+                    #endif
                     ToolbarItem {
                         Toggle(isOn: $model.acceptPairing) {
                             Label("Accept pairing", systemImage: "person.crop.circle.badge.plus")
@@ -52,7 +74,33 @@ public struct RootView: View {
                     }
                 }
         }
-        .task { await model.startIfNeeded() }
+        .task {
+            await model.startIfNeeded()
+            await model.refreshPermissions()
+        }
+        // Debug HUD (spec §8): the Stats toggle reveals the device-seam counters.
+        .overlay(alignment: .bottomLeading) {
+            if model.showStats {
+                DebugHUD(snapshot: model.diagnostics, fileLane: model.transfers.last?.lane)
+                    .padding()
+                    .allowsHitTesting(false)
+            }
+        }
+        #if os(macOS)
+        .sheet(isPresented: $model.showPermissions) {
+            VStack(alignment: .leading, spacing: 14) {
+                PermissionsPanel(model: model)
+                HStack {
+                    Button("Re-check") { Task { await model.refreshPermissions() } }
+                    Spacer()
+                    Button("Done") { model.showPermissions = false }
+                        .buttonStyle(.borderedProminent)
+                }
+            }
+            .padding(18)
+            .frame(minWidth: 460)
+        }
+        #endif
         .sheet(isPresented: Binding(
             get: { model.pairingPrompt != nil },
             set: { if !$0 { model.resolvePairing(accept: false) } }
@@ -95,6 +143,19 @@ public struct RootView: View {
             Button("OK", role: .cancel) {}
         } message: {
             Text(model.lastError ?? "")
+        }
+        // Viewer stream failed/died — persistent, with a Retry that re-requests
+        // the same peer (replaces the old blank-forever screen).
+        .alert("Couldn't show that screen", isPresented: Binding(
+            get: { model.screenViewerError != nil },
+            set: { if !$0 { model.dismissScreenViewerError() } }
+        )) {
+            Button("Retry") { model.retryScreenView() }
+            Button("Dismiss", role: .cancel) { model.dismissScreenViewerError() }
+        } message: {
+            if let failure = model.screenViewerError {
+                Text("\(model.peerName(failure.peerDeviceID)): \(failure.reason)")
+            }
         }
         .alert("Allow remote control?", isPresented: Binding(
             get: { model.inputConsentPeerID != nil },
@@ -260,6 +321,16 @@ struct PairedPeerRow: View {
                             } label: {
                                 Label("View Screen", systemImage: "rectangle.on.rectangle")
                             }
+                        } else {
+                            // Say why it's unavailable. Silently omitting it is
+                            // indistinguishable from the feature being broken —
+                            // and the usual cause is a peer that genuinely
+                            // can't source a screen (an iPhone, or the iPad
+                            // build of this app running on a Mac).
+                            Button {} label: {
+                                Label("\(peer.name) can't share its screen", systemImage: "rectangle.slash")
+                            }
+                            .disabled(true)
                         }
                     }
                     .menuStyle(.button)
@@ -285,6 +356,18 @@ struct PairedPeerRow: View {
                     Button("Connect") { model.connect(peer) }
                         .buttonStyle(.borderedProminent)
                         .disabled(state == .connecting || state == .hello)
+                }
+            }
+            // A paired peer that won't connect explains itself here rather than
+            // spinning on "Connecting…" forever.
+            if !isConnected, let reason = model.connectFailures[peer.deviceID] {
+                HStack(alignment: .top, spacing: 6) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .foregroundStyle(.orange)
+                    Text(reason)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
             if model.showStats, isConnected {

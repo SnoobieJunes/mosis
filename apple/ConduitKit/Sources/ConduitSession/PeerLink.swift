@@ -18,6 +18,9 @@ public enum PeerLinkEvent: Sendable {
     /// A negotiated-capability message (file, clipboard, …) for upper layers.
     case capabilityMessage(deviceID: String, message: Message)
     case chunk(deviceID: String, chunk: ChunkFrame)
+    /// A screen frame arriving on the SESSION link rather than a dedicated bulk
+    /// lane — the fallback the source uses when it cannot dial back to us.
+    case screenFrame(deviceID: String, frame: ScreenFrame)
 }
 
 /// One live session with one pinned peer: HELLO negotiation, keepalive,
@@ -130,6 +133,13 @@ public actor PeerLink {
         try await framed.sendChunk(chunk)
     }
 
+    /// Streams a screen frame over this session link — the fallback lane for a
+    /// source that could not open a dedicated bulk connection to the viewer.
+    public func sendScreenFrame(_ frame: ScreenFrame) async throws {
+        guard state == .ready || state == .degraded else { throw SessionError.notReady }
+        try await framed.sendScreenFrame(frame)
+    }
+
     public func close() async {
         guard state != .closed else { return }
         readTask?.cancel()
@@ -153,10 +163,16 @@ public actor PeerLink {
                     await handle(message)
                 case .fileChunk(let chunk):
                     await onEvent(.chunk(deviceID: peer.deviceID, chunk: chunk))
-                case .screenFrame:
-                    // Screen frames belong on the dedicated screen bulk lane,
-                    // never the main session. Ignore stray ones defensively.
-                    sessionLog.warning("screen frame on main session; ignoring")
+                case .screenFrame(let screenFrame):
+                    // Normally frames ride a dedicated bulk lane. But that lane
+                    // is opened by the SOURCE dialing back to the viewer, which
+                    // is exactly the seam that fails on real devices (macOS
+                    // Local Network prompt, AP client isolation, an iOS
+                    // listener the Mac can't reach). When the source can't dial
+                    // us it streams over this already-established session
+                    // instead — so screen sharing degrades in quality, never in
+                    // function.
+                    await onEvent(.screenFrame(deviceID: peer.deviceID, frame: screenFrame))
                 }
             }
         } catch {

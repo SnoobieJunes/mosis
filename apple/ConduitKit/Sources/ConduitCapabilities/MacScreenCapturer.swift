@@ -9,10 +9,17 @@ import ConduitProtocol
 /// windows, captures the chosen one, and delivers CVPixelBuffers to the encoder.
 /// Screen Recording (TCC) permission is required and surfaced through a guided
 /// flow, mirroring the Accessibility flow from Phase 2.
-public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Sendable, SCStreamOutput {
+public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Sendable, SCStreamOutput, SCStreamDelegate {
     private let queue = DispatchQueue(label: "org.conduit.screen.capture")
     private var stream: SCStream?
     private var frameHandler: (@Sendable (CVPixelBuffer, CMTime) -> Void)?
+    /// Notified when the SCStream stops on its own (didStopWithError). Lets the
+    /// source engine end the share with a reason instead of freezing silently.
+    private var stopHandler: (@Sendable (Error?) -> Void)?
+
+    public func setStreamStoppedHandler(_ handler: @escaping @Sendable (Error?) -> Void) {
+        stopHandler = handler
+    }
 
     public func isPermitted() async -> Bool {
         // Enumerating shareable content succeeds only with Screen Recording granted.
@@ -77,7 +84,7 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
         config.colorSpaceName = CGColorSpace.itur_709
 
         frameHandler = onFrame
-        let stream = SCStream(filter: filter, configuration: config, delegate: nil)
+        let stream = SCStream(filter: filter, configuration: config, delegate: self)
         try stream.addStreamOutput(self, type: .screen, sampleHandlerQueue: queue)
         try await stream.startCapture()
         self.stream = stream
@@ -101,6 +108,9 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
     }
 
     public func stop() async {
+        // Clear the stop handler first so our own teardown doesn't get reported
+        // as a mid-stream failure.
+        stopHandler = nil
         if let stream {
             try? await stream.stopCapture()
         }
@@ -122,6 +132,17 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
         guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         frameHandler?(pixelBuffer, pts)
+    }
+
+    // MARK: SCStreamDelegate
+
+    /// The system stopped the capture out from under us (display disconnected,
+    /// window closed, Screen Recording revoked). Surface it so the share ends
+    /// with a reason rather than the viewer freezing on a dead stream.
+    public func stream(_ stream: SCStream, didStopWithError error: Error) {
+        let handler = stopHandler
+        stopHandler = nil
+        handler?(error)
     }
 }
 #endif

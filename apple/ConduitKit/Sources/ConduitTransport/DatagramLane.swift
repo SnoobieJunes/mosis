@@ -170,13 +170,22 @@ extension LANBackend {
     public func connectDatagram(
         host: String, port: UInt16, policy: TLSVerifyPolicy, timeoutSeconds: Double = 10
     ) async throws -> DatagramConnection {
+        try await connectDatagram(toHost: NWEndpoint.Host(host), port: port, policy: policy, timeoutSeconds: timeoutSeconds)
+    }
+
+    /// Typed-host variant: the caller passes the peer's `NWEndpoint.Host` straight
+    /// from the live session path, so an IPv6 zone/scope isn't lost to a String
+    /// round-trip (the same robustness the bulk candidate chain gets).
+    public func connectDatagram(
+        toHost host: NWEndpoint.Host, port: UInt16, policy: TLSVerifyPolicy, timeoutSeconds: Double = 10
+    ) async throws -> DatagramConnection {
         guard let nwPort = NWEndpoint.Port(rawValue: port) else {
             throw TransportError.connectFailed("bad port \(port)")
         }
         let parameters = DTLSParametersBuilder.make(
             identity: identityForLanes, policyProvider: { policy }, queue: laneQueue
         )
-        let endpoint = NWEndpoint.hostPort(host: NWEndpoint.Host(host), port: nwPort)
+        let endpoint = NWEndpoint.hostPort(host: host, port: nwPort)
         let nwConnection = NWConnection(to: endpoint, using: parameters)
         let queue = laneQueue
 

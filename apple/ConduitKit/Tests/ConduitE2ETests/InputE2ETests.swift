@@ -152,6 +152,56 @@ private extension TestNode {
         #expect(injector.releases() >= 1)
     }
 
+    /// The first-ever pointer-move E2E (M4). Proves three things the old path
+    /// never covered: (1) motion is actually injected; (2) it rides the reliable
+    /// lane from t=0 — moves sent the instant control starts land, WITHOUT waiting
+    /// on the datagram dial (the old dead-trackpad window); (3) the datagram lane
+    /// is then adopted only after the receiver echoes INPUT_ATTACH back, and moves
+    /// keep landing over it. "Echo-lost stays reliable" is the same code path as
+    /// the pre-upgrade window this test exercises before the datagram confirms.
+    @Test(.timeLimit(.minutes(3))) func pointerMotionRidesReliableThenUpgrades() async throws {
+        let injector = FakeInjector()
+        let mac = try await TestNode.launchWithInjector(name: "Mac", deviceClass: .desktop, injector: injector)
+        let phone = try await TestNode.launchWithInjector(name: "Phone", deviceClass: .phone, injector: nil)
+        defer { Task { await mac.cleanup(); await phone.cleanup() } }
+
+        try await pairConnectAndReady(controller: phone, receiver: mac)
+
+        let consent = Task {
+            let event = try? await mac.hub.waitFor {
+                if case .inputConsentRequested = $0 { return true }; return false
+            }
+            if case .inputConsentRequested(let peerID, _) = event {
+                await mac.node.resolveInputConsent(peerDeviceID: peerID, accept: true)
+            }
+        }
+        await phone.node.requestInputControl(of: mac.deviceID)
+        _ = try await phone.hub.waitFor { if case .inputControlStarted = $0 { return true }; return false }
+        _ = await consent.value
+
+        // Motion the INSTANT control starts must land via the reliable lane,
+        // without waiting on the datagram dial (the old code awaited it first).
+        for _ in 0..<12 { await phone.node.sendPointerMove(dx: 6, dy: 4) }
+        try await pollUntil(timeout: 10) { injector.snapshot().contains { $0.kind == .move } }
+        #expect(injector.snapshot().contains { $0.kind == .move }, "pointer moves must be injected from t=0")
+
+        // The datagram lane is adopted only after the receiver's INPUT_ATTACH echo
+        // confirms it — surfaced via the ~1 Hz diagnostics snapshot.
+        _ = try await phone.hub.waitFor(timeoutSeconds: 20) {
+            if case .diagnosticsSnapshot(let snapshot) = $0 { return snapshot.inputControllerLane == "datagram" }
+            return false
+        }
+
+        // After the upgrade, moves still land (now over the datagram lane).
+        let beforeUpgrade = injector.snapshot().filter { $0.kind == .move }.count
+        for _ in 0..<12 { await phone.node.sendPointerMove(dx: -3, dy: 2) }
+        try await pollUntil(timeout: 10) {
+            injector.snapshot().filter { $0.kind == .move }.count > beforeUpgrade
+        }
+        #expect(injector.snapshot().filter { $0.kind == .move }.count > beforeUpgrade,
+                "moves must keep landing after the datagram upgrade")
+    }
+
     /// A controller can't drive a peer that doesn't advertise input-inject
     /// (phone→phone), and injection with the permission off is refused.
     @Test(.timeLimit(.minutes(2))) func refusalPaths() async throws {
@@ -185,6 +235,30 @@ private extension TestNode {
         if case .inputControlFailed(let reason) = failed {
             #expect(reason.lowercased().contains("input-inject") || reason.lowercased().contains("can't"))
         }
+    }
+}
+
+// MARK: - Input test helpers
+
+/// Pairs `controller` with `receiver` over loopback and reaches a ready session
+/// with capabilities learned — the common prelude to every input E2E.
+private func pairConnectAndReady(controller: TestNode, receiver: TestNode) async throws {
+    await receiver.node.setPairingAcceptance(true)
+    let c1 = Task { await autoConfirm(receiver) }
+    let c2 = Task { await autoConfirm(controller) }
+    await controller.node.beginPairing(host: "127.0.0.1", port: receiver.port)
+    _ = try await controller.hub.waitFor { if case .pairingCompleted = $0 { return true }; return false }
+    _ = await c1.value; _ = await c2.value
+    await receiver.node.setPairingAcceptance(false)
+
+    await controller.node.connect(toDevice: receiver.deviceID, host: "127.0.0.1", port: receiver.port)
+    _ = try await controller.hub.waitFor {
+        if case .sessionStateChanged(let id, .ready, _) = $0 { return id == receiver.deviceID }
+        return false
+    }
+    _ = try await controller.hub.waitFor {
+        if case .remoteCapabilities(let id, _) = $0 { return id == receiver.deviceID }
+        return false
     }
 }
 

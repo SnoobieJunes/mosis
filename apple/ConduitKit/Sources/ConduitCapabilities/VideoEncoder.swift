@@ -43,9 +43,25 @@ public final class VideoEncoder: @unchecked Sendable {
         self.onFrame = onFrame
     }
 
-    /// Whether HEVC hardware encode is available; callers fall back to H.264.
+    /// Whether HEVC hardware ENCODE is available; callers fall back to H.264.
+    /// Probes encode (not decode) by attempting a throwaway compression session —
+    /// `VTIsHardwareDecodeSupported` answers the wrong question for choosing an
+    /// encoder, and a decode-only device would pick HEVC and then fail to encode.
     public static func isHEVCAvailable() -> Bool {
-        VTIsHardwareDecodeSupported(kCMVideoCodecType_HEVC)
+        var probe: VTCompressionSession?
+        let status = VTCompressionSessionCreate(
+            allocator: kCFAllocatorDefault,
+            width: 640, height: 480,
+            codecType: kCMVideoCodecType_HEVC,
+            encoderSpecification: nil,
+            imageBufferAttributes: nil,
+            compressedDataAllocator: nil,
+            outputCallback: nil,
+            refcon: nil,
+            compressionSessionOut: &probe
+        )
+        if let probe { VTCompressionSessionInvalidate(probe) }
+        return status == noErr && probe != nil
     }
 
     public func start() throws {

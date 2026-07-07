@@ -20,6 +20,7 @@ public actor InputReceiveEngine {
     private let injector: any InputInjector
     private let backend: LANBackend
     private let emit: @Sendable (ConduitEvent) -> Void
+    private let diagnostics: Diagnostics
     /// Asks the user to allow control from this peer; returns their decision.
     private let requestConsent: @Sendable (String) async -> Bool
 
@@ -37,15 +38,24 @@ public actor InputReceiveEngine {
     private var grant: Grant?
     private var pendingConsent: Set<String> = []
 
+    /// Injection health. `injectFailureCount` climbs when the injector rejects
+    /// events (a black-holed lane or broken injector was otherwise invisible);
+    /// `lastInjectErrorAt` rate-limits the surfaced event to ≈1/s.
+    private var injectFailures = 0
+    private var lastInjectErrorAt: Date?
+    public var injectFailureCount: Int { injectFailures }
+
     public init(
         injector: any InputInjector,
         backend: LANBackend,
         emit: @escaping @Sendable (ConduitEvent) -> Void,
+        diagnostics: Diagnostics,
         requestConsent: @escaping @Sendable (String) async -> Bool
     ) {
         self.injector = injector
         self.backend = backend
         self.emit = emit
+        self.diagnostics = diagnostics
         self.requestConsent = requestConsent
     }
 
@@ -71,9 +81,18 @@ public actor InputReceiveEngine {
             return
         }
 
-        // Already controlling from this peer: refresh, don't re-prompt.
-        if grant?.peerDeviceID == peerID {
+        // Already controlling from this peer: the controller is re-requesting
+        // (typically it navigated away and back, ending its local send but never
+        // telling us — so our grant lingered). Refresh AND re-send the active
+        // status so the controller re-arms; without this it waits for a status
+        // that never comes and times out ("the second time didn't work").
+        if let grant, grant.peerDeviceID == peerID {
             touchGrant()
+            try? await link.send(.inputStatus(InputStatusBody(
+                active: true, udpPort: grant.udpPort, datagramToken: grant.datagramToken,
+                secureInput: injector.isSecureInputActive
+            )))
+            emit(.inputActiveChanged(peerDeviceID: peerID, active: true))
             return
         }
         // Someone else holds control: refuse (single controller).
@@ -200,6 +219,15 @@ public actor InputReceiveEngine {
                             datagram.close()
                             return
                         }
+                        // Echo INPUT_ATTACH back so the controller can confirm this
+                        // datagram lane is actually bidirectional before it routes
+                        // moves onto it (reuses the same message — no wire change).
+                        if let echo = try? MessageCodec.encode(
+                            meta: EnvelopeMeta(sessionID: "", seq: 0),
+                            message: .inputAttach(InputAttachBody(token: expectedToken))
+                        ) {
+                            try? await datagram.send(FrameCodec.encodeControl(echo))
+                        }
                     case .inputEvent(let event):
                         guard let grant, grant.datagramToken == expectedToken else {
                             datagram.close(); return
@@ -220,6 +248,7 @@ public actor InputReceiveEngine {
     private func deliver(_ event: InputEventBody, link: PeerLink) {
         do {
             try injector.inject(event)
+            diagnostics.inputInjected()
         } catch InputInjectorError.secureInputActive {
             // Surface once; don't spam. The controller already knows from status.
             Task { try? await link.send(.inputStatus(InputStatusBody(
@@ -228,7 +257,16 @@ public actor InputReceiveEngine {
             ))) }
             emit(.inputSecureFieldBlocked)
         } catch {
+            // Don't just log: a persistently failing injector means the cursor is
+            // dead with no signal. Count every failure; surface at most ≈1/s.
+            injectFailures += 1
+            diagnostics.inputInjectFailures(injectFailures)
             inputLog.warning("inject failed: \(error)")
+            let now = Date()
+            if lastInjectErrorAt.map({ now.timeIntervalSince($0) >= 1 }) ?? true {
+                lastInjectErrorAt = now
+                emit(.inputInjectFailed(reason: "\(error)"))
+            }
         }
     }
 

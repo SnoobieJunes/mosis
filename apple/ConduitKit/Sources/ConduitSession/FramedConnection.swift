@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import ConduitProtocol
 import ConduitTransport
 
@@ -63,6 +64,9 @@ public actor FramedConnection {
     public nonisolated var peerTLSKeyHash: Data? { raw.peerTLSKeyHash }
     public nonisolated var backendKind: TransportBackendKind { raw.backendKind }
     public nonisolated var remoteHost: String? { raw.remoteHost }
+    /// Typed peer endpoint (host + observed port) for building reverse-dial
+    /// candidates without stringifying the address. See ByteStreamConnection.
+    public nonisolated var remoteEndpoint: NWEndpoint? { raw.remoteEndpoint }
 
     public nonisolated func closeUnderlying() {
         raw.close()

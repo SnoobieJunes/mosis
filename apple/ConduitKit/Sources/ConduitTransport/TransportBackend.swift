@@ -57,8 +57,17 @@ public protocol ByteStreamConnection: AnyObject, Sendable {
     /// The peer's address, when the backend can name one (used to reach the
     /// peer's listener for the bulk lane). Nil on backends without addresses.
     var remoteHost: String? { get }
+    /// The peer's endpoint as a TYPED value from the live path — the reverse-dial
+    /// candidate builders use this so an address never round-trips through a
+    /// String (IPv6 zone IDs / scopes survive, which `remoteHost` drops). Nil on
+    /// backends without addresses; default nil so in-memory/test conns opt out.
+    var remoteEndpoint: NWEndpoint? { get }
     func send(_ data: Data) async throws
     func close()
+}
+
+public extension ByteStreamConnection {
+    var remoteEndpoint: NWEndpoint? { nil }
 }
 
 /// The transport abstraction (spec §5.3): one interface, two backends.

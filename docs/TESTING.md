@@ -219,13 +219,20 @@ Mac if not already green).
 
 ### 5b. Share the iPhone's screen to the Mac (phone → Mac) — device only
 
-1. iPhone: **Share → Share My Screen** on the Mac row → a sheet appears.
+1. iPhone: **Share → Share My Screen** on the Mac row → a sheet appears (the
+   Mac starts waiting immediately and gives up after 45 s — start promptly).
 2. Tap the broadcast button, choose **Conduit**, **Start Broadcast**.
-3. The iPhone's screen appears in the Mac's viewer.
+3. The iPhone's screen appears in the Mac's viewer; the phone's sheet + banner
+   show live extension status ("Broadcasting ✓ — N frames sent").
 
 > This path uses a ReplayKit **broadcast extension** and can only run on a real
-> device (not the simulator). It's architected and builds (ADR 0006); the
-> two-process handoff is the piece to validate here.
+> device (not the simulator). The two-process handoff is exercised in CI by
+> `swift test --filter BroadcastE2ETests` (attach confirm, rejection, viewer
+> close, and streaming that survives the app's control link dropping); what
+> only a device can validate is ReplayKit itself + the extension's Local
+> Network access. Every failure is named on the phone; the extension also logs
+> under subsystem `org.conduit`, category `broadcast-ext`. The scripted
+> session lives in `docs/DEVICE_CHECKLIST.md`.
 
 ---
 
@@ -355,6 +362,21 @@ These are documented dead-ends, not bugs (spec §4 matrix + ADRs):
 | Go interop test skips | `go` not on PATH; `brew install go` (the test skips gracefully if Go is absent). |
 | daemon: input backend shows "none" on Linux | `/dev/uinput` not writable — see the udev rule in §6b. |
 | Xcode signing errors | Set your Team on all three targets; the macOS app is non-sandboxed by design. |
+
+### 8a. Diagnostics HUD & logs
+
+The **Stats** toggle (toolbar) reveals an on-screen debug HUD that snapshots the
+device-critical seams ≈1 Hz: the last reverse-dial target + outcome (the usual
+blank-screen smoking gun), per-stage screen frame counts (encoded → sent → rx →
+decoded), input lane state (`reliable`/`datagram`) and injected/inject-fail
+counts, and the file lane in use. When a screen share fails it now surfaces the
+reason with a **Retry** (re-requests the same peer) instead of sitting blank.
+
+Stream the structured logs from any device while reproducing an issue:
+
+```bash
+log stream --predicate 'subsystem == "org.conduit"' --info
+```
 
 ---
 

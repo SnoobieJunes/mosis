@@ -47,6 +47,16 @@ public protocol ScreenCapturer: AnyObject, Sendable {
         onFrame: @escaping @Sendable (CVPixelBuffer, CMTime) -> Void
     ) async throws
     func stop() async
+    /// Observe the capture stopping on its own — a display disconnecting, the
+    /// window closing, or Screen Recording being revoked mid-stream. The source
+    /// engine registers here so it ends the share with a reason instead of the
+    /// viewer freezing on a dead stream. Default: no-op (fakes, and platforms
+    /// with no mid-stream stop signal). `error` is nil on a clean self-stop.
+    func setStreamStoppedHandler(_ handler: @escaping @Sendable (Error?) -> Void)
+}
+
+public extension ScreenCapturer {
+    func setStreamStoppedHandler(_ handler: @escaping @Sendable (Error?) -> Void) {}
 }
 
 public enum ScreenCaptureError: Error {

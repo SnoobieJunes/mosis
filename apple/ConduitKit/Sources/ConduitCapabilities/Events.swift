@@ -50,6 +50,11 @@ public enum ConduitEvent: Sendable {
     case discoveredPeersChanged([DiscoveredPeer])
     case pinnedPeersChanged([PinnedPeer])
     case sessionStateChanged(deviceID: String, state: SessionState, backend: TransportBackendKind?)
+    /// Repeated connect attempts to a paired peer are failing. Carries a
+    /// diagnosed reason so "Connecting…" forever becomes an explanation the
+    /// user can act on (the common one: the peer no longer trusts this device's
+    /// identity, so the pairing has to be redone).
+    case connectFailing(deviceID: String, reason: String, attempts: Int)
     /// The remote peer's advertised capabilities, surfaced when a session
     /// reaches ready so the UI can enable direction-specific actions (e.g.
     /// "control this Mac" only if it advertises input-inject).
@@ -82,6 +87,9 @@ public enum ConduitEvent: Sendable {
     case inputControlFailed(reason: String)
     /// Controller: the receiver reported entering/leaving a secure-input field.
     case inputRemoteSecureInput(peerDeviceID: String, active: Bool)
+    /// Receiver: injection is failing (rate-limited). A black-holed or broken
+    /// injector is otherwise invisible — errors here used to be log-only.
+    case inputInjectFailed(reason: String)
     // Phase 3 — screen sharing (spec §9 Phase 3).
     /// Source: a peer asked to view this screen; the UI shows the display/window
     /// picker over these sources and resolves it.
@@ -101,6 +109,12 @@ public enum ConduitEvent: Sendable {
     case screenViewerEnded(screenSessionID: String)
     /// Either side: a screen session failed to start or died.
     case screenFailed(reason: String)
+    /// Viewer: a screen stream failed to start or died with a reason the user
+    /// should see (source-signaled failure, or the attach watchdog firing when
+    /// the source's reverse-dial silently never lands). Carries the source peer
+    /// so the UI can offer a Retry that re-requests the screen. App-internal,
+    /// never on the wire.
+    case screenViewerFailed(peerDeviceID: String, screenSessionID: String, reason: String)
     /// Phase 4: a notification mirrored from a source device, to display.
     case notificationReceived(fromDeviceID: String, body: NotificationBody)
     // Phase 7 — social permissions + multi-viewer.
@@ -117,5 +131,7 @@ public enum ConduitEvent: Sendable {
     case profileOffered(profileID: String, name: String)
     /// Contexts: the suggestion engine surfaced an automation to confirm.
     case suggestionSurfaced(text: String, contextKey: String, actionKey: String)
+    /// M2 — periodic (~1 Hz) diagnostics snapshot for the debug HUD. App-internal.
+    case diagnosticsSnapshot(DiagnosticsSnapshot)
     case nodeLog(String)
 }

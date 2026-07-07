@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import os
 import ConduitProtocol
 import ConduitSession
@@ -55,6 +56,9 @@ public actor ConduitNode {
     private let peerStore: PeerStore
     private let backend: LANBackend
     private let pairingAcceptance: Locked<Bool>
+    /// Device-seam counters for the debug HUD (M2). Snapshotted ~1 Hz in start().
+    private let diagnostics: Diagnostics
+    private var diagnosticsTask: Task<Void, Never>?
 
     private let sendEngine: FileSendEngine
     private let receiveEngine: FileReceiveEngine
@@ -67,12 +71,24 @@ public actor ConduitNode {
     /// presence is what advertises the screen-source capability. The viewer
     /// engine exists everywhere (every platform can display a stream).
     private let screenSourceEngine: ScreenSourceEngine?
+    /// The capturer this node shares with — kept so permission queries describe
+    /// the object that actually does the capturing.
+    private let screenCapturer: (any ScreenCapturer)?
     private let screenViewerEngine: ScreenViewerEngine
     private var screenPickWaiters: [String: CheckedContinuation<CaptureSourceDescriptor?, Never>] = [:]
     private var pendingScreenSources: [String: [CaptureSourceDescriptor]] = [:]
     /// Pending viewer-grant prompts (multi-viewer social permissions, Phase 7).
     private var viewerGrantWaiters: [String: CheckedContinuation<PermissionScope?, Never>] = [:]
     private var iosBroadcastWireSession: UInt16 = 1
+    /// Non-nil only in tests (see `simulateUnreachableListenerForTesting`).
+    private var helloListenPortOverride: UInt16?
+    /// Consecutive failed connect attempts per peer; reset on success.
+    private var connectFailureCounts: [String: Int] = [:]
+    /// The broadcast offer announced to a viewer but not yet (or currently)
+    /// being streamed by the extension — so cancelling/stopping can tell the
+    /// viewer over the control link instead of leaving it waiting on the
+    /// attach watchdog.
+    private var pendingIOSBroadcast: (deviceID: String, screenSessionID: String)?
 
     public nonisolated let events: AsyncStream<ConduitEvent>
     private let eventsContinuation: AsyncStream<ConduitEvent>.Continuation
@@ -126,12 +142,31 @@ public actor ConduitNode {
         self.eventsContinuation = continuation
 
         let backend = self.backend
-        // Shared opener for dedicated bulk connections (files and screen frames).
-        let bulkOpener: @Sendable (PinnedPeer, String, UInt16) async throws -> FramedConnection = { peer, host, port in
-            let connection = try await backend.connect(
-                host: host, port: port, policy: .pinned([peer.tlsPubkeySHA256])
-            )
-            return FramedConnection(connection)
+        let diagnostics = Diagnostics()
+        self.diagnostics = diagnostics
+        // A weak self-box shared by every engine callback that must round-trip
+        // through the node (reverse-dial candidates, input consent, screen pick).
+        let selfBox = NodeSelfBox()
+        self.selfBox = selfBox
+        // Shared opener for dedicated bulk connections (files + screen frames).
+        // Tries a candidate chain (live session endpoint → discovered Bonjour →
+        // manual) so a reverse-dial that can't use the session's address still
+        // lands; records the winning target/label, else the exhaustive failure.
+        let bulkOpener: @Sendable (PinnedPeer, UInt16) async throws -> FramedConnection = { peer, listenPort in
+            let candidates = await selfBox.node?.bulkCandidates(for: peer, listenPort: listenPort) ?? []
+            do {
+                let result = try await backend.connectFirstAvailable(
+                    candidates: candidates, policy: .pinned([peer.tlsPubkeySHA256])
+                )
+                diagnostics.dial(target: result.target, result: "ok via \(result.label)")
+                return FramedConnection(result.connection)
+            } catch {
+                diagnostics.dial(
+                    target: candidates.first.map { "\($0.endpoint)" } ?? "no candidates",
+                    result: "failed: \(error)"
+                )
+                throw error
+            }
         }
         self.sendEngine = FileSendEngine(
             emit: { continuation.yield($0) },
@@ -143,23 +178,19 @@ public actor ConduitNode {
             emit: { continuation.yield($0) }
         )
 
-        // A weak self-box shared by every engine callback that must round-trip
-        // through the node's UI (input consent, screen source pick).
-        let selfBox = NodeSelfBox()
-        self.selfBox = selfBox
-
         // Input: the controller half exists everywhere (any device can drive a
         // Mac); the receive half exists only where an injector is supplied.
         // The platform default (MacInputInjector on macOS) is chosen by the app
         // layer, not here — so tests and non-Mac hosts can be injector-free.
         self.inputControllerEngine = InputControllerEngine(
-            backend: backend, emit: { continuation.yield($0) }
+            backend: backend, emit: { continuation.yield($0) }, diagnostics: diagnostics
         )
         if let injector = inputInjector {
             self.inputReceiveEngine = InputReceiveEngine(
                 injector: injector,
                 backend: backend,
                 emit: { continuation.yield($0) },
+                diagnostics: diagnostics,
                 requestConsent: { peerID in
                     await selfBox.node?.awaitInputConsent(peerID: peerID) ?? false
                 }
@@ -170,11 +201,13 @@ public actor ConduitNode {
 
         // Screen: viewer half everywhere; source half only where a capturer
         // exists (macOS). The source pick is bridged to the UI via selfBox.
-        self.screenViewerEngine = ScreenViewerEngine(emit: { continuation.yield($0) })
+        self.screenViewerEngine = ScreenViewerEngine(emit: { continuation.yield($0) }, diagnostics: diagnostics)
+        self.screenCapturer = screenCapturer
         if let capturer = screenCapturer {
             self.screenSourceEngine = ScreenSourceEngine(
                 capturer: capturer,
                 emit: { continuation.yield($0) },
+                diagnostics: diagnostics,
                 bulkOpener: bulkOpener,
                 pickSource: { peerID, sources in
                     await selfBox.node?.awaitScreenPick(peerID: peerID, sources: sources) ?? nil
@@ -252,17 +285,40 @@ public actor ConduitNode {
                 Task { await self.routeInbound(connection) }
             }
         }
-        browseTask = Task {
-            for await endpoints in self.backend.browse() {
-                await self.updateDiscovered(endpoints)
+        // Bonjour browsing can die on its own (observed on device:
+        // "browser failed: -65569: DefunctConnection" after a network change).
+        // The stream then simply ends and nothing is ever discovered again
+        // until the app is relaunched — so restart it.
+        browseTask = Task { [weak self] in
+            while !Task.isCancelled {
+                guard let self else { return }
+                for await endpoints in self.backend.browse() {
+                    await self.updateDiscovered(endpoints)
+                }
+                guard !Task.isCancelled else { return }
+                nodeLog.warning("discovery browser ended; restarting")
+                try? await Task.sleep(for: .seconds(2))
+            }
+        }
+        // Snapshot the device-seam counters ~1 Hz for the debug HUD (M2).
+        diagnosticsTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self else { return }
+                await self.emitDiagnostics()
             }
         }
         emit(.pinnedPeersChanged(await peerStore.allPeers()))
     }
 
+    private func emitDiagnostics() {
+        emit(.diagnosticsSnapshot(diagnostics.snapshot()))
+    }
+
     public func stop() async {
         acceptTask?.cancel()
         browseTask?.cancel()
+        diagnosticsTask?.cancel()
         for loop in connectLoops.values { loop.cancel() }
         connectLoops.removeAll()
         for (_, link) in sessions {
@@ -499,6 +555,30 @@ public actor ConduitNode {
         connectLoops.removeValue(forKey: deviceID)
     }
 
+    /// Reverse-dial candidates for reaching `peer`'s listener, best-first:
+    /// (1) the live control connection's TYPED peer endpoint retargeted to the
+    /// peer's HELLO listen port (no String round-trip, so an IPv6 zone survives),
+    /// (2) the peer's discovered Bonjour endpoint (fresh mDNS resolution when
+    /// dialed), (3) any manual host:port. The candidate-chain opener tries them
+    /// in order — so a reverse-dial no longer hinges on a single stringified path.
+    private func bulkCandidates(for peer: PinnedPeer, listenPort: UInt16) -> [LANBackend.DialCandidate] {
+        var candidates: [LANBackend.DialCandidate] = []
+        guard let port = NWEndpoint.Port(rawValue: listenPort) else { return candidates }
+        if let sessionEndpoint = sessions[peer.deviceID]?.framed.remoteEndpoint,
+           case .hostPort(let host, _) = sessionEndpoint {
+            candidates.append(.init(label: "session", endpoint: .hostPort(host: host, port: port)))
+        }
+        if let disco = lastDiscovered.first(where: { $0.deviceID == peer.deviceID }) {
+            candidates.append(.init(label: "bonjour", endpoint: disco.endpoint.endpoint))
+        }
+        if let manual = manualEndpoints[peer.deviceID],
+           let manualPort = NWEndpoint.Port(rawValue: manual.port) {
+            candidates.append(.init(label: "manual",
+                                    endpoint: .hostPort(host: NWEndpoint.Host(manual.host), port: manualPort)))
+        }
+        return candidates
+    }
+
     private func attemptConnection(_ deviceID: String) async -> Bool {
         guard let peer = await peerStore.peer(id: deviceID) else { return false }
         let discovered = lastDiscovered.first(where: { $0.deviceID == deviceID })
@@ -527,11 +607,44 @@ public actor ConduitNode {
             sessions[deviceID] = link
             await link.activate()
             await peerStore.markSeen(deviceID: deviceID)
+            connectFailureCounts[deviceID] = nil
             return true
         } catch {
             nodeLog.info("connect attempt to \(peer.name, privacy: .public) failed: \(error)")
+            let attempts = (connectFailureCounts[deviceID] ?? 0) + 1
+            connectFailureCounts[deviceID] = attempts
+            // Stay quiet for a couple of attempts (a peer that just woke up
+            // reconnects fine), then explain rather than spinning forever.
+            if attempts == 3 || attempts % 10 == 0 {
+                emit(.connectFailing(
+                    deviceID: deviceID,
+                    reason: diagnoseConnectFailure(peer: peer, error: error, discovered: discovered != nil),
+                    attempts: attempts
+                ))
+            }
             return false
         }
+    }
+
+    /// Turns a connect error into something the user can act on. The important
+    /// case: the peer is right there on the network but rejects us — that is a
+    /// trust mismatch (its pinned record no longer matches this device's
+    /// identity, e.g. after a reinstall or a bundle/App-Group change), and no
+    /// amount of retrying fixes it. Re-pairing does.
+    private func diagnoseConnectFailure(peer: PinnedPeer, error: Error, discovered: Bool) -> String {
+        let text = "\(error)".lowercased()
+        let looksLikeTLS = text.contains("tls") || text.contains("handshake")
+            || text.contains("-9807") || text.contains("-9836") || text.contains("badcert")
+            || text.contains("peer") && text.contains("reject")
+        if looksLikeTLS || (discovered && !text.contains("timed out")) {
+            return "\(peer.name) is on the network but refused the connection — "
+                + "it no longer recognises this device. Unpair \(peer.name) here and pair again."
+        }
+        if !discovered {
+            return "\(peer.name) isn't visible on this network. Check both devices are on the same Wi-Fi "
+                + "with Conduit open, and that Local Network permission is allowed."
+        }
+        return "Can't connect to \(peer.name): \(error)"
     }
 
     private func makeLocalHello() -> HelloBody {
@@ -560,8 +673,20 @@ public actor ConduitNode {
             pubkey: identity.publicKeyRaw,
             capabilities: capabilities,
             platformWalls: NodeConfiguration.defaultPlatformWalls(),
-            listenPort: listenPort
+            listenPort: helloListenPortOverride ?? listenPort
         )
+    }
+
+    /// Diagnostic seam: makes this node look exactly like a device the peer
+    /// cannot reverse-dial — it advertises a listener nothing answers on and
+    /// stops being discoverable. That is the real-world failure (macOS Local
+    /// Network prompt unanswered, AP client isolation, unreachable iOS
+    /// listener), and it must degrade to the control-lane fallback rather than
+    /// a blank screen. Used by tests and by `conduit-devnode --no-inbound` to
+    /// rehearse that path deliberately.
+    public func simulateUnreachableListenerForTesting() {
+        helloListenPortOverride = 9   // discard port: refuses fast
+        backend.stopAdvertising()
     }
 
     // MARK: Link events
@@ -599,6 +724,11 @@ public actor ConduitNode {
             await routeCapabilityMessage(message, from: deviceID)
         case .chunk(_, let chunk):
             await receiveEngine.handleChunk(chunk)
+        case .screenFrame(let deviceID, let frame):
+            // Control-lane fallback: the source couldn't dial a bulk lane back
+            // to us and is streaming over the session connection instead.
+            guard let link = sessions[deviceID] else { return }
+            await screenViewerEngine.handleControlLaneFrame(frame, framed: link.framed)
         }
     }
 
@@ -645,9 +775,15 @@ public actor ConduitNode {
         case .screenReject(let body):
             emit(.screenFailed(reason: body.reason))
         case .screenEnd(let body):
-            await screenViewerEngine.stopViewing(screenSessionID: body.screenSessionID)
-        case .screenAttach, .screenAck:
-            nodeLog.warning("screen bulk message on a session connection; belongs on the screen lane")
+            // Carry the source's reason so a failed share surfaces (with Retry)
+            // instead of the viewer silently going blank.
+            await screenViewerEngine.stopViewing(screenSessionID: body.screenSessionID, reason: body.reason)
+        case .screenAck(let ack):
+            // The viewer acks over the session link when frames are riding the
+            // control-lane fallback (it has no bulk connection to ack on).
+            await screenSourceEngine?.handleControlLaneAck(ack)
+        case .screenAttach:
+            nodeLog.warning("SCREEN_ATTACH on a session connection; belongs on the screen lane")
         // Phase 7 — social permissions + device state.
         case .permissionRequest(let request):
             // A viewer explicitly asks to join the live screen share.
@@ -831,13 +967,21 @@ public actor ConduitNode {
     }
 
     /// Source side: stop sharing (also the kill switch for the source indicator).
+    /// A clean, user-initiated stop (nil reason) so the viewer ends quietly
+    /// rather than seeing it as a failure with a Retry.
     public func stopSourcingScreen() async {
-        await screenSourceEngine?.stopSharing(reason: "stopped by source")
+        await screenSourceEngine?.stopSharing(reason: nil)
     }
 
     /// Viewer side: stop viewing a stream.
     public func stopViewingScreen(screenSessionID: String) async {
         await screenViewerEngine.stopViewing(screenSessionID: screenSessionID)
+    }
+
+    /// Diagnostic/testing: drop the dedicated screen lane mid-stream so the
+    /// source's demote-to-session-link path can be exercised deliberately.
+    public func dropScreenBulkLaneForTesting() async {
+        await screenViewerEngine.dropBulkLaneForTesting()
     }
 
     /// The source app answers a screenSourcePickRequested prompt through here.
@@ -899,6 +1043,9 @@ public actor ConduitNode {
     public func prepareIOSScreenBroadcast(
         to deviceID: String, width: Int, height: Int, fps: Int
     ) async -> BroadcastConfig? {
+        // A previous prepared-but-unused offer would leave that viewer waiting;
+        // retire it first (no-op when none).
+        await endIOSScreenBroadcast()
         guard let appGroupID = config.appGroupID else {
             emit(.screenFailed(reason: "no app group configured"))
             return nil
@@ -932,32 +1079,59 @@ public actor ConduitNode {
             emit(.screenFailed(reason: "offer send failed: \(error)"))
             return nil
         }
+        // Pre-compute host fallbacks for the extension (it can't re-resolve mDNS):
+        // the session address, then any manual address.
+        var hostCandidates = [host]
+        if let manualHost = manualEndpoints[deviceID]?.host, !hostCandidates.contains(manualHost) {
+            hostCandidates.append(manualHost)
+        }
         let bcConfig = BroadcastConfig(
-            viewerHost: host, viewerPort: port, viewerTLSKeySHA256: link.peer.tlsPubkeySHA256,
+            viewerHost: host, viewerName: link.peer.name, viewerHostCandidates: hostCandidates,
+            viewerPort: port, viewerTLSKeySHA256: link.peer.tlsPubkeySHA256,
             screenSessionID: screenSessionID, wireSessionID: wireSessionID, bulkToken: token,
             codec: codec, width: w, height: h, fps: fps, bitrate: ScreenSourceEngine.initialBitrate,
             tlsMaterial: bundle.tlsMaterial
         )
         do {
+            BroadcastSharedStore.clearStatus(appGroupID: appGroupID)   // stale status from a prior run
             try BroadcastSharedStore.write(bcConfig, appGroupID: appGroupID)
         } catch {
             emit(.screenFailed(reason: "cannot write broadcast config: \(error)"))
             return nil
         }
+        pendingIOSBroadcast = (deviceID, screenSessionID)
         emit(.screenSourceStarted(peerDeviceID: deviceID, sourceName: "your iPhone screen"))
         return bcConfig
     }
 
+    /// Retire the announced broadcast: clear the shared config and tell the
+    /// viewer over the control link (clean end). If the extension is streaming,
+    /// the viewer closes the bulk lane on receipt and the extension ends —
+    /// which makes this the app-side "stop broadcasting" too.
     public func endIOSScreenBroadcast() async {
         if let appGroupID = config.appGroupID {
             BroadcastSharedStore.clear(appGroupID: appGroupID)
         }
+        guard let pending = pendingIOSBroadcast else { return }
+        pendingIOSBroadcast = nil
+        try? await sessions[pending.deviceID]?.send(.screenEnd(ScreenEndBody(
+            screenSessionID: pending.screenSessionID, reason: nil
+        )))
+        emit(.screenSourceEnded(peerDeviceID: pending.deviceID))
     }
 
+    /// Whether Screen Recording is granted, asked of the capturer this node is
+    /// actually using. (It used to build a throwaway capturer and ask that one,
+    /// so the answer described an object no share would ever use.)
     public func screenPermissionGranted() async -> Bool {
-        // The capturer answers; nil (no capturer) → not applicable.
-        guard screenSourceEngine != nil else { return false }
-        return await Self.defaultScreenCapturer()?.isPermitted() ?? false
+        guard let screenCapturer else { return false }
+        return await screenCapturer.isPermitted()
+    }
+
+    /// Triggers the OS Screen Recording prompt (first grant needs a relaunch
+    /// before ScreenCaptureKit will actually hand over frames).
+    public func requestScreenPermission() async {
+        await screenCapturer?.requestPermission()
     }
 
     /// Bridges the source engine's pick request to the app's UI round-trip.

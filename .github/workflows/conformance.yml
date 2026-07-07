@@ -50,8 +50,9 @@ jobs:
         run: java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke
 
   swift:
-    name: Swift conformance + interop
+    name: Swift full suite + conformance + interop
     runs-on: macos-15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
@@ -65,7 +66,27 @@ jobs:
           # Append-only invariant: regeneration must not alter committed vectors
           # (pairing.json is skipped by the generator; it holds a random signature).
           git diff --exit-code proto/vectors/messages.json proto/vectors/chunk_frames.json proto/vectors/screen_frames.json
-      - name: Swift conformance + Go interop
-        run: |
-          cd apple/ConduitKit
-          swift test --filter "VectorConformance|PairingVectorConformance|GoInteropTests"
+      - name: Build tests
+        # Separate from the run so a compile break reads as a compile break
+        # rather than a mystery test failure.
+        run: cd apple/ConduitKit && swift build --build-tests --disable-sandbox
+      - name: Full Swift test suite
+        # The FULL suite, deliberately unfiltered. Until now CI ran only
+        # --filter "VectorConformance|PairingVectorConformance|GoInteropTests",
+        # so every E2E suite -- screen, input, broadcast, control-lane fallback,
+        # multi-viewer -- was invisible here. That gap is exactly how three
+        # broken headline flows shipped alongside "102 tests green".
+        #
+        # --disable-sandbox is REQUIRED, not cosmetic: swift test under the
+        # macOS sandbox hangs (not fails) on the Network.framework, PKCS#12 and
+        # VideoToolbox paths. See docs/TESTING_PLAN.md §1. Do not "clean this up".
+        run: cd apple/ConduitKit && swift test --disable-sandbox
+      - name: Real-LAN E2E (informational)
+        # RealNetworkE2ETests self-skips unless CONDUIT_LAN_E2E is set AND
+        # getifaddrs finds a routable LAN address. Hosted runners have an IP but
+        # unreliable multicast/Bonjour, so this reports signal without gating the
+        # build on runner networking. A red here is worth reading, not trusting.
+        continue-on-error: true
+        env:
+          CONDUIT_LAN_E2E: "1"
+        run: cd apple/ConduitKit && swift test --disable-sandbox --filter "RealNetworkE2ETests"

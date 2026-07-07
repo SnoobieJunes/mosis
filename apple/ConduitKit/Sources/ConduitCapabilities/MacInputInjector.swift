@@ -27,6 +27,13 @@ public final class MacInputInjector: InputInjector, @unchecked Sendable {
     }
 
     public func openPermissionSettings() {
+        // Ask the system to prompt first: that call is what registers the app in
+        // the Accessibility list, so the user has something to tick when the
+        // pane opens. Without it they land on a list Conduit isn't in yet.
+        // The constant itself is an imported `var` (not concurrency-safe to
+        // reference under strict checking); its value is this documented key.
+        let options = ["AXTrustedCheckOptionPrompt": true] as CFDictionary
+        _ = AXIsProcessTrustedWithOptions(options)
         if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility") {
             NSWorkspace.shared.open(url)
         }

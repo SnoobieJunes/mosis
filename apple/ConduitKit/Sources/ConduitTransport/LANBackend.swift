@@ -86,6 +86,13 @@ public final class LANConnection: ByteStreamConnection, @unchecked Sendable {
         }
     }
 
+    /// The peer's typed endpoint from the live path. Preferred over `remoteHost`
+    /// for building reverse-dial candidates: the `NWEndpoint.Host` is reused
+    /// verbatim so an IPv6 link-local zone/scope isn't lost to stringification.
+    public var remoteEndpoint: NWEndpoint? {
+        connection.currentPath?.remoteEndpoint
+    }
+
     public func send(_ data: Data) async throws {
         if closed.get() { throw TransportError.connectionClosed }
         try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
@@ -316,10 +323,59 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
         return try await open(endpoint: endpoint, policy: policy)
     }
 
+    /// One reverse-dial candidate: a labeled endpoint to try. `NWEndpoint` is an
+    /// immutable value, so @unchecked Sendable is safe (mirrors DiscoveredEndpoint).
+    public struct DialCandidate: @unchecked Sendable {
+        public let label: String
+        public let endpoint: NWEndpoint
+        public init(label: String, endpoint: NWEndpoint) {
+            self.label = label
+            self.endpoint = endpoint
+        }
+    }
+
+    /// Tries each candidate in order (with a small per-candidate retry), returning
+    /// the first that connects. On total failure it throws with EVERY candidate
+    /// and its error named — so a reverse-dial that can't land explains exactly
+    /// what it tried (spec §8 / the blank-screen root-cause hunt).
+    public func connectFirstAvailable(
+        candidates: [DialCandidate],
+        policy: TLSVerifyPolicy,
+        retriesPerCandidate: Int = 1,
+        perCandidateTimeout: Double = 6
+    ) async throws -> (connection: any ByteStreamConnection, label: String, target: String) {
+        guard !candidates.isEmpty else {
+            throw TransportError.connectFailed("no reachable-address candidates")
+        }
+        // Each candidate fails FAST (short timeout) so the whole chain finishes
+        // well inside the viewer's attach watchdog — a stuck reverse-dial (e.g.
+        // macOS Local Network permission) surfaces its reason quickly instead of
+        // hanging the viewer on a blank screen for the full connect timeout.
+        var errors: [String] = []
+        for candidate in candidates {
+            for attempt in 1...max(1, retriesPerCandidate) {
+                do {
+                    let connection = try await open(
+                        endpoint: candidate.endpoint, policy: policy, timeoutSeconds: perCandidateTimeout
+                    )
+                    return (connection, candidate.label, "\(candidate.endpoint)")
+                } catch {
+                    errors.append("\(candidate.label)#\(attempt)(\(candidate.endpoint)): \(error)")
+                }
+            }
+        }
+        throw TransportError.connectFailed(
+            "all \(candidates.count) candidate(s) failed — \(errors.joined(separator: " | "))"
+        )
+    }
+
     private func open(endpoint: NWEndpoint, policy: TLSVerifyPolicy, timeoutSeconds: Double = 15) async throws -> LANConnection {
         let parameters = TLSParametersBuilder.make(identity: identity, policyProvider: { policy }, queue: queue)
         let nwConnection = NWConnection(to: endpoint, using: parameters)
         let queue = self.queue
+        // Remember the last `.waiting` reason so a timeout can name WHY it stalled
+        // (e.g. "Local Network prohibited" when macOS blocks the outbound dial).
+        let lastWaiting = Locked<String?>(nil)
 
         return try await withThrowingTaskGroup(of: LANConnection.self) { group in
             group.addTask {
@@ -341,6 +397,7 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
                                 cont.resume(throwing: TransportError.connectFailed("cancelled"))
                             }
                         case .waiting(let error):
+                            lastWaiting.set("\(error)")
                             transportLog.info("connect waiting: \(String(describing: error), privacy: .public)")
                         default:
                             break
@@ -351,7 +408,8 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
             }
             group.addTask {
                 try await Task.sleep(for: .seconds(timeoutSeconds))
-                throw TransportError.timeout
+                let waitingSuffix = lastWaiting.get().map { " (stuck waiting: \($0))" } ?? ""
+                throw TransportError.connectFailed("timed out after \(Int(timeoutSeconds))s\(waitingSuffix)")
             }
             do {
                 guard let first = try await group.next() else { throw TransportError.timeout }

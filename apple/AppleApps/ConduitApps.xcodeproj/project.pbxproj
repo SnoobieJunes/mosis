@@ -349,12 +349,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.tv;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis.tv;
 				PRODUCT_NAME = Conduit;
 				SDKROOT = appletvos;
 				TARGETED_DEVICE_FAMILY = 3;
@@ -369,12 +370,13 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitMac/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.mac;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis.mac;
 				PRODUCT_NAME = Conduit;
 				SDKROOT = macosx;
 			};
@@ -388,12 +390,13 @@
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitMac/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.mac;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis.mac;
 				PRODUCT_NAME = Conduit;
 				SDKROOT = macosx;
 			};
@@ -404,12 +407,13 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = "App Icon & Top Shelf Image";
 				ASSETCATALOG_COMPILER_LAUNCHIMAGE_NAME = LaunchImage;
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				INFOPLIST_FILE = ConduitTV/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.tv;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis.tv;
 				PRODUCT_NAME = Conduit;
 				SDKROOT = appletvos;
 				TARGETED_DEVICE_FAMILY = 3;
@@ -427,7 +431,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios.broadcast;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis.broadcast;
 				PRODUCT_NAME = ConduitBroadcast;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -446,7 +450,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis;
 				PRODUCT_NAME = Conduit;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -464,7 +468,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios.broadcast;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis.broadcast;
 				PRODUCT_NAME = ConduitBroadcast;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
@@ -483,7 +487,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios;
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.mosis;
 				PRODUCT_NAME = Conduit;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";

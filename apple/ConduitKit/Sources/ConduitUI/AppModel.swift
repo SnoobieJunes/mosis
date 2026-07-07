@@ -9,6 +9,15 @@ import ConduitCapabilities
 import UIKit
 #endif
 
+/// A viewer stream that failed or died, surfaced persistently with the source's
+/// reason and a Retry that re-requests the same peer's screen — the antidote to
+/// a viewer that used to sit blank forever.
+public struct ScreenViewerFailure: Identifiable, Equatable, Sendable {
+    public let peerDeviceID: String
+    public let reason: String
+    public var id: String { peerDeviceID + "|" + reason }
+}
+
 /// UI-facing state, fed by the node's event stream. Apps hold exactly one.
 @MainActor
 @Observable
@@ -56,6 +65,13 @@ public final class AppModel {
     /// Viewer: the active stream we're displaying (render target + offer).
     public var activeScreenView: ScreenRenderTarget?
     public var activeScreenOffer: ScreenOfferBody?
+    /// Viewer: a stream that failed or died — shown as a persistent, retryable
+    /// error instead of a transient toast or (worse) a permanently blank screen.
+    public var screenViewerError: ScreenViewerFailure?
+    /// Viewer: true after the offer arrives but before the first frame — the
+    /// source is dialing the bulk lane back. Drives a "Connecting…" overlay so
+    /// the wait isn't an inscrutable black screen.
+    public var screenViewerConnecting = false
     /// Viewer stats for the overlay.
     public var screenFps: Double = 0
     public var screenKbps: Double = 0
@@ -63,6 +79,14 @@ public final class AppModel {
     public var broadcastPeer: PinnedPeer?
     /// iOS: whether the shared broadcast config is written and the picker is ready.
     public var broadcastReady = false
+    /// iOS: why the share couldn't be announced (offer/config failure) — shown
+    /// in the sheet with a retry, instead of an eternal "Preparing…" spinner.
+    public var broadcastPrepFailed: String?
+    /// iOS: the extension's live status from the App Group (polled ~1 Hz while
+    /// a broadcast is pending/active) — the app's only window into the
+    /// separate broadcast process. Drives the banner + sheet status line.
+    public var broadcastStatus: BroadcastStatus?
+    private var broadcastPollTask: Task<Void, Never>?
 
     /// Phase 6 — convenience senders (AirPlay / Google Cast / Matter Casting):
     /// re-broadcast a screen we're viewing out to a nearby TV.
@@ -76,8 +100,22 @@ public final class AppModel {
     /// Contexts: name of a profile currently offered for the context (one-tap).
     public var offeredProfileName: String?
 
+    /// Why a paired peer won't connect, keyed by device id. Shown on the peer
+    /// row so a stuck "Connecting…" explains itself (most often: the peer no
+    /// longer trusts this device and the pairing must be redone).
+    public var connectFailures: [String: String] = [:]
+
+    /// macOS permission pre-flight (M5). nil = not checked yet / not applicable.
+    /// Both are TCC grants tied to the app's signature + bundle id, so they
+    /// reset on a bundle rename and silently disable the headline features.
+    public var screenRecordingGranted: Bool?
+    public var accessibilityGranted: Bool?
+    public var showPermissions = false
+
     /// Spec §8: the stats overlay doubles as the debug HUD.
     public var showStats = false
+    /// Latest ≈1 Hz device-seam snapshot behind the debug HUD (M2).
+    public var diagnostics = DiagnosticsSnapshot()
 
     public var acceptPairing = false {
         didSet {
@@ -138,13 +176,21 @@ public final class AppModel {
         let stateDir = appSupport
         #else
         let receive = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
-        let name = UIDevice.current.name
+        // An iPhone/iPad build can also run *on a Mac* ("Designed for iPad"),
+        // where UIDevice reports the Mac's own name — so it appears on the
+        // network as a second device with the same name as the real Mac app,
+        // except it has no screen capturer and no input injector. That
+        // ambiguity is unfixable from the far side, so label it here.
+        var name = UIDevice.current.name
+        if ProcessInfo.processInfo.isiOSAppOnMac {
+            name += " (iPad app)"
+        }
         let deviceClass: DeviceClass = UIDevice.current.userInterfaceIdiom == .pad ? .tablet : .phone
         // Identity + peers live in the App Group so the broadcast extension can
         // authenticate as this device; falls back to app support if unavailable.
-        let appGroupID: String? = "group.org.auston.conduit"
+        let appGroupID: String? = BroadcastSharedStore.appGroupID
         let groupDir = FileManager.default
-            .containerURL(forSecurityApplicationGroupIdentifier: "group.org.auston.conduit")?
+            .containerURL(forSecurityApplicationGroupIdentifier: BroadcastSharedStore.appGroupID)?
             .appendingPathComponent("Conduit", isDirectory: true)
         let stateDir = groupDir ?? appSupport
         #endif
@@ -168,11 +214,14 @@ public final class AppModel {
             discovered = peers
         case .pinnedPeersChanged(let peers):
             pinned = peers
+        case .connectFailing(let id, let reason, _):
+            connectFailures[id] = reason
         case .sessionStateChanged(let id, let state, let backend):
             sessionStates[id] = state
             if let backend {
                 sessionBackends[id] = backend
             }
+            if state == .ready { connectFailures.removeValue(forKey: id) }
             if state == .closed {
                 sessionBackends.removeValue(forKey: id)
                 rttMillis.removeValue(forKey: id)
@@ -255,16 +304,36 @@ public final class AppModel {
         case .screenViewerStarted(_, let offer, let render):
             activeScreenView = render
             activeScreenOffer = offer
+            screenViewerError = nil        // a fresh attempt is underway
+            screenViewerConnecting = true  // waiting on the bulk lane + first frame
         case .screenViewerStats(_, let fps, let kbps):
             screenFps = fps
             screenKbps = kbps
+            screenViewerConnecting = false // frames are flowing
         case .screenViewerEnded:
             activeScreenView = nil
             activeScreenOffer = nil
             screenFps = 0
             screenKbps = 0
+            screenViewerConnecting = false
+        case .screenViewerFailed(let peerID, _, let reason):
+            // The stream never started or died — drop the blank view and show a
+            // persistent, actionable error rather than a toast that vanishes.
+            activeScreenView = nil
+            activeScreenOffer = nil
+            screenFps = 0
+            screenKbps = 0
+            screenViewerConnecting = false
+            screenViewerError = ScreenViewerFailure(peerDeviceID: peerID, reason: reason)
         case .screenFailed(let reason):
-            toast = "Screen: \(reason)"
+            // Not a toast: this is the message that explains why nothing
+            // happened when the user asked to see a screen, and a toast that
+            // vanishes reads exactly like "the button does nothing".
+            lastError = reason
+        case .inputInjectFailed(let reason):
+            // Receiver side: the injector keeps rejecting events (the controller's
+            // cursor is dead with no other signal). Surface it, don't just log.
+            lastError = "Remote input isn't reaching this Mac: \(reason)"
         case .permissionRequested(let peerID, _, let scope, _):
             viewerGrantPeerID = peerID
             viewerGrantScope = scope
@@ -278,6 +347,8 @@ public final class AppModel {
             offeredProfileName = name
         case .suggestionSurfaced(let text, _, _):
             toast = text
+        case .diagnosticsSnapshot(let snapshot):
+            diagnostics = snapshot
         case .notificationReceived(let from, let body):
             let sender = peerName(from)
             NotificationBridge.postAlways(
@@ -303,6 +374,52 @@ public final class AppModel {
         if let url = scopedSendURLs.removeValue(forKey: fileID) {
             url.stopAccessingSecurityScopedResource()
         }
+    }
+
+    // MARK: Permission pre-flight (macOS; M5)
+
+    /// Re-reads both TCC grants. Cheap enough to call on appear and after the
+    /// user comes back from System Settings.
+    public func refreshPermissions() async {
+        #if os(macOS)
+        guard let node else { return }
+        screenRecordingGranted = await node.screenPermissionGranted()
+        accessibilityGranted = await node.canReceiveInput ? await node.inputPermissionGranted() : nil
+        #endif
+    }
+
+    public func requestScreenRecordingPermission() {
+        let node = node
+        Task {
+            await node?.requestScreenPermission()
+            await refreshPermissions()
+        }
+    }
+
+    public func requestAccessibilityPermission() {
+        let node = node
+        Task {
+            // Prompting IS the request on macOS (AXIsProcessTrustedWithOptions
+            // with the prompt flag), and the injector owns that call.
+            await node?.openInputPermissionSettings()
+            await refreshPermissions()
+        }
+    }
+
+    public func openScreenRecordingSettings() {
+        #if os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
+    }
+
+    public func openLocalNetworkSettings() {
+        #if os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocalNetwork") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
     }
 
     // MARK: Intents (Connect = pull toward me, Share = push from me; spec §8)
@@ -467,6 +584,18 @@ public final class AppModel {
         Task { await node?.stopViewingScreen(screenSessionID: id) }
     }
 
+    /// Retry a failed screen view by re-requesting from the same source peer.
+    public func retryScreenView() {
+        guard let failure = screenViewerError else { return }
+        screenViewerError = nil
+        let node = node
+        Task { await node?.requestScreen(from: failure.peerDeviceID) }
+    }
+
+    public func dismissScreenViewerError() {
+        screenViewerError = nil
+    }
+
     public func resolveScreenPick(sourceID: String?) {
         guard let peerID = screenPickPeerID else { return }
         screenPickPeerID = nil
@@ -529,10 +658,14 @@ public final class AppModel {
     #if os(iOS)
     public func beginScreenBroadcast(to peer: PinnedPeer) {
         broadcastReady = false
+        broadcastPrepFailed = nil
+        broadcastStatus = nil
         broadcastPeer = peer
+        startBroadcastStatusPolling()
     }
 
     public func prepareBroadcast(to peer: PinnedPeer) async {
+        broadcastPrepFailed = nil
         let scale = await UIScreen.main.scale
         let bounds = await UIScreen.main.bounds
         // Cap the long edge so the encoder stays comfortable on-device.
@@ -540,12 +673,72 @@ public final class AppModel {
         let rawH = Int(bounds.height * scale)
         let config = await node?.prepareIOSScreenBroadcast(to: peer.deviceID, width: rawW, height: rawH, fps: 30)
         broadcastReady = (config != nil)
+        if config == nil {
+            broadcastPrepFailed =
+                "Couldn't announce the share to \(peer.name) — make sure it's connected, then try again."
+        }
+    }
+
+    /// Cancels a pending share, or stops a live broadcast: retiring the offer
+    /// makes the viewer close the bulk lane, which ends the extension. The one
+    /// path behind the sheet's Cancel and the banner's Stop.
+    public func stopIOSBroadcast() {
+        broadcastPeer = nil
+        broadcastReady = false
+        broadcastStatus = nil
+        stopBroadcastStatusPolling()
+        BroadcastSharedStore.clearStatus()
+        let node = node
+        Task { await node?.endIOSScreenBroadcast() }
     }
 
     public func cancelBroadcastPrep() {
-        let node = node
-        broadcastPeer = nil
+        stopIOSBroadcast()
+    }
+
+    /// The broadcast extension is a separate process; its only channel back to
+    /// this app is the status file in the App Group. Poll it while a broadcast
+    /// is pending or running and reflect it into UI state.
+    private func startBroadcastStatusPolling() {
+        guard broadcastPollTask == nil else { return }
+        broadcastPollTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(1))
+                guard let self else { return }
+                self.applyBroadcastStatus(BroadcastSharedStore.readStatus())
+            }
+        }
+    }
+
+    private func stopBroadcastStatusPolling() {
+        broadcastPollTask?.cancel()
+        broadcastPollTask = nil
+    }
+
+    private func applyBroadcastStatus(_ status: BroadcastStatus?) {
+        guard let status, status != broadcastStatus else { return }
+        broadcastStatus = status
+        switch status.phase {
+        case .connecting, .streaming:
+            break   // the banner + sheet render these live
+        case .ended:
+            toast = "Broadcast ended"
+            concludeBroadcast()
+        case .failed:
+            lastError = "Screen broadcast failed: \(status.detail)"
+            concludeBroadcast()
+        }
+    }
+
+    /// The extension reported it's over (either way) — clean up app-side state
+    /// and retire the offer so the viewer isn't left waiting.
+    private func concludeBroadcast() {
+        stopBroadcastStatusPolling()
+        BroadcastSharedStore.clearStatus()
+        broadcastStatus = nil
         broadcastReady = false
+        broadcastPeer = nil
+        let node = node
         Task { await node?.endIOSScreenBroadcast() }
     }
     #endif

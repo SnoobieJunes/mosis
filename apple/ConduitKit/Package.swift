@@ -11,6 +11,7 @@ let package = Package(
         .library(name: "ConduitCapabilities", targets: ["ConduitCapabilities"]),
         .library(name: "ConduitUI", targets: ["ConduitUI"]),
         .executable(name: "conduit-vectorgen", targets: ["conduit-vectorgen"]),
+        .executable(name: "conduit-devnode", targets: ["conduit-devnode"]),
     ],
     dependencies: [
         .package(url: "https://github.com/apple/swift-certificates.git", from: "1.5.0"),
@@ -27,6 +28,11 @@ let package = Package(
         .target(name: "ConduitCapabilities", dependencies: ["ConduitProtocol", "ConduitSession", "ConduitTransport"]),
         .target(name: "ConduitUI", dependencies: ["ConduitProtocol", "ConduitTransport", "ConduitSession", "ConduitCapabilities"]),
         .executableTarget(name: "conduit-vectorgen", dependencies: ["ConduitProtocol", "ConduitSession"]),
+        // Headless node for cross-process / real-LAN debugging (see docs/DEVICE_CHECKLIST.md).
+        .executableTarget(
+            name: "conduit-devnode",
+            dependencies: ["ConduitProtocol", "ConduitSession", "ConduitTransport", "ConduitCapabilities"]
+        ),
         .target(name: "ConduitTestSupport", dependencies: ["ConduitTransport"], path: "Tests/ConduitTestSupport"),
         .testTarget(name: "ConduitProtocolTests", dependencies: ["ConduitProtocol"]),
         .testTarget(name: "ConduitSessionTests", dependencies: ["ConduitSession", "ConduitProtocol", "ConduitTransport", "ConduitTestSupport"]),

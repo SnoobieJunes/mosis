@@ -35,11 +35,11 @@ public actor FileSendEngine {
     private var transfers: [String: OutgoingTransfer] = [:]
     private let emit: @Sendable (ConduitEvent) -> Void
     /// Opens a pinned TLS connection to the peer's listener for the bulk lane.
-    private let bulkOpener: @Sendable (PinnedPeer, String, UInt16) async throws -> FramedConnection
+    private let bulkOpener: @Sendable (PinnedPeer, UInt16) async throws -> FramedConnection
 
     public init(
         emit: @escaping @Sendable (ConduitEvent) -> Void,
-        bulkOpener: @escaping @Sendable (PinnedPeer, String, UInt16) async throws -> FramedConnection
+        bulkOpener: @escaping @Sendable (PinnedPeer, UInt16) async throws -> FramedConnection
     ) {
         self.emit = emit
         self.bulkOpener = bulkOpener
@@ -147,11 +147,11 @@ public actor FileSendEngine {
         let offer = transfer.offer
         let link = transfer.link
 
-        // Try to open the bulk lane; fall back to the control connection.
+        // Try to open the bulk lane (candidate-chain reverse dial); fall back to
+        // the control connection.
         var bulk: FramedConnection?
-        if let host = link.framed.remoteHost,
-           let port = await link.remoteHello?.listenPort {
-            bulk = try? await bulkOpener(link.peer, host, port)
+        if let port = await link.remoteHello?.listenPort {
+            bulk = try? await bulkOpener(link.peer, port)
         }
         if let bulk {
             do {

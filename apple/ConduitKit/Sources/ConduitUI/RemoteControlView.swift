@@ -319,7 +319,9 @@ struct MediaRemoteStrip: View {
     @Bindable var model: AppModel
 
     var body: some View {
-        HStack(spacing: 24) {
+        // Flexible-width buttons so six controls + a divider always fit the
+        // screen — fixed 40pt widths + 24pt spacing bled off narrow iPhones.
+        HStack(spacing: 8) {
             mediaButton("backward.fill") { model.media(.prev) }
             mediaButton("playpause.fill") { model.media(.toggle) }
             mediaButton("forward.fill") { model.media(.next) }
@@ -335,7 +337,7 @@ struct MediaRemoteStrip: View {
         Button(action: action) {
             Image(systemName: symbol)
                 .font(.title3)
-                .frame(width: 40, height: 36)
+                .frame(maxWidth: .infinity, minHeight: 36)
         }
         .buttonStyle(.bordered)
     }

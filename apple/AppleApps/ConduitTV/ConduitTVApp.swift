@@ -86,6 +86,9 @@ final class TVModel: ObservableObject {
         case .pairingCompleted(let peer): toast = "Paired with \(peer.name)"
         case .screenViewerStarted(_, let offer, let render): activeScreen = (render, offer)
         case .screenViewerEnded: activeScreen = nil
+        case .screenViewerFailed(_, _, let reason):
+            activeScreen = nil
+            toast = "Couldn't show that screen: \(reason)"
         case .notificationReceived(_, let body): toast = "🔔 \(body.appName): \(body.title)"
         default: break
         }

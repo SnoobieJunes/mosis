@@ -1,6 +1,6 @@
-# ADR 0007 — License: Apache-2.0 (proposed)
+# ADR 0007 — License: Apache-2.0 (accepted)
 
-Date: 2026-07-07 · Status: **proposed, pending owner decision** · Phase: 4 (open decision 5)
+Date: 2026-07-07 · Status: **accepted· Phase: 4 (open decision 5)
 
 ## Context
 

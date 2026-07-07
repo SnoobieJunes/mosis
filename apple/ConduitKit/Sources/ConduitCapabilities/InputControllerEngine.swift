@@ -1,4 +1,5 @@
 import Foundation
+import Network
 import os
 import ConduitProtocol
 import ConduitSession
@@ -11,6 +12,7 @@ import ConduitTransport
 public actor InputControllerEngine {
     private let backend: LANBackend
     private let emit: @Sendable (ConduitEvent) -> Void
+    private let diagnostics: Diagnostics
 
     struct Controlling {
         let peerDeviceID: String
@@ -25,10 +27,14 @@ public actor InputControllerEngine {
     /// wedged). Cancelled as soon as any status arrives.
     private var requestTimeout: Task<Void, Never>?
     private var awaitingGrant = false
+    /// Background task that dials + confirms the datagram lane after control is
+    /// already live on the reliable lane. Cancelled when control ends.
+    private var datagramUpgradeTask: Task<Void, Never>?
 
-    public init(backend: LANBackend, emit: @escaping @Sendable (ConduitEvent) -> Void) {
+    public init(backend: LANBackend, emit: @escaping @Sendable (ConduitEvent) -> Void, diagnostics: Diagnostics) {
         self.backend = backend
         self.emit = emit
+        self.diagnostics = diagnostics
     }
 
     public var isControlling: Bool { active != nil }
@@ -71,12 +77,15 @@ public actor InputControllerEngine {
     public func stopControlling() async {
         requestTimeout?.cancel()
         requestTimeout = nil
+        datagramUpgradeTask?.cancel()
+        datagramUpgradeTask = nil
         awaitingGrant = false
         guard let current = active else { return }
         await coalescer?.stop()
         coalescer = nil
         current.datagram?.close()
         active = nil
+        diagnostics.inputControllerLane(nil)
         emit(.inputControlEnded(peerDeviceID: current.peerDeviceID))
     }
 
@@ -100,32 +109,95 @@ public actor InputControllerEngine {
     }
 
     private func beginSending(status: InputStatusBody) async {
-        guard var current = active else { return }
+        guard let current = active else { return }
 
-        // Open the datagram lane if invited and reachable.
-        if let udpPort = status.udpPort, let token = status.datagramToken,
-           let host = current.link.framed.remoteHost {
-            if let datagram = try? await backend.connectDatagram(
-                host: host, port: udpPort,
-                policy: .pinned([current.link.peer.tlsPubkeySHA256])
-            ) {
-                let attach = try? MessageCodec.encode(
-                    meta: EnvelopeMeta(sessionID: "", seq: 0),
-                    message: .inputAttach(InputAttachBody(token: token))
-                )
-                if let attach {
-                    try? await datagram.send(FrameCodec.encodeControl(attach))
-                    current.datagram = datagram
-                }
-            }
-        }
-        active = current
-
+        // Control is live IMMEDIATELY on the reliable lane: start the coalescer
+        // now so motion rides from t=0. (The old code awaited a DTLS datagram dial
+        // first — up to a 10 s timeout of dead trackpad before anything moved.)
         let coalescer = InputCoalescer { [weak self] event in
             await self?.transmit(event)
         }
         await coalescer.start()
         self.coalescer = coalescer
+        diagnostics.inputControllerLane("reliable")
+
+        // The datagram lane is a BACKGROUND upgrade for loss-tolerant moves,
+        // adopted only after the receiver echoes our INPUT_ATTACH back over it.
+        datagramUpgradeTask?.cancel()
+        datagramUpgradeTask = nil
+        if let udpPort = status.udpPort, let token = status.datagramToken {
+            let peerID = current.peerDeviceID
+            datagramUpgradeTask = Task { [weak self] in
+                await self?.upgradeToDatagram(peerDeviceID: peerID, udpPort: udpPort, token: token)
+            }
+        }
+    }
+
+    /// Background upgrade: dial the DTLS datagram lane and adopt it for moves ONLY
+    /// after the receiver echoes INPUT_ATTACH back over it — proof the lane is
+    /// bidirectional, not a black hole that would silently eat every move. Up to
+    /// 3 attach attempts; on failure (or a receiver that never echoes, e.g. a
+    /// non-Swift peer) the controller just stays on the reliable lane.
+    private func upgradeToDatagram(peerDeviceID: String, udpPort: UInt16, token: String) async {
+        guard let current = active, current.peerDeviceID == peerDeviceID,
+              let sessionEndpoint = current.link.framed.remoteEndpoint,
+              case .hostPort(let host, _) = sessionEndpoint else { return }
+
+        guard let datagram = try? await backend.connectDatagram(
+            toHost: host, port: udpPort, policy: .pinned([current.link.peer.tlsPubkeySHA256])
+        ) else { return }
+
+        guard let attach = try? MessageCodec.encode(
+            meta: EnvelopeMeta(sessionID: "", seq: 0),
+            message: .inputAttach(InputAttachBody(token: token))
+        ) else {
+            datagram.close()
+            return
+        }
+
+        guard await Self.confirmDatagram(datagram, attach: attach, token: token),
+              !Task.isCancelled,
+              var upgraded = active, upgraded.peerDeviceID == peerDeviceID else {
+            datagram.close()
+            return
+        }
+        upgraded.datagram = datagram
+        active = upgraded
+        diagnostics.inputControllerLane("datagram")
+        inputLog.info("input datagram lane confirmed for \(peerDeviceID, privacy: .public)")
+    }
+
+    /// Sends INPUT_ATTACH up to 3× and waits (≤1.5 s total) for the receiver to
+    /// echo it back over the datagram. Static so the read loop captures nothing
+    /// actor-isolated. Returns true on echo, false otherwise.
+    private static func confirmDatagram(_ datagram: DatagramConnection, attach: Data, token: String) async -> Bool {
+        let confirmed = try? await withTimeout(seconds: 1.5) {
+            let sender = Task {
+                for _ in 1...3 {
+                    try? await datagram.send(FrameCodec.encodeControl(attach))
+                    try? await Task.sleep(for: .milliseconds(350))
+                }
+            }
+            defer { sender.cancel() }
+            return await awaitAttachEcho(datagram, token: token)
+        }
+        return confirmed ?? false
+    }
+
+    private static func awaitAttachEcho(_ datagram: DatagramConnection, token: String) async -> Bool {
+        var reader = FrameReader()
+        do {
+            for try await bytes in datagram.incomingDatagrams {
+                for frame in try reader.append(bytes) {
+                    guard case .control(let payload) = frame else { continue }
+                    let (_, message) = try MessageCodec.decode(payload)
+                    if case .inputAttach(let echo) = message, echo.token == token {
+                        return true
+                    }
+                }
+            }
+        } catch { /* stream ended / cancelled → not confirmed */ }
+        return false
     }
 
     // MARK: Outgoing events (called from the UI)
@@ -159,6 +231,7 @@ public actor InputControllerEngine {
     /// (loss-tolerant), everything else on the reliable control lane.
     private func transmit(_ event: InputEventBody) async {
         guard var current = active else { return }
+        diagnostics.inputEventSent()
         let useDatagram = (event.kind == .move || event.kind == .scroll) && current.datagram != nil
         if useDatagram, let datagram = current.datagram {
             let meta = EnvelopeMeta(sessionID: "", seq: current.datagramSeq)
@@ -173,6 +246,7 @@ public actor InputControllerEngine {
                     current.datagram?.close()
                     current.datagram = nil
                     active = current
+                    diagnostics.inputControllerLane("reliable")
                 }
             }
         }
