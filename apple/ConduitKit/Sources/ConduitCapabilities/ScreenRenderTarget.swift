@@ -21,6 +21,12 @@ public final class ScreenRenderTarget: @unchecked Sendable {
     /// actually decoded and reached the layer without inspecting the GPU.
     public var enqueuedCount: Int { counter.get() }
 
+    /// Optional secondary sink for the same decoded sample buffers, used by the
+    /// convenience senders (AirPlay / Cast / Matter) to re-publish the received
+    /// stream to a TV without disturbing on-screen display (Phase 6 step 6).
+    private let tee = Locked<(@Sendable (CMSampleBuffer) -> Void)?>(nil)
+    public func setSecondarySink(_ sink: (@Sendable (CMSampleBuffer) -> Void)?) { tee.set(sink) }
+
     public init(screenSessionID: String, width: Int, height: Int, sourceName: String) {
         self.screenSessionID = screenSessionID
         self.width = width
@@ -34,6 +40,7 @@ public final class ScreenRenderTarget: @unchecked Sendable {
     public func enqueue(_ sampleBuffer: CMSampleBuffer) {
         Self.markDisplayImmediately(sampleBuffer)
         counter.withValue { $0 += 1 }
+        tee.get()?(sampleBuffer)
         let box = SendableBox(sampleBuffer)
         DispatchQueue.main.async { [displayLayer] in
             let sampleBuffer = box.value

@@ -13,6 +13,11 @@
     <!-- Bluetooth HID peripheral mode (the headline feature) -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
+    <!-- Android TV / Google TV viewer (spec §9 Phase 6 step 2): the same client
+         runs on TV. Touchscreen not required; leanback (D-pad) launcher below. -->
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+
     <!-- Foreground service that runs the node + screen capture -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PROJECTION" />
@@ -22,6 +27,7 @@
     <application
         android:label="Conduit"
         android:icon="@android:drawable/sym_def_app_icon"
+        android:banner="@android:drawable/sym_def_app_icon"
         android:supportsRtl="true"
         android:theme="@style/Theme.Conduit">
 
@@ -33,6 +39,8 @@
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+                <!-- Also appear on the Android TV / Google TV home screen. -->
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
             </intent-filter>
         </activity>
 

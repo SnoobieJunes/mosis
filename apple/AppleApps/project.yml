@@ -7,6 +7,7 @@ options:
   deploymentTarget:
     iOS: "18.0"
     macOS: "15.0"
+    tvOS: "18.0"
   createIntermediateGroups: true
   xcodeVersion: "26.0"
 
@@ -96,6 +97,28 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+
+  # tvOS viewer app (spec §9 Phase 6 step 1): Apple TV as a Conduit screen
+  # viewer + media target + notification display. LAN only (no Aware on tvOS).
+  Conduit-tvOS:
+    type: application
+    platform: tvOS
+    sources: [ConduitTV]
+    dependencies:
+      - package: ConduitKit
+        product: ConduitCapabilities
+    settings:
+      base:
+        PRODUCT_NAME: Conduit
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.tv
+    info:
+      path: ConduitTV/Info.plist
+      properties:
+        CFBundleDisplayName: Conduit
+        NSLocalNetworkUsageDescription: >-
+          Conduit discovers your own devices on your local network and connects
+          to them directly to show their screen on this Apple TV.
+        NSBonjourServices: ["_cndt-app._tcp"]
 
   # ReplayKit broadcast upload extension: streams the iPhone screen to a paired
   # viewer (spec §9 Phase 3 step 4). Device-only; see docs/adr/0006.

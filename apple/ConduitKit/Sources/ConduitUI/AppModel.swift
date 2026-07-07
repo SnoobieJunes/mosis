@@ -64,6 +64,11 @@ public final class AppModel {
     /// iOS: whether the shared broadcast config is written and the picker is ready.
     public var broadcastReady = false
 
+    /// Phase 6 — convenience senders (AirPlay / Google Cast / Matter Casting):
+    /// re-broadcast a screen we're viewing out to a nearby TV.
+    public let castManager = CastManager()
+    public var showCastSheet = false
+
     /// Spec §8: the stats overlay doubles as the debug HUD.
     public var showStats = false
 
@@ -454,6 +459,27 @@ public final class AppModel {
     public func stopSourcingScreen() {
         let node = node
         Task { await node?.stopSourcingScreen() }
+    }
+
+    // MARK: Convenience senders (Phase 6 step 6)
+
+    /// Open the "cast this screen to a TV" sheet and begin discovering routes
+    /// across AirPlay, Google Cast, and Matter Casting.
+    public func openCastSheet() {
+        castManager.startDiscovery()
+        showCastSheet = true
+    }
+
+    public func castCurrentScreen(to route: CastRoute) {
+        guard let render = activeScreenView else { return }
+        castManager.cast(render, to: route)
+        showCastSheet = false
+        toast = "Casting to \(route.name)"
+    }
+
+    public func stopCasting() {
+        castManager.stopCasting()
+        castManager.stopDiscovery()
     }
 
     // iOS screen broadcast (Phase 3 step 4).

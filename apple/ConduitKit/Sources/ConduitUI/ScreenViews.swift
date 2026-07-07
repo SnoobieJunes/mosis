@@ -101,13 +101,25 @@ public struct ScreenViewerScreen: View {
             }
         }
         .overlay(alignment: .bottomTrailing) {
-            Button(role: .destructive) {
-                model.stopViewingScreen()
-            } label: {
-                Label("Stop", systemImage: "xmark.circle.fill")
+            HStack(spacing: 10) {
+                // Convenience senders (Phase 6): re-broadcast this screen to a TV.
+                Button {
+                    model.openCastSheet()
+                } label: {
+                    Label("Cast to TV", systemImage: "airplayvideo")
+                }
+                .buttonStyle(.bordered)
+                Button(role: .destructive) {
+                    model.stopViewingScreen()
+                } label: {
+                    Label("Stop", systemImage: "xmark.circle.fill")
+                }
+                .buttonStyle(.borderedProminent)
             }
-            .buttonStyle(.borderedProminent)
             .padding()
+        }
+        .sheet(isPresented: $model.showCastSheet) {
+            CastSheet(model: model)
         }
         #if os(iOS)
         .navigationBarTitleDisplayMode(.inline)

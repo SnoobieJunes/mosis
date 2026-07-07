@@ -12,7 +12,7 @@ Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
 Wire protocol: [`docs/protocol.md`](docs/protocol.md).
 Decisions: [`docs/adr/`](docs/adr).
 
-## Status: Phases 1–5 implemented
+## Status: Phases 1–6 implemented
 
 | Piece | State |
 |---|---|
@@ -22,6 +22,9 @@ Decisions: [`docs/adr/`](docs/adr).
 | **Live Swift↔Go interop**: pair, file transfer, clipboard, notification | ✅ real Go node ↔ Swift node over loopback TLS |
 | **`conduitd` daemon** (Windows/Linux/macOS) + cross-compilation | ✅ builds for all three; runs on macOS |
 | **Android app** (Compose + NSD/TLS + BT-HID/Accessibility/MediaProjection/Aware) | ◐ built + architected; Android Studio + device gated |
+| **tvOS viewer** (Apple TV — screen viewer + on-TV pairing) | ✅ builds for tvOS |
+| **Convenience senders**: AirPlay + Google Cast + Matter Casting (re-cast a viewed screen to a TV) | ✅ HLS re-publisher verified end-to-end; AirPlay built-in, Cast/Matter SDK-gated (ADR 0011) |
+| **Virtual display** (tablet as extra monitor): Windows IddCx, Linux evdi, macOS `unsupported/` | ◐ driver skeletons + design (ADR 0012); native/driver gated |
 | Wire protocol **v1 frozen** (canonical JSON, ADR 0008) + `proto/conduit.proto` schema | ✅ three implementations, `docs/protocol.md` |
 | LAN transport: Bonjour + TCP, TLS 1.3, mutual certs, key pinning | ✅ real-handshake tests incl. unpinned rejection |
 | Identity (Ed25519) + pairing (6-digit code + word pair, TOFU) | ✅ MITM-substitution covered by tests |

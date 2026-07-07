@@ -1,4 +1,4 @@
-# Conduit — Testing & Setup Guide (Phases 1–5)
+# Conduit — Testing & Setup Guide (Phases 1–6)
 
 Everything you need to (a) run the automated suites that prove the protocol,
 codec, transport, and interop work, and (b) do the real-hardware acceptance
@@ -301,6 +301,29 @@ The Android superpowers (input receiver via AccessibilityService, notification
 source via NotificationListenerService, screen source via MediaProjection, BT
 HID, Wi-Fi Aware) each need their permission granted and a real device to
 validate; see `android/README.md`.
+
+## 6c. Hardware acceptance — Phase 6 (TVs, casting, extra monitor)
+
+**tvOS viewer** builds for tvOS (`xcodebuild -scheme Conduit-tvOS`). On an Apple
+TV: enable Accept pairing on the TV, pair from the phone (compare the on-TV
+code), then pick a paired device to view its screen. Acceptance: Apple TV shows
+a Mac window stream controlled from the phone.
+
+**Convenience senders (AirPlay / Google Cast / Matter Casting)** — the
+mechanism is verified locally (`swift test --filter HLSPublisherTests`: a viewed
+screen is re-published as a live HLS URL and served over HTTP). On hardware,
+while viewing a screen tap **Cast to TV**:
+- **AirPlay** (built in): pick an Apple TV / AirPlay 2 receiver — the viewed
+  screen appears on it. This is the hotel-TV scenario.
+- **Google Cast** / **Matter Casting**: appear when their SDK is linked
+  (ADR 0011). Add the Cast SDK (set the receiver app id) / the Matter Casting
+  bridge, and Chromecast / Fire-TV routes show up in the same sheet.
+
+**Virtual display** (tablet as a real extra monitor) — Windows IddCx and Linux
+evdi driver skeletons + build/signing notes are in `core/drivers/`; the macOS
+private-API route is in `unsupported/` (off in every real build). These are
+native/driver and only build on their target OS (ADR 0012, `docs/virtual-display.md`).
+Acceptance: a cheap tablet as a second Windows monitor over LAN, < ~80 ms.
 
 ## 7. Known walls & what is *not* expected to work yet
 
