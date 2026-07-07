@@ -1,15 +1,36 @@
 # Conformance
 
 Every implementation must pass the golden vectors in `proto/vectors/`
-(append-only). Today that's the Swift suites
-(`MessageVectorConformance`, `PairingVectorConformance` in ConduitKit);
-the cross-language runner that drives Swift + Go (+ Kotlin) against the same
-vectors lands with Phase 4 (spec §9 Phase 4 step 2: a release requires all
-implementations green).
+(append-only). Two do today, byte-for-byte:
 
-Regenerate vectors (append-only — additions only, never edits):
+- **Swift** (`apple/ConduitKit`): `MessageVectorConformance`,
+  `PairingVectorConformance`, `ScreenMessageCodecTests`, `ScreenFrameFramingTests`.
+- **Go** (`core/`): `go run ./cmd/conformance ../proto/vectors` — decodes each
+  vector, re-encodes canonically, and asserts byte-equality (42 vectors).
+
+And they interoperate **live**: `GoInteropTests` (Swift) builds the Go
+`core/cmd/interop` binary, then a real Go node pairs with the Swift node over
+loopback TLS and exchanges a file, clipboard, and a mirrored notification.
+
+## Run it
+
+```
+make go-conformance     # Go vs vectors (byte-exact)
+make swift-test         # Swift vs vectors (needs Xcode)
+make interop            # live Swift <-> Go handshake (needs Xcode + Go)
+make cross-build        # Go daemons cross-compile for linux/windows/darwin
+```
+
+CI (`.github/workflows/conformance.yml`) runs the Go half on Linux and the
+Swift + interop half on macOS; a release requires both green (spec §9 Phase 4
+step 2 invariant).
+
+## Regenerate vectors (append-only — additions only, never edits)
 
 ```
 cd apple/ConduitKit
 swift run conduit-vectorgen ../../proto/vectors
 ```
+
+`pairing.json` is intentionally not regenerated (it pins a randomized Ed25519
+signature that still verifies; see the generator's `skipIfExists`).

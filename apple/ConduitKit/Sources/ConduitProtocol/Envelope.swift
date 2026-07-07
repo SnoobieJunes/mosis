@@ -33,6 +33,8 @@ public enum MessageType: String, Codable, Sendable, CaseIterable {
     case screenAttach = "SCREEN_ATTACH"
     case screenAck = "SCREEN_ACK"
     case screenEnd = "SCREEN_END"
+    // Phase 4-5 (spec §6): notification mirroring.
+    case notification = "NOTIFICATION"
 }
 
 /// The envelope fields every control message carries (spec §6):

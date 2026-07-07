@@ -138,3 +138,27 @@ public struct ScreenEndBody: Codable, Sendable, Equatable {
         self.reason = reason
     }
 }
+
+/// Phase 4-5: a notification mirrored from a source device (Windows/Linux/
+/// Android) to a display device (iPhone/Mac). Direction-specific: `notify-source`
+/// advertises sourcing, `notify-show` advertises display (spec §4).
+public struct NotificationBody: Codable, Sendable, Equatable {
+    public var appName: String
+    public var title: String
+    public var body: String
+    public var id: String
+    public var actions: [String]?
+
+    enum CodingKeys: String, CodingKey {
+        case title, body, id, actions
+        case appName = "app_name"
+    }
+
+    public init(appName: String, title: String, body: String, id: String, actions: [String]? = nil) {
+        self.appName = appName
+        self.title = title
+        self.body = body
+        self.id = id
+        self.actions = actions
+    }
+}

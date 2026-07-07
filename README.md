@@ -12,12 +12,15 @@ Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
 Wire protocol: [`docs/protocol.md`](docs/protocol.md).
 Decisions: [`docs/adr/`](docs/adr).
 
-## Status: Phases 1–3 implemented
+## Status: Phases 1–4 implemented
 
 | Piece | State |
 |---|---|
 | `ConduitKit` Swift package (Protocol · Transport · Session · Capabilities · UI) | ✅ builds, Swift 6 strict concurrency |
-| Wire protocol v0.2 Phase 1–3 messages + TLV framing + golden vectors | ✅ `proto/vectors`, conformance tests |
+| **Go `conduit-core`** (wire · identity · transport · session · capabilities) | ✅ passes the same golden vectors byte-for-byte |
+| **Live Swift↔Go interop**: pair, file transfer, clipboard, notification | ✅ real Go node ↔ Swift node over loopback TLS |
+| **`conduitd` daemon** (Windows/Linux/macOS) + cross-compilation | ✅ builds for all three; runs on macOS |
+| Wire protocol **v1 frozen** (canonical JSON, ADR 0008) + `proto/conduit.proto` schema | ✅ two implementations, `docs/protocol.md` |
 | LAN transport: Bonjour + TCP, TLS 1.3, mutual certs, key pinning | ✅ real-handshake tests incl. unpinned rejection |
 | Identity (Ed25519) + pairing (6-digit code + word pair, TOFU) | ✅ MITM-substitution covered by tests |
 | Sessions: HELLO negotiation, ping/RTT, degraded, reconnect by identity | ✅ |
@@ -28,6 +31,8 @@ Decisions: [`docs/adr/`](docs/adr).
 | **Screen streaming**: VideoToolbox HEVC/H.264 encode+decode, wire framing, adaptive bitrate | ✅ headless encode→wire→decode round-trip test |
 | **macOS source** (ScreenCaptureKit, display/window), **Apple viewer** (AVSampleBufferDisplayLayer) | ✅ two-node source→viewer E2E with synthetic capturer |
 | **iOS screen source** (ReplayKit broadcast extension) | ◐ builds + architected; device-only validation pending (ADR 0006) |
+| **Notifications**: source→display mirroring (Go sources, Apple displays) | ✅ Go→Swift interop test |
+| **Desktop input inject** (Linux uinput, Windows SendInput) | ◐ cross-compiles; runtime device-gated |
 | **Consent gates + persistent indicators + kill switches** (spec invariant) | ✅ |
 | iOS + macOS apps (peer bubbles, Connect/Share, trackpad, screen viewer, pickers, stats HUD) | ✅ build + launch; on-device validation pending |
 | Wi-Fi Aware backend | 🚩 flagged off pending entitlement (ADR 0003) |
@@ -63,12 +68,28 @@ the system picker (ReplayKit extension; needs a real device — ADR 0006).
 
 ```
 docs/          spec, protocol, ADRs, spike results, interop status
-proto/vectors/ golden test vectors (append-only)
-apple/         ConduitKit package + iOS/macOS apps
-core/          (Phase 4) Go core, Windows/Linux daemons
+proto/         conduit.proto schema (informative) + vectors/ (append-only golden)
+apple/         ConduitKit package + iOS/macOS apps + broadcast extension
+core/          Go conduit-core: wire · identity · transport · session · capability
+               · platform (input inject) · cmd/{conduitd,conformance,interop}
 android/       (Phase 5) Kotlin client
 unsupported/   gray-API modules, never in store builds
-tools/         conformance runner (Phase 4)
+tools/         conformance runner + CI (.github/workflows/conformance.yml)
 ```
 
-License: not yet chosen (spec open decision 5, due before Phase 4 publication).
+## The Go core & daemon
+
+```bash
+cd core
+go run ./cmd/conformance ../proto/vectors   # byte-exact vs the Swift vectors
+go test ./...                               # Go-to-Go pair + transfer
+go build -o conduitd ./cmd/conduitd         # the daemon
+./conduitd run --pair                       # accept a phone/Mac, receive files
+```
+
+`conduitd` cross-compiles for Linux and Windows (`make cross-build`). Input
+injection uses Linux `uinput` / Windows `SendInput` (runtime needs that OS);
+notification sourcing (Linux D-Bus, Windows WinRT) is stubbed pending OS
+validation.
+
+License: **Apache-2.0 proposed** (ADR 0007), pending owner confirmation.

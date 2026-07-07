@@ -101,5 +101,7 @@ public enum ConduitEvent: Sendable {
     case screenViewerEnded(screenSessionID: String)
     /// Either side: a screen session failed to start or died.
     case screenFailed(reason: String)
+    /// Phase 4: a notification mirrored from a source device, to display.
+    case notificationReceived(fromDeviceID: String, body: NotificationBody)
     case nodeLog(String)
 }

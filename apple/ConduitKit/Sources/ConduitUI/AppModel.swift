@@ -253,6 +253,14 @@ public final class AppModel {
             screenKbps = 0
         case .screenFailed(let reason):
             toast = "Screen: \(reason)"
+        case .notificationReceived(let from, let body):
+            let sender = peerName(from)
+            NotificationBridge.postAlways(
+                title: body.title.isEmpty ? body.appName : body.title,
+                body: body.body,
+                subtitle: "\(body.appName) · \(sender)"
+            )
+            toast = "🔔 \(body.appName): \(body.title)"
         case .nodeLog(let line):
             toast = line
         }

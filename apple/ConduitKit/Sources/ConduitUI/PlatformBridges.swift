@@ -32,6 +32,20 @@ enum PasteboardBridge {
 /// Local notifications for receive events while the app is in the background
 /// (spec §9 Phase 1 step 8).
 enum NotificationBridge {
+    /// Always post (used for mirrored notifications from a source device —
+    /// spec §9 Phase 4 step 5; the user asked to see these).
+    static func postAlways(title: String, body: String, subtitle: String? = nil) {
+        let center = UNUserNotificationCenter.current()
+        center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
+            guard granted else { return }
+            let content = UNMutableNotificationContent()
+            content.title = title
+            if let subtitle { content.subtitle = subtitle }
+            content.body = body
+            center.add(UNNotificationRequest(identifier: UUID().uuidString, content: content, trigger: nil))
+        }
+    }
+
     static func postIfBackgrounded(title: String, body: String) {
         #if os(macOS)
         let backgrounded = !NSApplication.shared.isActive

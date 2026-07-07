@@ -543,6 +543,10 @@ public actor ConduitNode {
         if screenSourceEngine != nil {
             capabilities.append(CapabilityID.screenSource)
         }
+        // iOS/macOS can display mirrored notifications (Phase 4); the API to
+        // SOURCE other apps' notifications doesn't exist on Apple platforms
+        // (spec §4), so notify-source is never advertised here.
+        capabilities.append(CapabilityID.notifyShow)
         return HelloBody(
             identity: identity.deviceID,
             name: config.deviceName,
@@ -597,6 +601,8 @@ public actor ConduitNode {
         switch message {
         case .clipboardPush(let body):
             emit(.clipboardReceived(fromDeviceID: deviceID, body: body))
+        case .notification(let body):
+            emit(.notificationReceived(fromDeviceID: deviceID, body: body))
         case .fileOffer(let offer):
             guard let link = sessions[deviceID] else { return }
             await receiveEngine.handleOffer(offer, from: link)

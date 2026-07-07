@@ -19,6 +19,10 @@ public enum CapabilityID {
     public static let screenSource = "screen-source"
     /// Advertiser can display a received screen stream (Phase 3).
     public static let screenView = "screen-view"
+    /// Advertiser can source its OS notifications (Phase 4). Direction-specific.
+    public static let notifySource = "notify-source"
+    /// Advertiser can display received notifications (Phase 4).
+    public static let notifyShow = "notify-show"
 }
 
 /// Payload of HELLO and HELLO_ACK (identical shape, spec §6).
@@ -275,6 +279,7 @@ public enum Message: Sendable, Equatable {
     case screenAttach(ScreenAttachBody)
     case screenAck(ScreenAckBody)
     case screenEnd(ScreenEndBody)
+    case notification(NotificationBody)
     /// Unknown `type`: ignored with a logged warning (spec §6 invariant), never fatal.
     case unknown(type: String)
 
@@ -305,6 +310,7 @@ public enum Message: Sendable, Equatable {
         case .screenAttach: MessageType.screenAttach.rawValue
         case .screenAck: MessageType.screenAck.rawValue
         case .screenEnd: MessageType.screenEnd.rawValue
+        case .notification: MessageType.notification.rawValue
         case .unknown(let type): type
         }
     }

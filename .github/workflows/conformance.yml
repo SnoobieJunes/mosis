@@ -1,0 +1,50 @@
+# Conformance CI (spec §9 Phase 4 step 2 invariant): a release requires the
+# Swift AND Go implementations green against the same golden vectors, plus the
+# live Swift<->Go interop handshake.
+name: conformance
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  go:
+    name: Go conformance + cross-build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: Go unit tests
+        run: cd core && go test ./...
+      - name: Go conformance against golden vectors
+        run: cd core && go run ./cmd/conformance ../proto/vectors
+      - name: Cross-compile daemons (linux, windows, darwin)
+        run: |
+          cd core
+          GOOS=linux   GOARCH=amd64 go build ./...
+          GOOS=windows GOARCH=amd64 go build ./...
+          GOOS=darwin  GOARCH=arm64 go build ./...
+
+  swift:
+    name: Swift conformance + interop
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.26"
+      - name: Regenerate vectors and check they are unchanged
+        run: |
+          cd apple/ConduitKit
+          swift run conduit-vectorgen ../../proto/vectors
+          cd ../..
+          # Append-only invariant: regeneration must not alter committed vectors
+          # (pairing.json is skipped by the generator; it holds a random signature).
+          git diff --exit-code proto/vectors/messages.json proto/vectors/chunk_frames.json proto/vectors/screen_frames.json
+      - name: Swift conformance + Go interop
+        run: |
+          cd apple/ConduitKit
+          swift test --filter "VectorConformance|PairingVectorConformance|GoInteropTests"

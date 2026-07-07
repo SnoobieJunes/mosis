@@ -4,3 +4,8 @@ DerivedData/
 xcuserdata/
 *.xcresult
 .swiftpm/
+
+# Go
+core/conduitd
+core/conformance
+*.test

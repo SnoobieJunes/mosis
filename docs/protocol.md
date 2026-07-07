@@ -1,9 +1,15 @@
-# Conduit wire protocol — v0.2 (draft, Phase 1–3 surface)
+# Conduit wire protocol — v1 (Phase 1–4 surface)
 
-Status: JSON control messages (debuggable while unstable, spec §6); protobuf
-freeze happens in Phase 4. Everything network-visible in the Phase 1–3
-implementation is documented here. Golden vectors: [`proto/vectors/`](../proto/vectors)
-(append-only; conformance suites in Swift today, Go/Kotlin later).
+Status: **frozen v1.** Canonical JSON is the wire format (not protobuf — see
+[ADR 0008](adr/0008-json-is-the-v1-wire-format.md); an informative schema lives
+in [`proto/conduit.proto`](../proto/conduit.proto)). Everything network-visible
+through Phase 4 is documented here. Golden vectors:
+[`proto/vectors/`](../proto/vectors) (append-only).
+
+**Two implementations pass these vectors byte-for-byte** and interoperate live:
+the Swift `ConduitKit` (Apple apps) and the Go `conduit-core` (`core/`, the
+Windows/Linux/macOS daemon). A third party can implement a client from this
+document plus the vectors alone — that is the conformance bar.
 
 ## Transport
 
@@ -107,6 +113,17 @@ Every control message:
 | `SCREEN_ATTACH` | `screen_session_id`, `bulk_token` — first frame on a screen bulk connection |
 | `SCREEN_ACK` | `screen_session_id`, `acked_seq` (u32), `request_keyframe` — viewer→source feedback |
 | `SCREEN_END` | `screen_session_id`, `reason?` |
+| `NOTIFICATION` | `app_name`, `title`, `body`, `id`, `actions?` — source→display (Phase 4) |
+
+## Notifications (Phase 4)
+
+Direction (spec §4): `notify-source` advertises the ability to source the OS's
+notifications (Windows `UserNotificationListener`, Linux D-Bus, Android
+`NotificationListenerService`); `notify-show` advertises display. Apple
+platforms are display-only — no API sources other apps' notifications — so the
+Apple apps advertise `notify-show` but never `notify-source`. A source sends
+`NOTIFICATION` to any peer advertising `notify-show`; the display posts a local
+notification.
 
 ## Screen sharing (Phase 3)
 

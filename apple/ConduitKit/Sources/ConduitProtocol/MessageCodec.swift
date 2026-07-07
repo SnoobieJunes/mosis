@@ -47,6 +47,7 @@ public enum MessageCodec {
         case .screenAttach(let body): return try env(.screenAttach, body)
         case .screenAck(let body): return try env(.screenAck, body)
         case .screenEnd(let body): return try env(.screenEnd, body)
+        case .notification(let body): return try env(.notification, body)
         case .unknown(let type):
             throw MessageCodecError.missingEnvelopeField("cannot encode unknown type \(type)")
         }
@@ -98,6 +99,7 @@ public enum MessageCodec {
         case .screenAttach: message = .screenAttach(try body(ScreenAttachBody.self))
         case .screenAck: message = .screenAck(try body(ScreenAckBody.self))
         case .screenEnd: message = .screenEnd(try body(ScreenEndBody.self))
+        case .notification: message = .notification(try body(NotificationBody.self))
         }
         return (meta, message)
     }

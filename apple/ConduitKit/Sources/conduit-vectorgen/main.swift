@@ -114,6 +114,12 @@ let messages: [(String, Message)] = [
         screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB", ackedSeq: 0, requestKeyframe: true))),
     ("screen_end", .screenEnd(ScreenEndBody(
         screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB", reason: "stopped"))),
+    // Phase 4 — notification mirroring.
+    ("notification", .notification(NotificationBody(
+        appName: "Messages", title: "Leroy", body: "on my way — καλημέρα 🦊",
+        id: "msg-42", actions: ["Reply", "Mark as Read"]))),
+    ("notification_minimal", .notification(NotificationBody(
+        appName: "Calendar", title: "Standup", body: "in 5 minutes", id: "evt-9"))),
 ]
 
 var messageVectors: [[String: Any]] = []
