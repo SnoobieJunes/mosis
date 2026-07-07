@@ -98,6 +98,22 @@ let messages: [(String, Message)] = [
     ("input_attach", .inputAttach(InputAttachBody(token: "746f6b656e"))),
     ("media_toggle", .mediaControl(MediaControlBody(action: .toggle))),
     ("media_volume", .mediaControl(MediaControlBody(action: .volume, value: -1))),
+    // Phase 3 — screen sharing.
+    ("screen_request", .screenRequest(ScreenRequestBody(
+        maxWidth: 1920, maxHeight: 1200, maxFps: 30, codecs: [.hevc, .h264]))),
+    ("screen_offer", .screenOffer(ScreenOfferBody(
+        screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB", wireSessionID: 1,
+        codec: .hevc, width: 1920, height: 1080, fps: 30, captureKind: .window,
+        sourceName: "Safari — Conduit", bulkToken: "746f6b656e"))),
+    ("screen_reject", .screenReject(ScreenRejectBody(reason: "declined"))),
+    ("screen_attach", .screenAttach(ScreenAttachBody(
+        screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB", bulkToken: "746f6b656e"))),
+    ("screen_ack", .screenAck(ScreenAckBody(
+        screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB", ackedSeq: 128, requestKeyframe: false))),
+    ("screen_ack_keyframe", .screenAck(ScreenAckBody(
+        screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB", ackedSeq: 0, requestKeyframe: true))),
+    ("screen_end", .screenEnd(ScreenEndBody(
+        screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB", reason: "stopped"))),
 ]
 
 var messageVectors: [[String: Any]] = []
@@ -136,6 +152,32 @@ try writeJSON([
         "frame_hex": hex(FrameCodec.encode(chunk)),
     ]],
 ], to: "chunk_frames.json")
+
+// MARK: - Screen frame vector (binary kind 0x03) + inner packing
+
+let encodedKeyframe = EncodedVideoFrame(
+    isKeyframe: true,
+    parameterSets: [Data([0x40, 0x01, 0x0c, 0x01]), Data([0x42, 0x01, 0x03]), Data([0x44, 0x01, 0xc0])],
+    sampleData: Data((0..<48).map { UInt8($0 & 0xFF) })
+)
+let packedKeyframe = ScreenFramePacking.pack(encodedKeyframe)
+let screenFrameVec = ScreenFrame(
+    sessionID: 1, seq: 7, isKeyframe: true, ptsMillis: 33, data: packedKeyframe
+)
+try writeJSON([
+    "description": "Binary screen frame: TLV kind 0x03, payload = sessionId u16 BE | seq u32 BE | flags u8 (bit0 keyframe) | ptsMillis u64 BE | data. `data` inner packing = paramCount u8 | [len u32 BE | bytes]... | sampleData. APPEND-ONLY.",
+    "vectors": [[
+        "name": "screen_keyframe",
+        "wire_session_id": 1,
+        "seq": 7,
+        "is_keyframe": true,
+        "pts_millis": 33,
+        "parameter_sets_hex": encodedKeyframe.parameterSets.map(hex),
+        "sample_data_hex": hex(encodedKeyframe.sampleData),
+        "packed_data_hex": hex(packedKeyframe),
+        "frame_hex": hex(FrameCodec.encode(screenFrameVec)),
+    ]],
+], to: "screen_frames.json")
 
 // MARK: - Pairing and identity vectors
 

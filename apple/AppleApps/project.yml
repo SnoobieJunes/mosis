@@ -67,19 +67,25 @@ targets:
     dependencies:
       - package: ConduitKit
         product: ConduitUI
+      - target: ConduitBroadcast
+        embed: true
     settings:
       base:
         PRODUCT_NAME: Conduit
         PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.ios
         TARGETED_DEVICE_FAMILY: "1,2"
+    entitlements:
+      path: ConduitIOS/Conduit.entitlements
+      properties:
+        com.apple.security.application-groups: [group.org.auston.conduit]
     info:
       path: ConduitIOS/Info.plist
       properties:
         CFBundleDisplayName: Conduit
         NSLocalNetworkUsageDescription: >-
           Conduit discovers your own devices on your local network and connects
-          to them directly to move files and clipboard content between them.
-          Nothing leaves your network.
+          to them directly to move files, clipboard, and screen content between
+          them. Nothing leaves your network.
         NSBonjourServices: ["_cndt-app._tcp"]
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
@@ -90,3 +96,30 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UIApplicationSceneManifest:
           UIApplicationSupportsMultipleScenes: false
+
+  # ReplayKit broadcast upload extension: streams the iPhone screen to a paired
+  # viewer (spec §9 Phase 3 step 4). Device-only; see docs/adr/0006.
+  ConduitBroadcast:
+    type: app-extension
+    platform: iOS
+    sources: [ConduitBroadcast]
+    dependencies:
+      - package: ConduitKit
+        product: ConduitCapabilities
+    settings:
+      base:
+        PRODUCT_NAME: ConduitBroadcast
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.ios.broadcast
+        TARGETED_DEVICE_FAMILY: "1,2"
+    entitlements:
+      path: ConduitBroadcast/ConduitBroadcast.entitlements
+      properties:
+        com.apple.security.application-groups: [group.org.auston.conduit]
+    info:
+      path: ConduitBroadcast/Info.plist
+      properties:
+        CFBundleDisplayName: Conduit Screen
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.broadcast-services-upload
+          NSExtensionPrincipalClass: SampleHandler
+          RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer

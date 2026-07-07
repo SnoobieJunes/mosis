@@ -1,0 +1,20 @@
+{
+  "description" : "Binary screen frame: TLV kind 0x03, payload = sessionId u16 BE | seq u32 BE | flags u8 (bit0 keyframe) | ptsMillis u64 BE | data. `data` inner packing = paramCount u8 | [len u32 BE | bytes]... | sampleData. APPEND-ONLY.",
+  "vectors" : [
+    {
+      "frame_hex" : "0300000056000100000007010000000000000021030000000440010c0100000003420103000000034401c0000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f",
+      "is_keyframe" : true,
+      "name" : "screen_keyframe",
+      "packed_data_hex" : "030000000440010c0100000003420103000000034401c0000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f",
+      "parameter_sets_hex" : [
+        "40010c01",
+        "420103",
+        "4401c0"
+      ],
+      "pts_millis" : 33,
+      "sample_data_hex" : "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f",
+      "seq" : 7,
+      "wire_session_id" : 1
+    }
+  ]
+}

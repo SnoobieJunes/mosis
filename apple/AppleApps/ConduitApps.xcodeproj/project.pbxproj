@@ -7,20 +7,52 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		56B40DC00CE96C7739E1F8D1 /* SampleHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1D4A800ED1851AA57F1133D9 /* SampleHandler.swift */; };
+		5801DBB32F100201C1D8F164 /* ConduitBroadcast.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = B956DA3C1C29526DCECD5F17 /* ConduitBroadcast.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		59097CB68D9CFFBB89A3DC29 /* ConduitUI in Frameworks */ = {isa = PBXBuildFile; productRef = FD2CEE5738C86C77DDC22742 /* ConduitUI */; };
 		59FDC167320471BE043F4457 /* ConduitUI in Frameworks */ = {isa = PBXBuildFile; productRef = 6C4BFB046D49C73D09B657E0 /* ConduitUI */; };
 		79AA3E6925ADEDC12D71C593 /* ConduitIOSApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 507D05823AE656F79782D1E3 /* ConduitIOSApp.swift */; };
 		A7BCCFAD1C7F3D0412DCC53E /* ConduitMacApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = D317332CF396745527C5444A /* ConduitMacApp.swift */; };
+		BF208295AB71D0A70A5B59BC /* ConduitCapabilities in Frameworks */ = {isa = PBXBuildFile; productRef = C4856BBF3F548E9BDD25B935 /* ConduitCapabilities */; };
 /* End PBXBuildFile section */
 
+/* Begin PBXContainerItemProxy section */
+		128556725269715F985D3DF9 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ECA94A89233D62DB2ABE571C /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DEA852562D8F0284B0FBDDCC;
+			remoteInfo = ConduitBroadcast;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		A8DBB1F530C35FF3604D48CC /* Embed Foundation Extensions */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 13;
+			files = (
+				5801DBB32F100201C1D8F164 /* ConduitBroadcast.appex in Embed Foundation Extensions */,
+			);
+			name = "Embed Foundation Extensions";
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
 /* Begin PBXFileReference section */
+		1D4A800ED1851AA57F1133D9 /* SampleHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SampleHandler.swift; sourceTree = "<group>"; };
 		46DFC7E05F957684C00E7CE1 /* ConduitKit */ = {isa = PBXFileReference; lastKnownFileType = folder; name = ConduitKit; path = ../ConduitKit; sourceTree = SOURCE_ROOT; };
 		4C9FF6D4192A0573C9B314EA /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		507D05823AE656F79782D1E3 /* ConduitIOSApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConduitIOSApp.swift; sourceTree = "<group>"; };
 		594C89FBC99F318480FB1F7F /* Conduit-macOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "Conduit-macOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = "Conduit-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		5B67E45574AA6072BD57FB76 /* Conduit.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Conduit.entitlements; sourceTree = "<group>"; };
+		6B4A1E0011DD3B6EA5D8C3C9 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		75EB1BE90544600611445022 /* ConduitBroadcast.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = ConduitBroadcast.entitlements; sourceTree = "<group>"; };
+		84037632B5B2FC1B4C43340E /* Conduit.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Conduit.entitlements; sourceTree = "<group>"; };
 		884B969D5211CA2BC9755F86 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
+		B956DA3C1C29526DCECD5F17 /* ConduitBroadcast.appex */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = "wrapper.app-extension"; path = ConduitBroadcast.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		D317332CF396745527C5444A /* ConduitMacApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ConduitMacApp.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -41,17 +73,36 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E6A402F3193BD24B54C2D80E /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				BF208295AB71D0A70A5B59BC /* ConduitCapabilities in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		047D305206A9EDAD611CAC0E = {
 			isa = PBXGroup;
 			children = (
+				0CB7329272F7479647C34D16 /* ConduitBroadcast */,
 				E8D22B571BF06E4A7315C483 /* ConduitIOS */,
 				10D5B733FF6EF6A1255ACBCC /* ConduitMac */,
 				F0013ABD7CCC1A4AC56E9AA1 /* Packages */,
 				DFC9CC020832F90CFB536C61 /* Products */,
 			);
+			sourceTree = "<group>";
+		};
+		0CB7329272F7479647C34D16 /* ConduitBroadcast */ = {
+			isa = PBXGroup;
+			children = (
+				75EB1BE90544600611445022 /* ConduitBroadcast.entitlements */,
+				6B4A1E0011DD3B6EA5D8C3C9 /* Info.plist */,
+				1D4A800ED1851AA57F1133D9 /* SampleHandler.swift */,
+			);
+			path = ConduitBroadcast;
 			sourceTree = "<group>";
 		};
 		10D5B733FF6EF6A1255ACBCC /* ConduitMac */ = {
@@ -69,6 +120,7 @@
 			children = (
 				5B1915623F7A3C54B53A19F7 /* Conduit-iOS.app */,
 				594C89FBC99F318480FB1F7F /* Conduit-macOS.app */,
+				B956DA3C1C29526DCECD5F17 /* ConduitBroadcast.appex */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -76,6 +128,7 @@
 		E8D22B571BF06E4A7315C483 /* ConduitIOS */ = {
 			isa = PBXGroup;
 			children = (
+				84037632B5B2FC1B4C43340E /* Conduit.entitlements */,
 				507D05823AE656F79782D1E3 /* ConduitIOSApp.swift */,
 				884B969D5211CA2BC9755F86 /* Info.plist */,
 			);
@@ -112,16 +165,37 @@
 			productReference = 594C89FBC99F318480FB1F7F /* Conduit-macOS.app */;
 			productType = "com.apple.product-type.application";
 		};
+		DEA852562D8F0284B0FBDDCC /* ConduitBroadcast */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = E3DBD310E3DF27457D38065F /* Build configuration list for PBXNativeTarget "ConduitBroadcast" */;
+			buildPhases = (
+				E4D06B570C23BA8F40ACB8E7 /* Sources */,
+				E6A402F3193BD24B54C2D80E /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = ConduitBroadcast;
+			packageProductDependencies = (
+				C4856BBF3F548E9BDD25B935 /* ConduitCapabilities */,
+			);
+			productName = ConduitBroadcast;
+			productReference = B956DA3C1C29526DCECD5F17 /* ConduitBroadcast.appex */;
+			productType = "com.apple.product-type.app-extension";
+		};
 		F1DA299FA59B88C8F5A57FAC /* Conduit-iOS */ = {
 			isa = PBXNativeTarget;
 			buildConfigurationList = 2AAF7FB02B83EEB333CC64B8 /* Build configuration list for PBXNativeTarget "Conduit-iOS" */;
 			buildPhases = (
 				A59FA7A466EDD6FD92439686 /* Sources */,
 				190E998C54F28A3FDCB367C6 /* Frameworks */,
+				A8DBB1F530C35FF3604D48CC /* Embed Foundation Extensions */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+				04D1630A4855C6F11C46EF08 /* PBXTargetDependency */,
 			);
 			name = "Conduit-iOS";
 			packageProductDependencies = (
@@ -141,6 +215,9 @@
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					81AF205366A2831325D63C5D = {
+						ProvisioningStyle = Automatic;
+					};
+					DEA852562D8F0284B0FBDDCC = {
 						ProvisioningStyle = Automatic;
 					};
 					F1DA299FA59B88C8F5A57FAC = {
@@ -167,6 +244,7 @@
 			targets = (
 				F1DA299FA59B88C8F5A57FAC /* Conduit-iOS */,
 				81AF205366A2831325D63C5D /* Conduit-macOS */,
+				DEA852562D8F0284B0FBDDCC /* ConduitBroadcast */,
 			);
 		};
 /* End PBXProject section */
@@ -188,7 +266,23 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
+		E4D06B570C23BA8F40ACB8E7 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				56B40DC00CE96C7739E1F8D1 /* SampleHandler.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		04D1630A4855C6F11C46EF08 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DEA852562D8F0284B0FBDDCC /* ConduitBroadcast */;
+			targetProxy = 128556725269715F985D3DF9 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		4DA6906AC2110900887438B9 /* Debug */ = {
@@ -229,10 +323,28 @@
 			};
 			name = Release;
 		};
+		621510A235320F02D7AE2983 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ConduitBroadcast/ConduitBroadcast.entitlements;
+				INFOPLIST_FILE = ConduitBroadcast/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios.broadcast;
+				PRODUCT_NAME = ConduitBroadcast;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
 		6C992E372748B1146AE86D8D /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ConduitIOS/Conduit.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = ConduitIOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -246,10 +358,28 @@
 			};
 			name = Debug;
 		};
+		A22828D941A58E4ABB676445 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_ENTITLEMENTS = ConduitBroadcast/ConduitBroadcast.entitlements;
+				INFOPLIST_FILE = ConduitBroadcast/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@executable_path/../../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = org.auston.conduit.ios.broadcast;
+				PRODUCT_NAME = ConduitBroadcast;
+				SDKROOT = iphoneos;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
 		A4A9F1F5980EB45583E68BE6 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = ConduitIOS/Conduit.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
 				INFOPLIST_FILE = ConduitIOS/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -420,6 +550,15 @@
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Debug;
 		};
+		E3DBD310E3DF27457D38065F /* Build configuration list for PBXNativeTarget "ConduitBroadcast" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A22828D941A58E4ABB676445 /* Debug */,
+				621510A235320F02D7AE2983 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
@@ -433,6 +572,10 @@
 		6C4BFB046D49C73D09B657E0 /* ConduitUI */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = ConduitUI;
+		};
+		C4856BBF3F548E9BDD25B935 /* ConduitCapabilities */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = ConduitCapabilities;
 		};
 		FD2CEE5738C86C77DDC22742 /* ConduitUI */ = {
 			isa = XCSwiftPackageProductDependency;

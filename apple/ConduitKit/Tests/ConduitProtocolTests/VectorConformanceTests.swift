@@ -85,4 +85,27 @@ enum VectorPaths {
             #expect(FrameCodec.encode(chunk) == frameData)
         }
     }
+
+    @Test func screenFrameVectorRoundTrips() throws {
+        let file = try VectorPaths.load("screen_frames.json")
+        let vectors = try #require(file["vectors"] as? [[String: Any]])
+        for vector in vectors {
+            let name = try #require(vector["name"] as? String)
+            let frameHex = try #require(vector["frame_hex"] as? String)
+            let frameData = try #require(Data(hexString: frameHex))
+            var reader = FrameReader()
+            let frames = try reader.append(frameData)
+            guard case .screenFrame(let frame) = try #require(frames.first) else {
+                Issue.record("\(name): expected a screen frame"); continue
+            }
+            #expect(frame.seq == UInt32(try #require(vector["seq"] as? Int)))
+            #expect(frame.isKeyframe == (vector["is_keyframe"] as? Bool ?? false))
+            #expect(FrameCodec.encode(frame) == frameData)
+            // Inner packing must unpack to the vector's parameter sets + sample data.
+            let unpacked = try ScreenFramePacking.unpack(frame.data, isKeyframe: frame.isKeyframe)
+            let expectedSets = try #require(vector["parameter_sets_hex"] as? [String]).map { Data(hexString: $0)! }
+            #expect(unpacked.parameterSets == expectedSets)
+            #expect(unpacked.sampleData == Data(hexString: try #require(vector["sample_data_hex"] as? String)))
+        }
+    }
 }

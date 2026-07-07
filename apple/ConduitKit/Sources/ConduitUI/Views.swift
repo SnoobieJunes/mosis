@@ -20,11 +20,22 @@ public struct RootView: View {
                 if let controllerID = model.inputControlledByPeerID {
                     ControlledIndicatorBanner(peerName: model.peerName(controllerID), model: model)
                 }
+                if let sourcingID = model.screenSourcingToPeerID {
+                    ScreenSourceBanner(peerName: model.peerName(sourcingID), model: model)
+                }
                 DevicesScreen(model: model, filePickerTarget: $filePickerTarget)
             }
                 .navigationTitle("Conduit")
                 .navigationDestination(for: PinnedPeer.self) { peer in
                     RemoteControlView(model: model, peer: peer)
+                }
+                .navigationDestination(isPresented: Binding(
+                    get: { model.activeScreenView != nil },
+                    set: { if !$0 { model.stopViewingScreen() } }
+                )) {
+                    if let render = model.activeScreenView, let offer = model.activeScreenOffer {
+                        ScreenViewerScreen(model: model, render: render, offer: offer)
+                    }
                 }
                 .toolbar {
                     ToolbarItem {
@@ -96,6 +107,22 @@ public struct RootView: View {
         } message: {
             Text(model.inputPermissionPrompt ?? "")
         }
+        .sheet(isPresented: Binding(
+            get: { model.screenPickPeerID != nil },
+            set: { if !$0 { model.resolveScreenPick(sourceID: nil) } }
+        )) {
+            ScreenSourcePicker(model: model)
+        }
+        #if os(iOS)
+        .sheet(isPresented: Binding(
+            get: { model.broadcastPeer != nil },
+            set: { if !$0 { model.broadcastPeer = nil } }
+        )) {
+            if let peer = model.broadcastPeer {
+                ScreenBroadcastSheet(model: model, peer: peer)
+            }
+        }
+        #endif
     }
 }
 
@@ -213,16 +240,34 @@ struct PairedPeerRow: View {
                 Spacer()
                 // The mosis verb pair (spec §8): Connect = session toward me, Share = push mine.
                 if isConnected {
-                    if model.canControl(peer) {
-                        // Connect (pull): drive this peer as a trackpad/keyboard.
-                        NavigationLink(value: peer) {
-                            Label("Control", systemImage: "cursorarrow.rays")
+                    // Connect = pull (spec §8): control and/or view their screen.
+                    Menu("Connect") {
+                        if model.canControl(peer) {
+                            NavigationLink(value: peer) {
+                                Label("Control (trackpad/keyboard)", systemImage: "cursorarrow.rays")
+                            }
                         }
-                        .buttonStyle(.borderedProminent)
+                        if model.canViewScreen(of: peer) {
+                            Button {
+                                model.viewScreen(of: peer)
+                            } label: {
+                                Label("View Screen", systemImage: "rectangle.on.rectangle")
+                            }
+                        }
                     }
+                    .menuStyle(.button)
+                    .buttonStyle(.borderedProminent)
+                    .fixedSize()
                     Menu("Share") {
                         Button("Share File…") { filePickerTarget = peer }
                         Button("Send Clipboard") { model.sendClipboard(to: peer) }
+                        #if os(iOS)
+                        Button {
+                            model.beginScreenBroadcast(to: peer)
+                        } label: {
+                            Label("Share My Screen", systemImage: "rectangle.dashed.badge.record")
+                        }
+                        #endif
                     }
                     .menuStyle(.button)
                     .buttonStyle(.bordered)

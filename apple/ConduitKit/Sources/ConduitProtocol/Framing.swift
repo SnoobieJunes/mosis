@@ -6,6 +6,7 @@ import Foundation
 public enum FrameKind: UInt8, Sendable {
     case control = 0x01
     case fileChunk = 0x02
+    case screenFrame = 0x03
 }
 
 public struct ChunkFrame: Sendable, Equatable {
@@ -22,14 +23,38 @@ public struct ChunkFrame: Sendable, Equatable {
     }
 }
 
+/// A single encoded video frame on the wire (spec §6 SCREEN_FRAME, Phase 3).
+/// Binary bulk data on the dedicated screen connection, parallel to ChunkFrame.
+/// `sessionID` is a small per-connection id (multiple screen sessions never
+/// share one bulk connection in v1, but the field keeps the format future-proof).
+public struct ScreenFrame: Sendable, Equatable {
+    public var sessionID: UInt16
+    public var seq: UInt32
+    public var isKeyframe: Bool
+    /// Presentation timestamp, milliseconds; monotonic per session.
+    public var ptsMillis: UInt64
+    /// Packed encoded frame (parameter sets + sample data); see ScreenFrameCodec.
+    public var data: Data
+
+    public init(sessionID: UInt16, seq: UInt32, isKeyframe: Bool, ptsMillis: UInt64, data: Data) {
+        self.sessionID = sessionID
+        self.seq = seq
+        self.isKeyframe = isKeyframe
+        self.ptsMillis = ptsMillis
+        self.data = data
+    }
+}
+
 public enum Frame: Sendable, Equatable {
     case control(Data)
     case fileChunk(ChunkFrame)
+    case screenFrame(ScreenFrame)
 }
 
 public enum FramingError: Error, Equatable {
     case oversizedFrame(kind: UInt8, length: Int)
     case malformedChunk
+    case malformedScreenFrame
 }
 
 public enum FrameCodec {
@@ -66,6 +91,33 @@ public enum FrameCodec {
         let data = Data(bytes[ProtocolConstants.chunkHeaderSize...])
         return ChunkFrame(fileID: uuid, seq: seq, isLast: isLast, data: data)
     }
+
+    public static func encode(_ frame: ScreenFrame) -> Data {
+        var out = Data(capacity: 5 + ProtocolConstants.screenFrameHeaderSize + frame.data.count)
+        out.append(FrameKind.screenFrame.rawValue)
+        out.appendBigEndian(UInt32(ProtocolConstants.screenFrameHeaderSize + frame.data.count))
+        out.appendBigEndian(frame.sessionID)
+        out.appendBigEndian(frame.seq)
+        out.append(frame.isKeyframe ? 1 : 0)
+        out.appendBigEndian(frame.ptsMillis)
+        out.append(frame.data)
+        return out
+    }
+
+    static func decodeScreenPayload(_ payload: Data) throws -> ScreenFrame {
+        guard payload.count >= ProtocolConstants.screenFrameHeaderSize else {
+            throw FramingError.malformedScreenFrame
+        }
+        let bytes = [UInt8](payload)
+        let sessionID = UInt16(bytes[0]) << 8 | UInt16(bytes[1])
+        var seq: UInt32 = 0
+        for i in 2..<6 { seq = (seq << 8) | UInt32(bytes[i]) }
+        let isKeyframe = bytes[6] != 0
+        var pts: UInt64 = 0
+        for i in 7..<15 { pts = (pts << 8) | UInt64(bytes[i]) }
+        let data = Data(bytes[ProtocolConstants.screenFrameHeaderSize...])
+        return ScreenFrame(sessionID: sessionID, seq: seq, isKeyframe: isKeyframe, ptsMillis: pts, data: data)
+    }
 }
 
 /// Incremental frame parser. Feed it arbitrary byte segments from the stream;
@@ -92,7 +144,10 @@ public struct FrameReader: Sendable {
             let payloadLength = Int(length)
             let maxAllowed = max(
                 ProtocolConstants.maxControlPayload,
-                ProtocolConstants.maxChunkData + ProtocolConstants.chunkHeaderSize
+                max(
+                    ProtocolConstants.maxChunkData + ProtocolConstants.chunkHeaderSize,
+                    ProtocolConstants.maxScreenFrameData + ProtocolConstants.screenFrameHeaderSize
+                )
             )
             guard payloadLength <= maxAllowed else {
                 throw FramingError.oversizedFrame(kind: kindByte, length: payloadLength)
@@ -109,6 +164,8 @@ public struct FrameReader: Sendable {
                 frames.append(.control(payload))
             case .fileChunk:
                 frames.append(.fileChunk(try FrameCodec.decodeChunkPayload(payload)))
+            case .screenFrame:
+                frames.append(.screenFrame(try FrameCodec.decodeScreenPayload(payload)))
             case nil:
                 skippedUnknownFrames += 1
             }
@@ -118,6 +175,10 @@ public struct FrameReader: Sendable {
 }
 
 extension Data {
+    mutating func appendBigEndian(_ value: UInt16) {
+        Swift.withUnsafeBytes(of: value.bigEndian) { append(contentsOf: $0) }
+    }
+
     mutating func appendBigEndian(_ value: UInt32) {
         Swift.withUnsafeBytes(of: value.bigEndian) { append(contentsOf: $0) }
     }

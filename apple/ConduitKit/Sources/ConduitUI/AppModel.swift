@@ -44,6 +44,26 @@ public final class AppModel {
     /// Controller: the remote reported a secure-input (password) field.
     public var remoteSecureInput = false
 
+    // Phase 3 — screen sharing state.
+    /// Remote screen-source capability learned at session-ready.
+    public var remoteScreenCapable: [String: Bool] = [:]
+    /// Source: a peer asked to view this screen; drives the display/window picker.
+    public var screenPickPeerID: String?
+    public var screenPickSources: [CaptureSourceDescriptor] = []
+    /// Source: which peer this device is currently sharing its screen to.
+    public var screenSourcingToPeerID: String?
+    public var screenSourcingName: String?
+    /// Viewer: the active stream we're displaying (render target + offer).
+    public var activeScreenView: ScreenRenderTarget?
+    public var activeScreenOffer: ScreenOfferBody?
+    /// Viewer stats for the overlay.
+    public var screenFps: Double = 0
+    public var screenKbps: Double = 0
+    /// iOS: the peer we're about to broadcast our screen to (drives the sheet).
+    public var broadcastPeer: PinnedPeer?
+    /// iOS: whether the shared broadcast config is written and the picker is ready.
+    public var broadcastReady = false
+
     /// Spec §8: the stats overlay doubles as the debug HUD.
     public var showStats = false
 
@@ -76,7 +96,8 @@ public final class AppModel {
             let node = try ConduitNode(
                 config: config,
                 identityStore: store,
-                inputInjector: ConduitNode.defaultInjector()
+                inputInjector: ConduitNode.defaultInjector(),
+                screenCapturer: ConduitNode.defaultScreenCapturer()
             )
             self.node = node
             localName = config.deviceName
@@ -101,17 +122,27 @@ public final class AppModel {
             .appendingPathComponent("Conduit", isDirectory: true)
         let name = Host.current().localizedName ?? "Mac"
         let deviceClass = DeviceClass.desktop
+        let appGroupID: String? = nil
+        let stateDir = appSupport
         #else
         let receive = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         let name = UIDevice.current.name
         let deviceClass: DeviceClass = UIDevice.current.userInterfaceIdiom == .pad ? .tablet : .phone
+        // Identity + peers live in the App Group so the broadcast extension can
+        // authenticate as this device; falls back to app support if unavailable.
+        let appGroupID: String? = "group.org.auston.conduit"
+        let groupDir = FileManager.default
+            .containerURL(forSecurityApplicationGroupIdentifier: "group.org.auston.conduit")?
+            .appendingPathComponent("Conduit", isDirectory: true)
+        let stateDir = groupDir ?? appSupport
         #endif
         return NodeConfiguration(
             deviceName: name,
             deviceClass: deviceClass,
             appVersion: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.1",
             receiveDirectory: receive,
-            stateDirectory: appSupport
+            stateDirectory: stateDir,
+            appGroupID: appGroupID
         )
     }
 
@@ -138,6 +169,7 @@ public final class AppModel {
             }
         case .remoteCapabilities(let id, let capabilities):
             remoteInputCapable[id] = capabilities.contains(CapabilityID.inputInject)
+            remoteScreenCapable[id] = capabilities.contains(CapabilityID.screenSource)
         case .rttUpdated(let id, let millis):
             rttMillis[id] = millis
         case .pairingPrompt(let prompt):
@@ -197,6 +229,30 @@ public final class AppModel {
             toast = "Control ended: \(reason)"
         case .inputRemoteSecureInput(_, let active):
             remoteSecureInput = active
+        case .screenSourcePickRequested(let peerID, let sources):
+            screenPickPeerID = peerID
+            screenPickSources = sources
+        case .screenSourceStarted(let peerID, let name):
+            screenSourcingToPeerID = peerID
+            screenSourcingName = name
+        case .screenSourceEnded:
+            screenSourcingToPeerID = nil
+            screenSourcingName = nil
+        case .screenPermissionNeeded:
+            lastError = "Screen Recording permission is off. Enable Conduit in System Settings → Privacy & Security → Screen Recording."
+        case .screenViewerStarted(_, let offer, let render):
+            activeScreenView = render
+            activeScreenOffer = offer
+        case .screenViewerStats(_, let fps, let kbps):
+            screenFps = fps
+            screenKbps = kbps
+        case .screenViewerEnded:
+            activeScreenView = nil
+            activeScreenOffer = nil
+            screenFps = 0
+            screenKbps = 0
+        case .screenFailed(let reason):
+            toast = "Screen: \(reason)"
         case .nodeLog(let line):
             toast = line
         }
@@ -357,6 +413,65 @@ public final class AppModel {
         let node = node
         Task { await node?.sendMedia(action, value: value) }
     }
+
+    // MARK: Screen sharing intents (Phase 3)
+
+    public func canViewScreen(of peer: PinnedPeer) -> Bool {
+        remoteScreenCapable[peer.deviceID] ?? (peer.deviceClass == .desktop || peer.deviceClass == .laptop)
+    }
+
+    /// Connect = pull: view the peer's screen.
+    public func viewScreen(of peer: PinnedPeer) {
+        let node = node
+        Task { await node?.requestScreen(from: peer.deviceID) }
+    }
+
+    public func stopViewingScreen() {
+        guard let id = activeScreenOffer?.screenSessionID else { return }
+        let node = node
+        activeScreenView = nil
+        activeScreenOffer = nil
+        Task { await node?.stopViewingScreen(screenSessionID: id) }
+    }
+
+    public func resolveScreenPick(sourceID: String?) {
+        guard let peerID = screenPickPeerID else { return }
+        screenPickPeerID = nil
+        screenPickSources = []
+        let node = node
+        Task { await node?.resolveScreenPick(peerDeviceID: peerID, sourceID: sourceID) }
+    }
+
+    /// Source: stop sharing this device's screen (kill switch).
+    public func stopSourcingScreen() {
+        let node = node
+        Task { await node?.stopSourcingScreen() }
+    }
+
+    // iOS screen broadcast (Phase 3 step 4).
+    #if os(iOS)
+    public func beginScreenBroadcast(to peer: PinnedPeer) {
+        broadcastReady = false
+        broadcastPeer = peer
+    }
+
+    public func prepareBroadcast(to peer: PinnedPeer) async {
+        let scale = await UIScreen.main.scale
+        let bounds = await UIScreen.main.bounds
+        // Cap the long edge so the encoder stays comfortable on-device.
+        let rawW = Int(bounds.width * scale)
+        let rawH = Int(bounds.height * scale)
+        let config = await node?.prepareIOSScreenBroadcast(to: peer.deviceID, width: rawW, height: rawH, fps: 30)
+        broadcastReady = (config != nil)
+    }
+
+    public func cancelBroadcastPrep() {
+        let node = node
+        broadcastPeer = nil
+        broadcastReady = false
+        Task { await node?.endIOSScreenBroadcast() }
+    }
+    #endif
 
     // MARK: Presentation helpers
 

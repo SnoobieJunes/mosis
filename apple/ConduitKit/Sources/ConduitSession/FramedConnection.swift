@@ -99,4 +99,8 @@ public actor FramedConnection {
     public func sendChunk(_ chunk: ChunkFrame) async throws {
         try await raw.send(FrameCodec.encode(chunk))
     }
+
+    public func sendScreenFrame(_ frame: ScreenFrame) async throws {
+        try await raw.send(FrameCodec.encode(frame))
+    }
 }

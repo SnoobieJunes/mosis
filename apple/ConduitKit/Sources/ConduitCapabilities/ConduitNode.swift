@@ -14,19 +14,24 @@ public struct NodeConfiguration: Sendable {
     public var receiveDirectory: URL
     /// Where peers.json and partial transfers live.
     public var stateDirectory: URL
+    /// App Group id shared with the iOS broadcast extension (Phase 3 step 4).
+    /// nil on macOS and in tests, where there is no broadcast extension.
+    public var appGroupID: String?
 
     public init(
         deviceName: String,
         deviceClass: DeviceClass,
         appVersion: String,
         receiveDirectory: URL,
-        stateDirectory: URL
+        stateDirectory: URL,
+        appGroupID: String? = nil
     ) {
         self.deviceName = deviceName
         self.deviceClass = deviceClass
         self.appVersion = appVersion
         self.receiveDirectory = receiveDirectory
         self.stateDirectory = stateDirectory
+        self.appGroupID = appGroupID
     }
 
     /// What this platform cannot do (spec §4), advertised honestly in HELLO.
@@ -58,6 +63,14 @@ public actor ConduitNode {
     private let inputReceiveEngine: InputReceiveEngine?
     private let inputControllerEngine: InputControllerEngine
     private var inputConsentWaiters: [String: CheckedContinuation<Bool, Never>] = [:]
+    /// Screen source engine present only where a capturer exists (macOS); its
+    /// presence is what advertises the screen-source capability. The viewer
+    /// engine exists everywhere (every platform can display a stream).
+    private let screenSourceEngine: ScreenSourceEngine?
+    private let screenViewerEngine: ScreenViewerEngine
+    private var screenPickWaiters: [String: CheckedContinuation<CaptureSourceDescriptor?, Never>] = [:]
+    private var pendingScreenSources: [String: [CaptureSourceDescriptor]] = [:]
+    private var iosBroadcastWireSession: UInt16 = 1
 
     public nonisolated let events: AsyncStream<ConduitEvent>
     private let eventsContinuation: AsyncStream<ConduitEvent>.Continuation
@@ -83,7 +96,8 @@ public actor ConduitNode {
     public init(
         config: NodeConfiguration,
         identityStore: any IdentityStore,
-        inputInjector: (any InputInjector)? = nil
+        inputInjector: (any InputInjector)? = nil,
+        screenCapturer: (any ScreenCapturer)? = nil
     ) throws {
         self.config = config
         self.bundle = try IdentityBootstrap.loadOrCreate(
@@ -110,20 +124,27 @@ public actor ConduitNode {
         self.eventsContinuation = continuation
 
         let backend = self.backend
+        // Shared opener for dedicated bulk connections (files and screen frames).
+        let bulkOpener: @Sendable (PinnedPeer, String, UInt16) async throws -> FramedConnection = { peer, host, port in
+            let connection = try await backend.connect(
+                host: host, port: port, policy: .pinned([peer.tlsPubkeySHA256])
+            )
+            return FramedConnection(connection)
+        }
         self.sendEngine = FileSendEngine(
             emit: { continuation.yield($0) },
-            bulkOpener: { peer, host, port in
-                let connection = try await backend.connect(
-                    host: host, port: port, policy: .pinned([peer.tlsPubkeySHA256])
-                )
-                return FramedConnection(connection)
-            }
+            bulkOpener: bulkOpener
         )
         self.receiveEngine = FileReceiveEngine(
             receiveDirectory: config.receiveDirectory,
             partialsDirectory: config.stateDirectory.appendingPathComponent("partials"),
             emit: { continuation.yield($0) }
         )
+
+        // A weak self-box shared by every engine callback that must round-trip
+        // through the node's UI (input consent, screen source pick).
+        let selfBox = NodeSelfBox()
+        self.selfBox = selfBox
 
         // Input: the controller half exists everywhere (any device can drive a
         // Mac); the receive half exists only where an injector is supplied.
@@ -133,9 +154,6 @@ public actor ConduitNode {
             backend: backend, emit: { continuation.yield($0) }
         )
         if let injector = inputInjector {
-            // Consent is resolved by the app via resolveInputConsent(); the node
-            // bridges the engine's async request to that UI round-trip.
-            let selfBox = NodeSelfBox()
             self.inputReceiveEngine = InputReceiveEngine(
                 injector: injector,
                 backend: backend,
@@ -144,24 +162,49 @@ public actor ConduitNode {
                     await selfBox.node?.awaitInputConsent(peerID: peerID) ?? false
                 }
             )
-            self.selfBox = selfBox
         } else {
             self.inputReceiveEngine = nil
-            self.selfBox = nil
+        }
+
+        // Screen: viewer half everywhere; source half only where a capturer
+        // exists (macOS). The source pick is bridged to the UI via selfBox.
+        self.screenViewerEngine = ScreenViewerEngine(emit: { continuation.yield($0) })
+        if let capturer = screenCapturer {
+            self.screenSourceEngine = ScreenSourceEngine(
+                capturer: capturer,
+                emit: { continuation.yield($0) },
+                bulkOpener: bulkOpener,
+                pickSource: { peerID, sources in
+                    await selfBox.node?.awaitScreenPick(peerID: peerID, sources: sources) ?? nil
+                }
+            )
+        } else {
+            self.screenSourceEngine = nil
         }
     }
 
-    /// Weak self-reference the input-consent closure captures without a cycle.
+    /// Weak self-reference engine callbacks capture without a cycle.
     private final class NodeSelfBox: @unchecked Sendable {
         weak var node: ConduitNode?
     }
-    private let selfBox: NodeSelfBox?
+    private let selfBox: NodeSelfBox
 
     /// The platform's default input injector (MacInputInjector on macOS, none
     /// elsewhere). Apps pass this into `init`; tests pass their own or nil.
     public static func defaultInjector() -> (any InputInjector)? {
         #if os(macOS)
         return MacInputInjector()
+        #else
+        return nil
+        #endif
+    }
+
+    /// The platform's default screen capturer (ScreenCaptureKit on macOS; iOS
+    /// sourcing is a ReplayKit broadcast extension, a separate process, so nil
+    /// here). Apps pass this into `init`; tests pass their own or nil.
+    public static func defaultScreenCapturer() -> (any ScreenCapturer)? {
+        #if os(macOS)
+        return MacScreenCapturer()
         #else
         return nil
         #endif
@@ -182,7 +225,7 @@ public actor ConduitNode {
     public func start() async throws {
         guard !started else { return }
         started = true
-        selfBox?.node = self
+        selfBox.node = self
 
         let (port, inbound) = try await backend.start()
         listenPort = port
@@ -271,6 +314,13 @@ public actor ConduitNode {
                 let attached = await receiveEngine.attachBulk(framed, fileID: body.fileID, token: body.bulkToken)
                 if !attached {
                     nodeLog.warning("bulk attach rejected for file \(body.fileID, privacy: .public)")
+                    framed.closeUnderlying()
+                }
+            case .screenAttach(let body):
+                // The source opened this connection to stream frames to us.
+                let attached = await screenViewerEngine.attachStream(framed, attach: body)
+                if !attached {
+                    nodeLog.warning("screen attach rejected for \(body.screenSessionID, privacy: .public)")
                     framed.closeUnderlying()
                 }
             default:
@@ -488,6 +538,11 @@ public actor ConduitNode {
             capabilities.append(CapabilityID.inputInject)
             capabilities.append(CapabilityID.mediaTarget)
         }
+        // Every platform can display a stream; only ones with a capturer source.
+        capabilities.append(CapabilityID.screenView)
+        if screenSourceEngine != nil {
+            capabilities.append(CapabilityID.screenSource)
+        }
         return HelloBody(
             identity: identity.deviceID,
             name: config.deviceName,
@@ -521,6 +576,8 @@ public actor ConduitNode {
                 if await inputControllerEngine.controllingPeerID == deviceID {
                     await inputControllerEngine.stopControlling()
                 }
+                await screenSourceEngine?.handleSessionClosed(peerDeviceID: deviceID)
+                await screenViewerEngine.handleSessionClosed(peerDeviceID: deviceID)
                 if desiredConnections.contains(deviceID) {
                     startConnectLoop(deviceID)
                 }
@@ -562,6 +619,24 @@ public actor ConduitNode {
             await inputControllerEngine.handleStatus(status, from: deviceID)
         case .inputAttach:
             nodeLog.warning("INPUT_ATTACH on a session connection; belongs on the datagram lane")
+        // Phase 3 — screen sharing. Source-side:
+        case .screenRequest(let request):
+            guard let engine = screenSourceEngine, let link = sessions[deviceID] else {
+                if let link = sessions[deviceID] {
+                    try? await link.send(.screenReject(ScreenRejectBody(reason: "this device can't share its screen")))
+                }
+                return
+            }
+            await engine.handleRequest(request, from: link)
+        // Viewer-side:
+        case .screenOffer(let offer):
+            await screenViewerEngine.handleOffer(offer, from: deviceID)
+        case .screenReject(let body):
+            emit(.screenFailed(reason: body.reason))
+        case .screenEnd(let body):
+            await screenViewerEngine.stopViewing(screenSessionID: body.screenSessionID)
+        case .screenAttach, .screenAck:
+            nodeLog.warning("screen bulk message on a session connection; belongs on the screen lane")
         default:
             nodeLog.warning("unrouted message \(message.typeString, privacy: .public)")
         }
@@ -700,6 +775,136 @@ public actor ConduitNode {
             }
             inputConsentWaiters[peerID] = continuation
             emit(.inputConsentRequested(peerDeviceID: peerID, promptID: UUID()))
+        }
+    }
+
+    // MARK: Screen sharing API (Phase 3)
+
+    /// Whether this device can source (share) its screen (has a capturer).
+    public var canSourceScreen: Bool {
+        screenSourceEngine != nil
+    }
+
+    /// Viewer side: ask to view a peer's screen ("Connect to screen" — pull).
+    public func requestScreen(from deviceID: String) async {
+        guard let link = sessions[deviceID] else {
+            emit(.screenFailed(reason: "no active session"))
+            return
+        }
+        guard await link.remoteAdvertises(CapabilityID.screenSource) else {
+            emit(.screenFailed(reason: "\(link.peer.name) can't share its screen"))
+            return
+        }
+        let request = ScreenRequestBody(maxWidth: 1920, maxHeight: 1200, maxFps: 30, codecs: [.hevc, .h264])
+        do {
+            try await link.send(.screenRequest(request))
+        } catch {
+            emit(.screenFailed(reason: "\(error)"))
+        }
+    }
+
+    /// Source side: stop sharing (also the kill switch for the source indicator).
+    public func stopSourcingScreen() async {
+        await screenSourceEngine?.stopSharing(reason: "stopped by source")
+    }
+
+    /// Viewer side: stop viewing a stream.
+    public func stopViewingScreen(screenSessionID: String) async {
+        await screenViewerEngine.stopViewing(screenSessionID: screenSessionID)
+    }
+
+    /// The source app answers a screenSourcePickRequested prompt through here.
+    public func resolveScreenPick(peerDeviceID: String, sourceID: String?) {
+        guard let continuation = screenPickWaiters.removeValue(forKey: peerDeviceID) else { return }
+        let sources = pendingScreenSources.removeValue(forKey: peerDeviceID) ?? []
+        continuation.resume(returning: sources.first { $0.id == sourceID })
+    }
+
+    /// The source app reads the offered sources for its picker via this snapshot.
+    public func screenSources(forPeer peerDeviceID: String) -> [CaptureSourceDescriptor] {
+        pendingScreenSources[peerDeviceID] ?? []
+    }
+
+    /// iOS source push (Phase 3 step 4): announce a SCREEN_OFFER to a viewer and
+    /// write the shared config the broadcast extension reads. Returns the config
+    /// (nil if unavailable) so the app can then present the broadcast picker.
+    /// The extension — not the node — opens the bulk lane and streams frames.
+    public func prepareIOSScreenBroadcast(
+        to deviceID: String, width: Int, height: Int, fps: Int
+    ) async -> BroadcastConfig? {
+        guard let appGroupID = config.appGroupID else {
+            emit(.screenFailed(reason: "no app group configured"))
+            return nil
+        }
+        guard let link = sessions[deviceID] else {
+            emit(.screenFailed(reason: "no active session"))
+            return nil
+        }
+        guard await link.remoteAdvertises(CapabilityID.screenView) else {
+            emit(.screenFailed(reason: "\(link.peer.name) can't view a screen"))
+            return nil
+        }
+        guard let host = link.framed.remoteHost, let port = await link.remoteHello?.listenPort else {
+            emit(.screenFailed(reason: "viewer has no reachable listener"))
+            return nil
+        }
+        let (w, h) = ScreenSourceEngine.fit(sourceW: width, sourceH: height, maxW: width, maxH: height)
+        let codec: ScreenVideoCodec = VideoEncoder.isHEVCAvailable() ? .hevc : .h264
+        let wireSessionID = iosBroadcastWireSession; iosBroadcastWireSession &+= 1
+        let token = Data((0..<16).map { _ in UInt8.random(in: 0...255) }).hexString
+        let screenSessionID = UUID().uuidString
+
+        let offer = ScreenOfferBody(
+            screenSessionID: screenSessionID, wireSessionID: wireSessionID, codec: codec,
+            width: w, height: h, fps: fps, captureKind: .display,
+            sourceName: config.deviceName, bulkToken: token
+        )
+        do {
+            try await link.send(.screenOffer(offer))
+        } catch {
+            emit(.screenFailed(reason: "offer send failed: \(error)"))
+            return nil
+        }
+        let bcConfig = BroadcastConfig(
+            viewerHost: host, viewerPort: port, viewerTLSKeySHA256: link.peer.tlsPubkeySHA256,
+            screenSessionID: screenSessionID, wireSessionID: wireSessionID, bulkToken: token,
+            codec: codec, width: w, height: h, fps: fps, bitrate: ScreenSourceEngine.initialBitrate,
+            tlsMaterial: bundle.tlsMaterial
+        )
+        do {
+            try BroadcastSharedStore.write(bcConfig, appGroupID: appGroupID)
+        } catch {
+            emit(.screenFailed(reason: "cannot write broadcast config: \(error)"))
+            return nil
+        }
+        emit(.screenSourceStarted(peerDeviceID: deviceID, sourceName: "your iPhone screen"))
+        return bcConfig
+    }
+
+    public func endIOSScreenBroadcast() async {
+        if let appGroupID = config.appGroupID {
+            BroadcastSharedStore.clear(appGroupID: appGroupID)
+        }
+    }
+
+    public func screenPermissionGranted() async -> Bool {
+        // The capturer answers; nil (no capturer) → not applicable.
+        guard screenSourceEngine != nil else { return false }
+        return await Self.defaultScreenCapturer()?.isPermitted() ?? false
+    }
+
+    /// Bridges the source engine's pick request to the app's UI round-trip.
+    fileprivate func awaitScreenPick(
+        peerID: String, sources: [CaptureSourceDescriptor]
+    ) async -> CaptureSourceDescriptor? {
+        await withCheckedContinuation { continuation in
+            if screenPickWaiters[peerID] != nil {
+                continuation.resume(returning: nil)
+                return
+            }
+            screenPickWaiters[peerID] = continuation
+            pendingScreenSources[peerID] = sources
+            emit(.screenSourcePickRequested(peerDeviceID: peerID, sources: sources))
         }
     }
 

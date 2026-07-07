@@ -22,6 +22,14 @@ public enum ProtocolConstants {
     /// Default chunk size used by the file capability (also carried in FILE_OFFER).
     public static let defaultChunkSize: UInt32 = 512 * 1024
 
+    /// Fixed binary header of a screen-frame payload:
+    /// sessionId u16 + seq u32 + flags u8 + ptsMillis u64 = 15 bytes.
+    public static let screenFrameHeaderSize = 15
+
+    /// Max encoded size of a single screen frame's data. A 1080p HEVC keyframe
+    /// is well under this; 4 MiB leaves headroom without inviting abuse.
+    public static let maxScreenFrameData = 4 << 20
+
     /// TXT record keys used in Bonjour advertisements.
     public enum TXTKey {
         public static let deviceID = "id"

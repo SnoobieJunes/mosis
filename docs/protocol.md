@@ -1,7 +1,7 @@
-# Conduit wire protocol — v0.2 (draft, Phase 1–2 surface)
+# Conduit wire protocol — v0.2 (draft, Phase 1–3 surface)
 
 Status: JSON control messages (debuggable while unstable, spec §6); protobuf
-freeze happens in Phase 4. Everything network-visible in the Phase 1–2
+freeze happens in Phase 4. Everything network-visible in the Phase 1–3
 implementation is documented here. Golden vectors: [`proto/vectors/`](../proto/vectors)
 (append-only; conformance suites in Swift today, Go/Kotlin later).
 
@@ -101,6 +101,46 @@ Every control message:
 | `INPUT_EVENT` | `kind` (`move·scroll·click·key`), `dx?`, `dy?`, `button?` (`left·right·middle`), `action?` (`down·up·tap`), `click_count?`, `key?`, `text?`, `modifiers?` (`shift·control·option·command·function`) |
 | `INPUT_ATTACH` | `token` — first frame on a DTLS datagram lane, binds it to a grant |
 | `MEDIA_CONTROL` | `action` (`play·pause·toggle·next·prev·seek·volume·mute`), `value?` (seek seconds / volume steps) |
+| `SCREEN_REQUEST` | `max_width?`, `max_height?`, `max_fps?`, `codecs[]` (`hevc·h264`) — viewer asks to view |
+| `SCREEN_OFFER` | `screen_session_id`, `wire_session_id` (u16), `codec`, `width`, `height`, `fps`, `capture_kind` (`display·window`), `source_name`, `bulk_token` |
+| `SCREEN_REJECT` | `reason` |
+| `SCREEN_ATTACH` | `screen_session_id`, `bulk_token` — first frame on a screen bulk connection |
+| `SCREEN_ACK` | `screen_session_id`, `acked_seq` (u32), `request_keyframe` — viewer→source feedback |
+| `SCREEN_END` | `screen_session_id`, `reason?` |
+
+## Screen sharing (Phase 3)
+
+Direction (spec §4): `screen-source` advertises capture+send; `screen-view`
+advertises display. Controllers check the **remote** peer's list.
+
+Binary frame kind `0x03` (SCREEN_FRAME), parallel to file chunks:
+```
+payload = sessionId u16be | seq u32be | flags u8 (bit0 keyframe) | ptsMillis u64be | data
+data (inner packing) = paramCount u8 | [len u32be | bytes]... | sampleData
+```
+Parameter sets (VPS/SPS/PPS for HEVC, SPS/PPS for H.264) travel with **every
+keyframe**, so a viewer joining or reconnecting mid-stream builds its decoder
+with no side channel. NAL units are 4-byte length-prefixed (AVCC/HVCC).
+
+Flow (pull — "Connect to screen"):
+1. viewer → `SCREEN_REQUEST` → source
+2. source (user picks display/window) → `SCREEN_OFFER{bulk_token}` → viewer;
+   the viewer prepares a decoder + render surface
+3. source opens a **dedicated** pinned TLS connection to the viewer's listener,
+   sends `SCREEN_ATTACH{token}`, then streams `SCREEN_FRAME`s (kind 0x03)
+4. viewer sends `SCREEN_ACK` back on that connection: `acked_seq` for adaptive
+   bitrate, `request_keyframe` on join or loss
+5. either side ends with `SCREEN_END`
+
+Rules:
+- **Colour is pinned to BT.709** on both capture and encode (HDR/wide-gamut
+  mismatch washes out otherwise — spec pitfall).
+- **Keyframe on join**, and at least every 2 s, so late joiners recover.
+- **Adaptive bitrate** from ack lag (frames sent − frames acked): back off and
+  re-key when the viewer falls behind.
+- iOS sources stream from a **ReplayKit broadcast extension**, a separate
+  process that reads its config (endpoint, pinned key, token, TLS material) from
+  the shared App Group and speaks the identical wire protocol (ADR 0006).
 
 ## Remote input (Phase 2)
 

@@ -153,6 +153,10 @@ public actor PeerLink {
                     await handle(message)
                 case .fileChunk(let chunk):
                     await onEvent(.chunk(deviceID: peer.deviceID, chunk: chunk))
+                case .screenFrame:
+                    // Screen frames belong on the dedicated screen bulk lane,
+                    // never the main session. Ignore stray ones defensively.
+                    sessionLog.warning("screen frame on main session; ignoring")
                 }
             }
         } catch {

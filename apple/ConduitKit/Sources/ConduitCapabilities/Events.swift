@@ -82,5 +82,24 @@ public enum ConduitEvent: Sendable {
     case inputControlFailed(reason: String)
     /// Controller: the receiver reported entering/leaving a secure-input field.
     case inputRemoteSecureInput(peerDeviceID: String, active: Bool)
+    // Phase 3 — screen sharing (spec §9 Phase 3).
+    /// Source: a peer asked to view this screen; the UI shows the display/window
+    /// picker over these sources and resolves it.
+    case screenSourcePickRequested(peerDeviceID: String, sources: [CaptureSourceDescriptor])
+    /// Source: this device started sharing its screen to a peer (indicator).
+    case screenSourceStarted(peerDeviceID: String, sourceName: String)
+    /// Source: sharing to a peer ended.
+    case screenSourceEnded(peerDeviceID: String)
+    /// Source: Screen Recording permission is needed; guide the user.
+    case screenPermissionNeeded
+    /// Viewer: a screen stream is starting; the UI should present the render
+    /// target's layer.
+    case screenViewerStarted(peerDeviceID: String, offer: ScreenOfferBody, render: ScreenRenderTarget)
+    /// Viewer: live stats for the overlay (fps, kbps, decoded frames).
+    case screenViewerStats(screenSessionID: String, fps: Double, kbps: Double)
+    /// Viewer: the stream ended.
+    case screenViewerEnded(screenSessionID: String)
+    /// Either side: a screen session failed to start or died.
+    case screenFailed(reason: String)
     case nodeLog(String)
 }

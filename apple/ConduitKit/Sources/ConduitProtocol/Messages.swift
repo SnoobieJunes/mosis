@@ -15,6 +15,10 @@ public enum CapabilityID {
     public static let inputInject = "input-inject"
     /// Advertiser's system Now Playing can be driven via MediaControl (Phase 2).
     public static let mediaTarget = "media-target"
+    /// Advertiser can capture and stream its screen (Phase 3). Direction-specific.
+    public static let screenSource = "screen-source"
+    /// Advertiser can display a received screen stream (Phase 3).
+    public static let screenView = "screen-view"
 }
 
 /// Payload of HELLO and HELLO_ACK (identical shape, spec §6).
@@ -265,6 +269,12 @@ public enum Message: Sendable, Equatable {
     case inputEvent(InputEventBody)
     case inputAttach(InputAttachBody)
     case mediaControl(MediaControlBody)
+    case screenRequest(ScreenRequestBody)
+    case screenOffer(ScreenOfferBody)
+    case screenReject(ScreenRejectBody)
+    case screenAttach(ScreenAttachBody)
+    case screenAck(ScreenAckBody)
+    case screenEnd(ScreenEndBody)
     /// Unknown `type`: ignored with a logged warning (spec §6 invariant), never fatal.
     case unknown(type: String)
 
@@ -289,6 +299,12 @@ public enum Message: Sendable, Equatable {
         case .inputEvent: MessageType.inputEvent.rawValue
         case .inputAttach: MessageType.inputAttach.rawValue
         case .mediaControl: MessageType.mediaControl.rawValue
+        case .screenRequest: MessageType.screenRequest.rawValue
+        case .screenOffer: MessageType.screenOffer.rawValue
+        case .screenReject: MessageType.screenReject.rawValue
+        case .screenAttach: MessageType.screenAttach.rawValue
+        case .screenAck: MessageType.screenAck.rawValue
+        case .screenEnd: MessageType.screenEnd.rawValue
         case .unknown(let type): type
         }
     }

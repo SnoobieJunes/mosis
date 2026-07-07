@@ -41,6 +41,12 @@ public enum MessageCodec {
         case .inputEvent(let body): return try env(.inputEvent, body)
         case .inputAttach(let body): return try env(.inputAttach, body)
         case .mediaControl(let body): return try env(.mediaControl, body)
+        case .screenRequest(let body): return try env(.screenRequest, body)
+        case .screenOffer(let body): return try env(.screenOffer, body)
+        case .screenReject(let body): return try env(.screenReject, body)
+        case .screenAttach(let body): return try env(.screenAttach, body)
+        case .screenAck(let body): return try env(.screenAck, body)
+        case .screenEnd(let body): return try env(.screenEnd, body)
         case .unknown(let type):
             throw MessageCodecError.missingEnvelopeField("cannot encode unknown type \(type)")
         }
@@ -86,6 +92,12 @@ public enum MessageCodec {
         case .inputEvent: message = .inputEvent(try body(InputEventBody.self))
         case .inputAttach: message = .inputAttach(try body(InputAttachBody.self))
         case .mediaControl: message = .mediaControl(try body(MediaControlBody.self))
+        case .screenRequest: message = .screenRequest(try body(ScreenRequestBody.self))
+        case .screenOffer: message = .screenOffer(try body(ScreenOfferBody.self))
+        case .screenReject: message = .screenReject(try body(ScreenRejectBody.self))
+        case .screenAttach: message = .screenAttach(try body(ScreenAttachBody.self))
+        case .screenAck: message = .screenAck(try body(ScreenAckBody.self))
+        case .screenEnd: message = .screenEnd(try body(ScreenEndBody.self))
         }
         return (meta, message)
     }

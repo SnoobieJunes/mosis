@@ -25,6 +25,14 @@ public enum MessageType: String, Codable, Sendable, CaseIterable {
     case inputEvent = "INPUT_EVENT"
     case inputAttach = "INPUT_ATTACH"
     case mediaControl = "MEDIA_CONTROL"
+    // Phase 3 (spec §9): screen sharing. SCREEN_FRAME is binary (frame kind
+    // 0x03), not a control message, so it has no entry here.
+    case screenRequest = "SCREEN_REQUEST"
+    case screenOffer = "SCREEN_OFFER"
+    case screenReject = "SCREEN_REJECT"
+    case screenAttach = "SCREEN_ATTACH"
+    case screenAck = "SCREEN_ACK"
+    case screenEnd = "SCREEN_END"
 }
 
 /// The envelope fields every control message carries (spec §6):
