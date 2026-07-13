@@ -97,6 +97,10 @@ public enum ConduitEvent: Sendable {
     case screenViewerStarted(peerDeviceID: String, offer: ScreenOfferBody, render: ScreenRenderTarget)
     /// Viewer: live stats for the overlay (fps, kbps, decoded frames).
     case screenViewerStats(screenSessionID: String, fps: Double, kbps: Double)
+    /// Viewer: smoothed pipeline lag vs. the best-observed frame transit for
+    /// this stream (growth in queueing/network delay — not absolute
+    /// glass-to-glass, which would need synced clocks).
+    case screenViewerLag(screenSessionID: String, millis: Double)
     /// Viewer: the stream ended.
     case screenViewerEnded(screenSessionID: String)
     /// Either side: a screen session failed to start or died.

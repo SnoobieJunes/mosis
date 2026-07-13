@@ -59,6 +59,7 @@ public final class AppModel {
     /// Viewer stats for the overlay.
     public var screenFps: Double = 0
     public var screenKbps: Double = 0
+    public var screenLagMillis: Double = 0
     /// iOS: the peer we're about to broadcast our screen to (drives the sheet).
     public var broadcastPeer: PinnedPeer?
     /// iOS: whether the shared broadcast config is written and the picker is ready.
@@ -258,11 +259,14 @@ public final class AppModel {
         case .screenViewerStats(_, let fps, let kbps):
             screenFps = fps
             screenKbps = kbps
+        case .screenViewerLag(_, let millis):
+            screenLagMillis = millis
         case .screenViewerEnded:
             activeScreenView = nil
             activeScreenOffer = nil
             screenFps = 0
             screenKbps = 0
+            screenLagMillis = 0
         case .screenFailed(let reason):
             toast = "Screen: \(reason)"
         case .permissionRequested(let peerID, _, let scope, _):
