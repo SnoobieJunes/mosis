@@ -10,10 +10,10 @@ import ConduitTransport
 /// H.264 fallback) → streams SCREEN_FRAMEs over a dedicated bulk connection,
 /// adapting bitrate and issuing keyframes from the viewer's SCREEN_ACK feedback.
 public actor ScreenSourceEngine {
-    static let defaultFps = 30
+    static let defaultFps = 60               // cadence floor: 16.7ms/frame
     static let initialBitrate = 8_000_000   // 8 Mbps for 1080p-ish
     static let minBitrate = 1_000_000
-    static let maxLagFrames: UInt32 = 45     // ~1.5s at 30fps → back off
+    static let maxLagFrames: UInt32 = 45     // ~0.75s at 60fps → back off
     static let goodLagFrames: UInt32 = 6
 
     /// An additional viewer of the SAME capture (spec §9 Phase 7 step 4:
@@ -149,7 +149,7 @@ public actor ScreenSourceEngine {
 
         // Frame feed: encoder callback → sender task (bounded, drops under load).
         let (feed, continuation) = AsyncStream.makeStream(
-            of: (EncodedVideoFrame, CMTime).self, bufferingPolicy: .bufferingNewest(4)
+            of: (EncodedVideoFrame, CMTime).self, bufferingPolicy: .bufferingNewest(2)
         )
         var session = Sharing(
             screenSessionID: screenSessionID, wireSessionID: wireSessionID,

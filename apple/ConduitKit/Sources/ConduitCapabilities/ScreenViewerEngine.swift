@@ -12,7 +12,8 @@ let screenLog = Logger(subsystem: "org.conduit", category: "screen")
 /// decodes frames straight into an AVSampleBufferDisplayLayer, and feeds back
 /// SCREEN_ACK for adaptive bitrate + keyframe recovery.
 public actor ScreenViewerEngine {
-    static let ackInterval = 30 // send an ack every N frames
+    static let ackInterval = 10 // send an ack every N frames (~170ms at 60fps,
+                                // so adaptive bitrate reacts before lag is visible)
 
     struct Session {
         let offer: ScreenOfferBody
@@ -27,6 +28,11 @@ public actor ScreenViewerEngine {
         var statsWindowStart = Date()
         var statsFrames = 0
         var statsBytes = 0
+        // Lag estimate: (arrival − pts) drifts with queueing/network delay; its
+        // running minimum is the best-observed transit, so the clock skew
+        // between source and viewer cancels in the difference.
+        var lagBaselineMs: Double?
+        var lagEmaMs = 0.0
     }
 
     private var sessions: [String: Session] = [:]
@@ -69,14 +75,16 @@ public actor ScreenViewerEngine {
 
     private func runReadLoop(_ framed: FramedConnection, screenSessionID: String) async {
         do {
-            while let frame = try await framed.nextFrame() {
+            readLoop: while let frame = try await framed.nextFrame() {
                 switch frame {
                 case .screenFrame(let screenFrame):
                     await handleFrame(screenFrame, framed: framed, screenSessionID: screenSessionID)
                 case .control(let payload):
                     let (_, message) = try MessageCodec.decode(payload)
                     if case .screenEnd = message {
-                        break
+                        // Labeled: a plain `break` here only exits the switch,
+                        // leaving the viewer frozen until the socket closes.
+                        break readLoop
                     }
                 case .fileChunk:
                     break // not expected on a screen lane
@@ -114,6 +122,10 @@ public actor ScreenViewerEngine {
             session.framesSinceAck += 1
             session.statsFrames += 1
             session.statsBytes += frame.data.count
+            let driftMs = Date().timeIntervalSince1970 * 1000 - Double(frame.ptsMillis)
+            let baseline = min(session.lagBaselineMs ?? driftMs, driftMs)
+            session.lagBaselineMs = baseline
+            session.lagEmaMs = session.lagEmaMs * 0.8 + (driftMs - baseline) * 0.2
             sessions[screenSessionID] = session
 
             if session.framesSinceAck >= Self.ackInterval {
@@ -147,6 +159,7 @@ public actor ScreenViewerEngine {
         session.statsBytes = 0
         sessions[screenSessionID] = session
         emit(.screenViewerStats(screenSessionID: screenSessionID, fps: fps, kbps: kbps))
+        emit(.screenViewerLag(screenSessionID: screenSessionID, millis: session.lagEmaMs))
     }
 
     // MARK: Teardown
