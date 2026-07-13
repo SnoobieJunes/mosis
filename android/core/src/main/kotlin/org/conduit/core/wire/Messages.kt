@@ -143,6 +143,14 @@ object Bodies {
     fun inputEventMove(dx: Double, dy: Double): Json =
         Json.obj("kind" to Json.of("move"), "dx" to Json.Num(numLit(dx)), "dy" to Json.Num(numLit(dy)))
 
+    /** A left-button tap, byte-identical to the Swift InputEventBody click
+     *  (frozen v1 schema; canonical encoding sorts the keys). */
+    fun inputEventClick(): Json =
+        Json.obj(
+            "action" to Json.of("tap"), "button" to Json.of("left"),
+            "click_count" to Json.of(1), "kind" to Json.of("click"),
+        )
+
     fun mediaControl(action: String, value: Double? = null): Json {
         val m = linkedMapOf<String, Json>("action" to Json.of(action))
         if (value != null) m["value"] = Json.Num(numLit(value))
