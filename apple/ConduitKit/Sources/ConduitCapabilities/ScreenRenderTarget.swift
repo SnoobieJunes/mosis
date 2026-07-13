@@ -17,6 +17,10 @@ public final class ScreenRenderTarget: @unchecked Sendable {
     public let displayLayer = AVSampleBufferDisplayLayer()
 
     private let counter = Locked(0)
+    /// Frames go to the layer on a dedicated queue, not main: enqueueing is
+    /// thread-safe, and hopping through main made every frame wait behind
+    /// arbitrary UI work (layout, animations) — visible jitter at 60fps.
+    private let renderQueue = DispatchQueue(label: "org.conduit.screen.render", qos: .userInteractive)
     /// Number of sample buffers enqueued for display. Lets tests confirm frames
     /// actually decoded and reached the layer without inspecting the GPU.
     public var enqueuedCount: Int { counter.get() }
@@ -36,13 +40,13 @@ public final class ScreenRenderTarget: @unchecked Sendable {
     }
 
     /// Enqueues a decoded-ready sample buffer for immediate display. Safe to
-    /// call from any thread; hops to main for the layer.
+    /// call from any thread; hops to the render queue for the layer.
     public func enqueue(_ sampleBuffer: CMSampleBuffer) {
         Self.markDisplayImmediately(sampleBuffer)
         counter.withValue { $0 += 1 }
         tee.get()?(sampleBuffer)
         let box = SendableBox(sampleBuffer)
-        DispatchQueue.main.async { [displayLayer] in
+        renderQueue.async { [displayLayer] in
             let sampleBuffer = box.value
             if #available(iOS 17.0, macOS 14.0, *) {
                 if displayLayer.sampleBufferRenderer.status == .failed {
@@ -57,7 +61,8 @@ public final class ScreenRenderTarget: @unchecked Sendable {
     }
 
     public func flush() {
-        DispatchQueue.main.async { [displayLayer] in
+        // Same queue as enqueue so a flush can't reorder ahead of in-flight frames.
+        renderQueue.async { [displayLayer] in
             displayLayer.flushAndRemoveImage()
         }
     }

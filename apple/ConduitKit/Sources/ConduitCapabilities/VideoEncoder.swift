@@ -51,19 +51,39 @@ public final class VideoEncoder: @unchecked Sendable {
     public func start() throws {
         let codecType: CMVideoCodecType = config.codec == .hevc
             ? kCMVideoCodecType_HEVC : kCMVideoCodecType_H264
+        // Prefer VideoToolbox's low-latency rate-control mode (no internal frame
+        // queueing, CBR-style pacing). It needs a hardware encoder, so fall back
+        // to a plain session where it's unavailable.
+        let lowLatencySpec = [
+            kVTVideoEncoderSpecification_EnableLowLatencyRateControl: kCFBooleanTrue
+        ] as CFDictionary
         var created: VTCompressionSession?
-        let status = VTCompressionSessionCreate(
+        var status = VTCompressionSessionCreate(
             allocator: kCFAllocatorDefault,
             width: Int32(config.width),
             height: Int32(config.height),
             codecType: codecType,
-            encoderSpecification: nil,
+            encoderSpecification: lowLatencySpec,
             imageBufferAttributes: nil,
             compressedDataAllocator: nil,
             outputCallback: nil,
             refcon: nil,
             compressionSessionOut: &created
         )
+        if status != noErr {
+            status = VTCompressionSessionCreate(
+                allocator: kCFAllocatorDefault,
+                width: Int32(config.width),
+                height: Int32(config.height),
+                codecType: codecType,
+                encoderSpecification: nil,
+                imageBufferAttributes: nil,
+                compressedDataAllocator: nil,
+                outputCallback: nil,
+                refcon: nil,
+                compressionSessionOut: &created
+            )
+        }
         guard status == noErr, let session = created else {
             throw EncoderError.sessionCreationFailed(status)
         }
@@ -102,6 +122,8 @@ public final class VideoEncoder: @unchecked Sendable {
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_AverageBitRate,
                              value: NSNumber(value: bitrate))
         // Hard data cap over a 1s window keeps latency bounded on drops.
+        // (Ignored by the low-latency rate controller, which paces on its own;
+        // the set is unchecked so that's harmless.)
         let limits = [bitrate / 8, 1] as [NSNumber]
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_DataRateLimits,
                              value: limits as CFArray)
