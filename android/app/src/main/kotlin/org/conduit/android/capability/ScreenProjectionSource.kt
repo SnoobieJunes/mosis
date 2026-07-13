@@ -47,8 +47,10 @@ class ScreenProjectionSource(
             setInteger(MediaFormat.KEY_FRAME_RATE, fps)
             setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, 2)
             setInteger(MediaFormat.KEY_COLOR_STANDARD, MediaFormat.COLOR_STANDARD_BT709)
-            // Low-latency where supported.
+            // Low-latency where supported; realtime priority keeps the encoder
+            // from being scheduled behind batch codec work.
             setInteger(MediaFormat.KEY_LATENCY, 1)
+            setInteger(MediaFormat.KEY_PRIORITY, 0)
         }
         val enc = MediaCodec.createEncoderByType(mime)
         enc.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE)
@@ -69,7 +71,8 @@ class ScreenProjectionSource(
         val info = MediaCodec.BufferInfo()
         while (running) {
             val index = enc.dequeueOutputBuffer(info, 10_000)
-            if (index < 0) continue
+            if (index == MediaCodec.INFO_TRY_AGAIN_LATER) continue
+            if (index < 0) continue // format/buffers-changed sentinels
             val buf: ByteBuffer = enc.getOutputBuffer(index) ?: continue
             val isConfig = info.flags and MediaCodec.BUFFER_FLAG_CODEC_CONFIG != 0
             val isKey = info.flags and MediaCodec.BUFFER_FLAG_KEY_FRAME != 0
@@ -86,6 +89,18 @@ class ScreenProjectionSource(
                 sink.onFrame(isKey, ScreenPacking.pack(frame))
             }
             enc.releaseOutputBuffer(index, false)
+        }
+    }
+
+    /** Ask the encoder for an immediate sync frame (viewer join / loss recovery),
+     *  instead of waiting out the I-frame interval. */
+    fun requestKeyframe() {
+        codec?.let {
+            runCatching {
+                it.setParameters(android.os.Bundle().apply {
+                    putInt(MediaCodec.PARAMETER_KEY_REQUEST_SYNC_FRAME, 0)
+                })
+            }
         }
     }
 

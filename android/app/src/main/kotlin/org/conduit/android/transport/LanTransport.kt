@@ -43,6 +43,10 @@ class LanTransport(
         val ctx = sslContext(policy)
         val socket = ctx.socketFactory.createSocket(InetAddress.getByName(host), port) as SSLSocket
         socket.enabledProtocols = arrayOf("TLSv1.3")
+        // Nagle would batch the small control/input frames behind delayed ACKs
+        // (tens of ms per frame); the Swift backend disables it too.
+        socket.tcpNoDelay = true
+        socket.keepAlive = true
         socket.startHandshake()
         return SocketStream(socket)
     }
@@ -55,6 +59,8 @@ class LanTransport(
         val thread = Thread {
             while (!server.isClosed) {
                 val s = try { server.accept() as SSLSocket } catch (_: Exception) { break }
+                s.tcpNoDelay = true
+                s.keepAlive = true
                 Thread { runCatching { s.startHandshake(); onAccept(SocketStream(s)) } }.start()
             }
         }.apply { isDaemon = true; start() }

@@ -126,8 +126,13 @@ class AndroidNode(
         links[peerId]?.send(MessageType.CLIPBOARD_PUSH, Bodies.clipboardText(text))
     }
 
-    fun sendInputMove(peerId: String, dx: Double, dy: Double) {
+    private val moveCoalescer = InputMoveCoalescer(scope) { peerId, dx, dy ->
         links[peerId]?.send(MessageType.INPUT_EVENT, Bodies.inputEventMove(dx, dy))
+    }
+
+    /** Motion is coalesced so a drag doesn't emit one wire frame per pointer sample. */
+    fun sendInputMove(peerId: String, dx: Double, dy: Double) {
+        moveCoalescer.move(peerId, dx, dy)
     }
 
     /** Mirror a notification to every peer advertising notify-show. */

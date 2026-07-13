@@ -59,7 +59,9 @@ class InputAccessibilityService : AccessibilityService() {
 
     private fun tap(x: Float, y: Float) {
         val path = Path().apply { moveTo(x, y) }
-        val stroke = GestureDescription.StrokeDescription(path, 0, 40)
+        // 20 ms still registers reliably as a tap; shorter stroke = lower
+        // click-to-effect latency (the gesture only completes when it ends).
+        val stroke = GestureDescription.StrokeDescription(path, 0, 20)
         dispatchGesture(GestureDescription.Builder().addStroke(stroke).build(), null, null)
     }
 
