@@ -71,7 +71,9 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
         config.height = configuration.height
         config.minimumFrameInterval = CMTime(value: 1, timescale: CMTimeScale(configuration.fps))
         config.pixelFormat = kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
-        config.queueDepth = 5
+        // 3 is SCStream's practical floor for smooth delivery; deeper queues
+        // just buffer stale frames (each slot is one frame-time of latency).
+        config.queueDepth = 3
         config.showsCursor = true
         // Pin BT.709 to match the encoder and dodge the washout pitfall (spec).
         config.colorSpaceName = CGColorSpace.itur_709

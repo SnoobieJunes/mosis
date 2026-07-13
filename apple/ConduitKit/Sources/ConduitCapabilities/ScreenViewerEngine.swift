@@ -12,7 +12,8 @@ let screenLog = Logger(subsystem: "org.conduit", category: "screen")
 /// decodes frames straight into an AVSampleBufferDisplayLayer, and feeds back
 /// SCREEN_ACK for adaptive bitrate + keyframe recovery.
 public actor ScreenViewerEngine {
-    static let ackInterval = 30 // send an ack every N frames
+    static let ackInterval = 10 // send an ack every N frames (~170ms at 60fps,
+                                // so adaptive bitrate reacts before lag is visible)
 
     struct Session {
         let offer: ScreenOfferBody
