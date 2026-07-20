@@ -19,9 +19,12 @@ settings:
   base:
     SWIFT_VERSION: "6.0"
     CODE_SIGN_STYLE: Automatic
-    # Set your Apple Developer team once in Xcode (Signing & Capabilities);
-    # bundle IDs are placeholders until the product name is decided (spec §12
-    # open decision 1) — rename before any TestFlight upload.
+    # Product name is decided: MOSIS (ADR 0014). Bundle IDs are final —
+    # org.auston.mosis[.mac|.tv|.broadcast]. Do NOT "fix" the iOS app to
+    # org.auston.mosis.ios: the iOS keychain access group is derived from the
+    # bundle ID, so changing it orphans the device identity and forces a
+    # re-pair. That already happened once in e6c6eb3.
+    # DEVELOPMENT_TEAM is set per-target in the pbxproj so TCC grants stick.
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 0.1.0
     GENERATE_INFOPLIST_FILE: false
@@ -53,9 +56,10 @@ targets:
       path: ConduitMac/Info.plist
       properties:
         CFBundleDisplayName: MOSIS
+        CFBundleName: MOSIS
         LSApplicationCategoryType: public.app-category.utilities
         NSLocalNetworkUsageDescription: >-
-          Conduit discovers your own devices on your local network and connects
+          MOSIS discovers your own devices on your local network and connects
           to them directly to move files and clipboard content between them.
           Nothing leaves your network.
         NSBonjourServices: ["_cndt-app._tcp"]
@@ -78,13 +82,28 @@ targets:
     entitlements:
       path: ConduitIOS/Conduit.entitlements
       properties:
+        # XcodeGen REWRITES the entitlements file at `path` from these
+        # properties on every `xcodegen generate`. Anything present in the file
+        # but absent here is silently deleted. This block dropped
+        # com.apple.developer.wifi-aware once already — the project's long pole
+        # (ADR 0003), granted and verified embedded in a signed build, removed
+        # by the regenerate step the README tells you to run. Verified by
+        # regenerating into a scratch copy and diffing.
+        # If you add a capability in Xcode's UI, mirror it HERE or lose it.
+        com.apple.developer.wifi-aware: [Publish, Subscribe]
         com.apple.security.application-groups: [group.org.auston.mosis]
     info:
       path: ConduitIOS/Info.plist
       properties:
         CFBundleDisplayName: MOSIS
+        # CFBundleName drives the macOS menu bar and the Settings app row.
+        # PRODUCT_NAME is deliberately left as Conduit for now: it names the
+        # built .app on disk, and TCC grants have already been reset once by
+        # the identifier changes in e6c6eb3. Rename it after the device
+        # sessions pass, not before.
+        CFBundleName: MOSIS
         NSLocalNetworkUsageDescription: >-
-          Conduit discovers your own devices on your local network and connects
+          MOSIS discovers your own devices on your local network and connects
           to them directly to move files, clipboard, and screen content between
           them. Nothing leaves your network.
         NSBonjourServices: ["_cndt-app._tcp"]
@@ -115,8 +134,9 @@ targets:
       path: ConduitTV/Info.plist
       properties:
         CFBundleDisplayName: MOSIS
+        CFBundleName: MOSIS
         NSLocalNetworkUsageDescription: >-
-          Conduit discovers your own devices on your local network and connects
+          MOSIS discovers your own devices on your local network and connects
           to them directly to show their screen on this Apple TV.
         NSBonjourServices: ["_cndt-app._tcp"]
 
