@@ -17,3 +17,6 @@ android/*/build/
 android/local.properties
 android/.idea/
 *.jar
+
+# Private strategy notes live outside the repo (MOSIS/marketing-notes/)
+marketing/

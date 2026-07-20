@@ -1,0 +1,30 @@
+# gitleaks configuration for MOSIS.
+#
+# `gitleaks git .` over full history reports five findings, all from the
+# `generic-api-key` heuristic, and all false positives. They are allowlisted
+# individually below rather than by disabling the rule, so a real secret in
+# these same files would still be caught.
+#
+# Re-verify with: gitleaks git . --config .gitleaks.toml
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "generic-api-key"
+[rules.allowlist]
+regexTarget = "match"
+regexes = [
+  # Swift CryptoKit *type names*, not key material. The heuristic fires on the
+  # word "PrivateKey" in a type annotation:
+  #   let privateKey: Curve25519.Signing.PrivateKey
+  #   key: P256.Signing.PrivateKey
+  # Real identity keys are generated at runtime and stored in the keychain /
+  # identity dir; none are ever committed.
+  '''(Curve25519|P256|P384|P521|SecureEnclave)\.[A-Za-z]+\.PrivateKey''',
+  '''self\.ed25519PrivateKey = ed25519PrivateKey''',
+
+  # Protocol test fixture: base64url of the ASCII string "test-token", used in
+  # MessageCodecTests to assert BULK_ATTACH encodes its token field.
+  '''dGVzdC10b2tlbg''',
+]

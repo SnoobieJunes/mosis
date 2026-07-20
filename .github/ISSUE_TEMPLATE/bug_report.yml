@@ -1,0 +1,80 @@
+name: Bug report
+description: Something doesn't work. Device bugs need both devices described.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Security vulnerabilities do **not** go here — see [SECURITY.md](../blob/main/SECURITY.md)
+        and use private vulnerability reporting.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: What you did, what you expected, what you got instead.
+      placeholder: |
+        Tapped Connect -> View Screen on the iPhone. The Mac showed its picker
+        and I chose a display. The phone stayed blank; no error appeared.
+    validations:
+      required: true
+
+  - type: input
+    id: device-a
+    attributes:
+      label: Device A
+      description: Platform, OS version, and the MOSIS build (commit or tag).
+      placeholder: "iPhone 15 Pro, iOS 26.1, MOSIS @ 3b7d227"
+    validations:
+      required: true
+
+  - type: input
+    id: device-b
+    attributes:
+      label: Device B
+      description: The other end. Nearly every bug here is about a pair of devices.
+      placeholder: "MacBook Pro M3, macOS 26.1, MOSIS @ 3b7d227"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: capability
+    attributes:
+      label: Which capability
+      options:
+        - Discovery / pairing
+        - Screen sharing (Mac -> phone)
+        - Screen broadcast (phone -> Mac)
+        - Remote input (trackpad / keyboard)
+        - File transfer
+        - Clipboard
+        - Contexts / Routines
+        - Build or test failure
+        - Other / not sure
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Log bundle and HUD
+      description: |
+        Follow `docs/DEVICE_CHECKLIST.md`. On macOS:
+        `log show --last 10m --predicate 'subsystem == "org.conduit"' --info`
+        A screenshot of the diagnostics HUD (which lane, dial target, frame
+        counts) usually identifies the failure on its own.
+      render: shell
+
+  - type: checkboxes
+    id: permissions
+    attributes:
+      label: Permissions checked (macOS screen/input bugs)
+      description: |
+        These are the single most common cause. Grants are keyed to bundle ID
+        **and signature**, so a rebuild with a different signing identity
+        silently resets them.
+      options:
+        - label: Screen Recording is granted, and the app was relaunched after granting
+        - label: Accessibility is granted (required for input injection)
+        - label: Local Network is granted, and the app is not blocked by the firewall
+        - label: Not applicable

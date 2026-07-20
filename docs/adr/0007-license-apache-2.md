@@ -1,6 +1,6 @@
 # ADR 0007 — License: Apache-2.0 (accepted)
 
-Date: 2026-07-07 · Status: **accepted· Phase: 4 (open decision 5)
+Date: 2026-07-07 · Accepted: 2026-07-20 · Status: **accepted** · Phase: 4 (open decision 5)
 
 ## Context
 
@@ -22,10 +22,25 @@ value is in interoperating clients, not a single codebase.
   the third-party clients that make an open protocol valuable; KDE Connect's
   reach came despite GPL, not because of it.
 
-## Status
+## Decision
 
-This is a values decision that belongs to the project owner, so it stays
-**proposed** until confirmed. No `LICENSE` file is committed yet. Nothing has
-been published to a public remote, so the decision is not yet load-bearing.
-When confirmed, add the `LICENSE`, an SPDX header convention, and flip this ADR
-to accepted.
+**Apache-2.0**, adopted 2026-07-20 ahead of publication.
+
+- `LICENSE` holds the canonical Apache-2.0 text verbatim (byte-identical to the
+  upstream text; not retyped).
+- `NOTICE` carries the copyright line: *MOSIS — copyright 2026 Auston Leroy*.
+- Per-file SPDX headers are **not** adopted. They are not required for a valid
+  Apache-2.0 grant, and adding them would touch every source file for no legal
+  benefit. Revisit only if a downstream consumer asks.
+
+This decision covers the protocol specification and all three implementations
+(Swift, Go, Kotlin) in this repository.
+
+## Note on process
+
+This ADR was previously self-contradictory: its title and header said
+*accepted* while its body said it "stays **proposed** until confirmed." The
+license had in fact never been confirmed and no `LICENSE` file existed. The
+header was wrong, not the body. Recorded here because an ADR that misstates its
+own status is worse than one that is merely out of date — this is the file
+someone checks to find out what was actually decided.
