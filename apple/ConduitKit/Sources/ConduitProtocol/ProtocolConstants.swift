@@ -7,8 +7,21 @@ public enum ProtocolConstants {
     public static let version = "0.2"
 
     /// Bonjour / Wi-Fi Aware service type for the app-to-app channel (spec §5.3).
-    /// Registered name placeholder pending final product naming.
-    public static let serviceType = "_mosis-app._tcp"
+    ///
+    /// DO NOT rename this to `_mosis-*` on its own. It is a compatibility
+    /// boundary, not cosmetics: a device running a build that advertises and
+    /// browses a different service type is invisible to every other device, so
+    /// discovery — and therefore reconnection of already-paired peers — breaks
+    /// until *every* device in the fleet is reinstalled simultaneously. This was
+    /// tried, and it broke pairing.
+    ///
+    /// It belongs to the same one-time pre-publication break as the
+    /// `conduit-*-v1` crypto domain strings (frozen into the golden vectors),
+    /// the Keychain service in IdentityStore, and the Application Support
+    /// directory that holds peers.json. Those four move together, once, with a
+    /// planned reinstall + re-pair — never piecemeal.
+    /// See plans/01-rename-to-mosis.md.
+    public static let serviceType = "_cndt-app._tcp"
 
     /// Maximum encoded size of a control (JSON) frame payload.
     public static let maxControlPayload = 1 << 20 // 1 MiB

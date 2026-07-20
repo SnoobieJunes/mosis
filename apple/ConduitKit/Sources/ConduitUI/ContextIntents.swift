@@ -14,9 +14,9 @@ import AppIntents
 /// resolves the name to a profile and runs it through the ContextCoordinator.
 @available(iOS 16.0, macOS 13.0, tvOS 16.0, *)
 public struct RunProfileIntent: AppIntent {
-    public static var title: LocalizedStringResource { "Run Conduit Profile" }
+    public static var title: LocalizedStringResource { "Run MOSIS Profile" }
     public static var description: IntentDescription {
-        IntentDescription("Runs a Conduit context profile (connect devices, arm trackpad, set a scene).")
+        IntentDescription("Runs a MOSIS context profile (connect devices, arm trackpad, set a scene).")
     }
     /// Show the app's confirmation — nothing runs silently (spec invariant).
     public static var openAppWhenRun: Bool { true }

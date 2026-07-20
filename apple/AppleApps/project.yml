@@ -52,13 +52,13 @@ targets:
     info:
       path: ConduitMac/Info.plist
       properties:
-        CFBundleDisplayName: Conduit
+        CFBundleDisplayName: MOSIS
         LSApplicationCategoryType: public.app-category.utilities
         NSLocalNetworkUsageDescription: >-
           Conduit discovers your own devices on your local network and connects
           to them directly to move files and clipboard content between them.
           Nothing leaves your network.
-        NSBonjourServices: ["_mosis-app._tcp"]
+        NSBonjourServices: ["_cndt-app._tcp"]
         NSHumanReadableCopyright: ""
 
   Conduit-iOS:
@@ -82,12 +82,12 @@ targets:
     info:
       path: ConduitIOS/Info.plist
       properties:
-        CFBundleDisplayName: Conduit
+        CFBundleDisplayName: MOSIS
         NSLocalNetworkUsageDescription: >-
           Conduit discovers your own devices on your local network and connects
           to them directly to move files, clipboard, and screen content between
           them. Nothing leaves your network.
-        NSBonjourServices: ["_mosis-app._tcp"]
+        NSBonjourServices: ["_cndt-app._tcp"]
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         UILaunchScreen: {}
@@ -114,11 +114,11 @@ targets:
     info:
       path: ConduitTV/Info.plist
       properties:
-        CFBundleDisplayName: Conduit
+        CFBundleDisplayName: MOSIS
         NSLocalNetworkUsageDescription: >-
           Conduit discovers your own devices on your local network and connects
           to them directly to show their screen on this Apple TV.
-        NSBonjourServices: ["_mosis-app._tcp"]
+        NSBonjourServices: ["_cndt-app._tcp"]
 
   # ReplayKit broadcast upload extension: streams the iPhone screen to a paired
   # viewer (spec §9 Phase 3 step 4). Device-only; see docs/adr/0006.
@@ -142,7 +142,7 @@ targets:
     info:
       path: ConduitBroadcast/Info.plist
       properties:
-        CFBundleDisplayName: Conduit Screen
+        CFBundleDisplayName: MOSIS Screen
         NSExtension:
           NSExtensionPointIdentifier: com.apple.broadcast-services-upload
           NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler

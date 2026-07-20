@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Conduit</string>
+	<string>MOSIS</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -24,7 +24,7 @@
 	<true/>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_mosis-app._tcp</string>
+		<string>_cndt-app._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Conduit discovers your own devices on your local network and connects to them directly to move files, clipboard, and screen content between them. Nothing leaves your network.</string>

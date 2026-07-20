@@ -443,5 +443,5 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
 /// Service type constants live here (not ConduitProtocol) so the transport
 /// module stays protocol-agnostic while sharing the registered names (spec §5.3).
 public enum ProtocolServiceType {
-    public static let appService = "_mosis-app._tcp"
+    public static let appService = "_cndt-app._tcp"
 }

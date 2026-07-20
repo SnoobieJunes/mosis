@@ -54,7 +54,7 @@ struct ScreenBroadcastSheet: View {
                 if model.broadcastStatus?.phase == .streaming {
                     statusLine
                 } else {
-                    Text("Tap the button below, then choose **Conduit** and Start Broadcast — right away, \(peer.name) only waits about 45 seconds.")
+                    Text("Tap the button below, then choose **MOSIS Screen** and Start Broadcast — right away, \(peer.name) only waits about 45 seconds.")
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)

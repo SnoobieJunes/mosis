@@ -3,7 +3,7 @@ package org.conduit.core.wire
 /** Protocol constants shared with Swift + Go (docs/protocol.md). */
 object Proto {
     const val VERSION = "0.2"
-    const val SERVICE_TYPE = "_mosis-app._tcp"
+    const val SERVICE_TYPE = "_cndt-app._tcp"
     const val DEFAULT_CHUNK_SIZE = 512 * 1024
 
     // Capability identifiers (feature-flag strings; peers use the intersection).

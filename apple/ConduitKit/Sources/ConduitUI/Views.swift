@@ -37,7 +37,7 @@ public struct RootView: View {
                 }
                 DevicesScreen(model: model, filePickerTarget: $filePickerTarget)
             }
-                .navigationTitle("Conduit")
+                .navigationTitle("MOSIS")
                 .navigationDestination(for: PinnedPeer.self) { peer in
                     RemoteControlView(model: model, peer: peer)
                 }

@@ -8,7 +8,7 @@ import (
 // Protocol constants shared with the Swift implementation (docs/protocol.md).
 const (
 	Version     = "0.2"
-	ServiceType = "_mosis-app._tcp"
+	ServiceType = "_cndt-app._tcp"
 
 	// Capability identifiers (feature-flag strings; peers use the intersection).
 	CapFile         = "file"

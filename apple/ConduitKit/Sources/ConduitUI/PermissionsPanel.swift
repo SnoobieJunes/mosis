@@ -27,7 +27,7 @@ struct PermissionsPanel: View {
                 onOpenSettings: { model.openScreenRecordingSettings() }
             )
             if model.screenRecordingGranted == false {
-                Text("First grant needs a relaunch: after you tick Conduit in System Settings, quit and reopen this app or it will keep capturing nothing.")
+                Text("First grant needs a relaunch: after you tick MOSIS in System Settings, quit and reopen this app or it will keep capturing nothing.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .padding(.leading, 26)
@@ -48,7 +48,7 @@ struct PermissionsPanel: View {
             VStack(alignment: .leading, spacing: 3) {
                 Label("Local Network", systemImage: "wifi")
                     .font(.subheadline.weight(.medium))
-                Text("Required to reach your other devices. macOS asks the first time this Mac dials out — if you dismissed it, turn Conduit on in System Settings → Privacy & Security → Local Network.")
+                Text("Required to reach your other devices. macOS asks the first time this Mac dials out — if you dismissed it, turn MOSIS on in System Settings → Privacy & Security → Local Network.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 if let target = model.diagnostics.lastDialTarget {

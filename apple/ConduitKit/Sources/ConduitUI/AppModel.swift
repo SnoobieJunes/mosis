@@ -165,6 +165,20 @@ public final class AppModel {
     }
 
     static func platformConfiguration() -> NodeConfiguration {
+        // The "Conduit" path components below are STATE LOCATIONS, not branding.
+        // `<appSupport>/Conduit/peers.json` is the pinned-peer database and
+        // `<group>/Conduit/` holds the identity the broadcast extension
+        // authenticates with. Renaming them to "MOSIS" points the app at an
+        // empty directory: every pairing silently disappears and the device
+        // looks freshly installed. (The Downloads folder is the one exception —
+        // it is genuinely user-facing — but it is left alone for consistency
+        // with the migration below.)
+        //
+        // These move with the other identity-bearing names — the Keychain
+        // service in IdentityStore, ProtocolConstants.serviceType, and the
+        // frozen crypto domain strings — as one deliberate pre-publication
+        // break with a written migration, never piecemeal.
+        // See plans/01-rename-to-mosis.md.
         let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)[0]
             .appendingPathComponent("Conduit", isDirectory: true)
         #if os(macOS)
@@ -300,7 +314,7 @@ public final class AppModel {
             screenSourcingToPeerID = nil
             screenSourcingName = nil
         case .screenPermissionNeeded:
-            lastError = "Screen Recording permission is off. Enable Conduit in System Settings → Privacy & Security → Screen Recording."
+            lastError = "Screen Recording permission is off. Enable MOSIS in System Settings → Privacy & Security → Screen Recording."
         case .screenViewerStarted(_, let offer, let render):
             activeScreenView = render
             activeScreenOffer = offer
