@@ -748,7 +748,13 @@ public actor ConduitNode {
         // Phase 2 — remote input. Receiver-side handling:
         case .inputRequest:
             guard let engine = inputReceiveEngine, let link = sessions[deviceID] else { return }
-            await engine.handleRequest(from: link)
+            // Consent is a USER round-trip, and this runs inside
+            // PeerLink.runReadLoop. Awaiting a prompt here stops reading on this
+            // peer: inbound PINGs are never dequeued so no PONG goes out, and we
+            // can't read the peer's pongs either -- six unanswered pings later
+            // (~35 s) both ends close a perfectly healthy session. Hand it to a
+            // task so the loop keeps pumping while the sheet is up.
+            Task { await engine.handleRequest(from: link) }
         case .inputEvent(let event):
             guard let engine = inputReceiveEngine else { return }
             await engine.handleControlEvent(event, from: deviceID)
@@ -768,7 +774,9 @@ public actor ConduitNode {
                 }
                 return
             }
-            await engine.handleRequest(request, from: link)
+            // Picking a display/window is a user round-trip -- see the note on
+            // .inputRequest. Must not block this peer's read loop.
+            Task { await engine.handleRequest(request, from: link) }
         // Viewer-side:
         case .screenOffer(let offer):
             await screenViewerEngine.handleOffer(offer, from: deviceID)
@@ -789,12 +797,16 @@ public actor ConduitNode {
             // A viewer explicitly asks to join the live screen share.
             guard request.capability == CapabilityID.screenView,
                   let engine = screenSourceEngine, let link = sessions[deviceID] else { return }
-            if let scope = await awaitViewerGrant(peerID: deviceID, capability: request.capability) {
-                await engine.addViewer(to: link, scope: scope)
-                try? await link.send(.permissionGrant(PermissionGrantBody(
-                    capability: request.capability, scope: scope, peer: identity.deviceID)))
-            } else {
-                try? await link.send(.permissionRevoke(PermissionRevokeBody(capability: request.capability, peer: deviceID)))
+            // The grant prompt is a user round-trip -- see the note on
+            // .inputRequest. Must not block this peer's read loop.
+            Task {
+                if let scope = await self.awaitViewerGrant(peerID: deviceID, capability: request.capability) {
+                    await engine.addViewer(to: link, scope: scope)
+                    try? await link.send(.permissionGrant(PermissionGrantBody(
+                        capability: request.capability, scope: scope, peer: self.identity.deviceID)))
+                } else {
+                    try? await link.send(.permissionRevoke(PermissionRevokeBody(capability: request.capability, peer: deviceID)))
+                }
             }
         case .permissionGrant, .permissionRevoke:
             emit(.nodeLog("permission update from \(deviceID): \(message.typeString)"))
@@ -928,6 +940,15 @@ public actor ConduitNode {
         await inputReceiveEngine?.openPermissionSettings()
     }
 
+    /// How long a prompt may sit unanswered before it resolves itself.
+    ///
+    /// The read loop no longer blocks on these (see routeCapabilityMessage), so
+    /// this is hygiene rather than a liveness fix: it stops an ignored sheet
+    /// leaking a continuation and leaves the asking peer with a definite answer.
+    /// Deliberately longer than the viewer's 45 s attach watchdog -- by the time
+    /// this fires the requester has already given up and been told why.
+    static let promptTimeout: TimeInterval = 120
+
     /// Bridges the receive engine's consent request to the app's UI round-trip.
     fileprivate func awaitInputConsent(peerID: String) async -> Bool {
         await withCheckedContinuation { continuation in
@@ -938,6 +959,12 @@ public actor ConduitNode {
             }
             inputConsentWaiters[peerID] = continuation
             emit(.inputConsentRequested(peerDeviceID: peerID, promptID: UUID()))
+            // resolve* is idempotent (removeValue returns nil the second time),
+            // so a late tap after this fires is a harmless no-op.
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.promptTimeout))
+                await self?.resolveInputConsent(peerDeviceID: peerID, accept: false)
+            }
         }
     }
 
@@ -1002,6 +1029,10 @@ public actor ConduitNode {
             }
             viewerGrantWaiters[peerID] = continuation
             emit(.permissionRequested(peerDeviceID: peerID, capability: capability, scope: "view-only", promptID: UUID()))
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.promptTimeout))
+                await self?.resolveViewerGrant(peerDeviceID: peerID, scope: nil)
+            }
         }
     }
 
@@ -1146,6 +1177,10 @@ public actor ConduitNode {
             screenPickWaiters[peerID] = continuation
             pendingScreenSources[peerID] = sources
             emit(.screenSourcePickRequested(peerDeviceID: peerID, sources: sources))
+            Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.promptTimeout))
+                await self?.resolveScreenPick(peerDeviceID: peerID, sourceID: nil)
+            }
         }
     }
 

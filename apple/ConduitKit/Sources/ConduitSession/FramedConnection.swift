@@ -5,20 +5,63 @@ import ConduitTransport
 
 public struct TimeoutError: Error {}
 
-/// Races an operation against a deadline.
+/// Guards a continuation that two racing branches could both try to resume.
+/// Resuming a checked continuation twice is a hard crash, so the claim must be
+/// atomic. Used by `withTimeout`.
+private final class ResumeOnce: @unchecked Sendable {
+    private let lock = NSLock()
+    private var taken = false
+    func claim() -> Bool {
+        lock.lock()
+        defer { lock.unlock() }
+        if taken { return false }
+        taken = true
+        return true
+    }
+}
+
+/// Races an operation against a deadline, and *returns* at that deadline even
+/// when the operation cannot be cancelled.
+///
+/// The obvious implementation — two children in a `withThrowingTaskGroup` — is
+/// wrong here, and was the bug: when the sleep wins, the group must drain its
+/// remaining child before returning, but that child is typically parked in a
+/// `withCheckedContinuation` (an NWConnection callback, a UI prompt, an event
+/// waiter). A parked continuation ignores cancellation; it resumes only when
+/// someone calls `resume`. So the group could never drain and the "timeout"
+/// deadlocked forever. Observed: an E2E test wedged for 78 minutes, and
+/// `.timeLimit` could not interrupt it either — that trait is also
+/// cancellation-based.
+///
+/// This version resolves the caller from whichever branch finishes first and
+/// never awaits the loser. A non-cancellable operation may linger as an
+/// abandoned task; that is a deliberate trade — a leaked task is strictly better
+/// than a deadlocked connect, dial, or handshake.
+///
+/// The real repair is making those continuations cancellation-aware
+/// (`withTaskCancellationHandler`); there is currently not one in the codebase.
+/// Until then, this keeps every timeout in the product honest.
 public func withTimeout<T: Sendable>(
     seconds: Double,
     _ operation: @escaping @Sendable () async throws -> T
 ) async throws -> T {
-    try await withThrowingTaskGroup(of: T.self) { group in
-        group.addTask { try await operation() }
-        group.addTask {
-            try await Task.sleep(for: .seconds(seconds))
-            throw TimeoutError()
+    let once = ResumeOnce()
+    return try await withCheckedThrowingContinuation { continuation in
+        let work = Task {
+            do {
+                let value = try await operation()
+                if once.claim() { continuation.resume(returning: value) }
+            } catch {
+                if once.claim() { continuation.resume(throwing: error) }
+            }
         }
-        guard let first = try await group.next() else { throw TimeoutError() }
-        group.cancelAll()
-        return first
+        Task {
+            try? await Task.sleep(for: .seconds(seconds))
+            if once.claim() {
+                work.cancel() // best effort; honoured only if the operation is cancellable
+                continuation.resume(throwing: TimeoutError())
+            }
+        }
     }
 }
 
