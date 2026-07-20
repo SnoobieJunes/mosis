@@ -14,10 +14,20 @@
 ## 0. TL;DR — read this first
 
 **What is proven right now, with no hardware:**
-- 91 Swift tests (unit + full end-to-end over real TLS sockets) — green.
+- 105 Swift tests (unit + full end-to-end over real TLS sockets) — green via
+  `swift test --disable-sandbox`. The broadcast E2E suite (4 tests) self-skips
+  unless the screen is unlocked — it writes an `NSFileProtectionComplete` file
+  (the broadcast config carries a TLS private key), which fails on a locked Mac;
+  it runs on an unlocked/CI host.
 - Go + Kotlin protocol conformance — 47 golden vectors, byte-for-byte identical
   across all three implementations.
-- All apps compile: iOS, macOS, tvOS (Swift), and the Android core (Kotlin).
+- The `ConduitKit` Swift package builds and its whole graph (incl. swift-crypto)
+  compiles under SwiftPM. **Caveat:** building the Xcode *app* targets currently
+  trips a swift-crypto explicit-modules resolution failure on Xcode 26 (it tries
+  to compile `CryptoExtras`/`SwiftASN1`, which the app doesn't use — SwiftPM
+  compiles only the referenced products, which is why `swift test` is clean).
+  This is a toolchain/project-integration issue, not a source issue; fix is an
+  Xcode-side module-cache reset or trimming the package product to `Crypto` only.
 
 **The single biggest thing NOT working, by design:**
 - **Wi-Fi Aware is off.** It is gated behind an Apple entitlement we cannot

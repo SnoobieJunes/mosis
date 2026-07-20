@@ -1,23 +1,38 @@
-# Conduit
+# MOSIS
 
-Open, local-first, cross-device connectivity: discover your own devices,
-pair once, then move files, clipboard, input, and screens over a fast
-peer-to-peer link. No cloud, no account, no relay.
+**Mobile Operating System Integrated Solutions** — open, local-first,
+cross-device connectivity: discover your own devices, pair once, then move
+files, clipboard, input, and screens over a fast peer-to-peer link. No cloud,
+no account, no relay.
 
-> "Conduit" is a placeholder name (as is `org.auston.conduit.*`); a rename —
-> possibly to **mosis**, the 2011 project this modernizes — is spec open
-> decision 1. Swap everywhere before anything ships.
+MOSIS revives the 2011–2013 APPture/MOSIS project as a modern, honest,
+three-implementation codebase. Licensed **Apache-2.0** ([LICENSE](LICENSE)).
+
+> **Rename in progress.** The code is being renamed from its **Conduit**
+> codename to **MOSIS**; identifiers and paths still read `conduit`/`cndt` in
+> many places. This is deliberate and staged — the App Group id, the iOS bundle
+> id (keychain access group), the Bonjour service type, and the `conduit-*-v1`
+> crypto domain strings frozen into the golden vectors are all compatibility or
+> identity boundaries that must move together, once, with a re-pair. See
+> [`../plans/01-rename-to-mosis.md`](../plans/01-rename-to-mosis.md).
 
 Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
 Wire protocol: [`docs/protocol.md`](docs/protocol.md).
 Decisions: [`docs/adr/`](docs/adr).
 
-## Status: Phases 1–7 implemented
+## Status: Phases 1–7 implemented; device-truth pass in progress
 
-> Working codename **Conduit** (shipping name undecided — "Conduit" is taken).
 > Before a launch, read **`docs/TESTING_PLAN.md`**: it lays out, phase by phase,
 > what's proven by automated tests vs. what's device-gated, and is blunt about
 > what is **not** working yet (Wi-Fi Aware, virtual-display drivers, Matter/Cast).
+>
+> Honest label: **proven core, device experience being hardened.** The wire
+> protocol, crypto, pairing, TLS identity and encode/decode pipeline are proven
+> by three byte-exact implementations and a real-socket test suite; the
+> last-mile device seams (screen-lane fallback, reverse-dial addressing, input
+> lane, permissions) are being converted from "green on loopback" to
+> "demonstrated on hardware" — see [`../quirky-tickling-dongarra.md`](../quirky-tickling-dongarra.md)
+> and [`../loop-state.md`](../loop-state.md).
 
 | Piece | State |
 |---|---|
@@ -50,7 +65,7 @@ Decisions: [`docs/adr/`](docs/adr).
 | **Desktop input inject** (Linux uinput, Windows SendInput) | ◐ cross-compiles; runtime device-gated |
 | **Consent gates + persistent indicators + kill switches** (spec invariant) | ✅ |
 | iOS + macOS apps (peer bubbles, Connect/Share, trackpad, screen viewer, pickers, stats HUD) | ✅ build + launch; on-device validation pending |
-| Wi-Fi Aware backend | 🚩 flagged off pending entitlement (ADR 0003) |
+| Wi-Fi Aware backend | ◐ entitlement **granted** (`com.apple.developer.wifi-aware`, in the iOS entitlements); backend behind a build flag pending on-device validation (ADR 0003) |
 
 ## Build & test
 
@@ -58,11 +73,17 @@ Requires Xcode 26+ on macOS 26+.
 
 ```bash
 cd apple/ConduitKit
-swift test                        # 91 tests: protocol, pairing, TLS, input, video, contexts, multi-viewer, E2E
+swift test --disable-sandbox      # 105 tests: protocol, pairing, TLS, input, video, contexts, multi-viewer, E2E
+                                  # --disable-sandbox is REQUIRED — the sandbox HANGS the
+                                  # Network/PKCS#12/VideoToolbox paths (docs/TESTING_PLAN.md §1).
+                                  # The broadcast E2E suite self-skips unless the screen is
+                                  # unlocked (it does an NSFileProtectionComplete write).
 
 cd ../AppleApps
-xcodegen generate                 # brew install xcodegen (project.yml is source of truth)
-open ConduitApps.xcodeproj        # select your team, run Conduit-macOS / Conduit-iOS
+xcodegen generate                 # brew install xcodegen (project.yml is source of truth).
+                                  # NOTE: this REWRITES the .entitlements files from project.yml —
+                                  # capabilities missing there are silently dropped.
+open ConduitApps.xcodeproj        # select your team, run the macOS / iOS app
 ```
 
 First run on devices: enable **Accept pairing** on one device, tap the other
