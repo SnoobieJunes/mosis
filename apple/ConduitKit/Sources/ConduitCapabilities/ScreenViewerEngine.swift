@@ -28,6 +28,26 @@ public actor ScreenViewerEngine {
     /// SCREEN_END, before calling the share dead. Covers the source demoting
     /// from a failed dedicated lane back to the session link.
     static let laneLostGrace: TimeInterval = 8
+    /// How long an *attached* stream may go without a decodable frame before it
+    /// is declared dead.
+    ///
+    /// This is the backstop for the failure every other watchdog here misses. The
+    /// attach watchdog and `laneLostGrace` are both driven by EOF — they need the
+    /// lane to *close*. The common real-world Wi-Fi failure produces no close at
+    /// all: the phone's radio sleeps, or the AP drops the flow, and the socket is
+    /// black-holed. No RST, so `nextFrame()` parks forever, `handleBulkLaneLost`
+    /// never runs, and the session link stays healthy (separate socket, pings
+    /// answered) so nothing else notices either. TCP retransmission would take
+    /// 10-15 minutes to surface it. Before this watchdog the viewer showed a
+    /// frozen last frame indefinitely with no error and no Retry.
+    ///
+    /// Must exceed `laneLostGrace` so a legitimate demote-and-resume isn't killed
+    /// mid-recovery.
+    static let frameStallTimeout: TimeInterval = 12
+    /// How often the stall watchdog samples. Coarse on purpose: this is a
+    /// liveness backstop, not a latency measurement, and re-arming a Task per
+    /// frame at 60fps would cost more than the check is worth.
+    static let stallCheckInterval: TimeInterval = 2
 
     struct Session {
         /// The peer sourcing this stream — lets a single peer's disconnect end
@@ -38,10 +58,20 @@ public actor ScreenViewerEngine {
         /// The bound bulk connection (set at attach); used to ack keyframe
         /// requests and closed on teardown.
         var bulk: FramedConnection?
+        /// The session link, remembered when frames arrive over the control-lane
+        /// fallback. Without it, keyframe recovery was impossible on that lane:
+        /// `layerNeedsKeyframe` required `bulk`, which is nil precisely when the
+        /// fallback is in use, so a failed decode layer could not ask for the
+        /// keyframe it needs to resume.
+        var controlFramed: FramedConnection?
         var formatDescription: CMFormatDescription?
         var readTask: Task<Void, Never>?
         /// Fires if no bulk attaches within `attachTimeout`; cancelled on attach.
         var watchdogTask: Task<Void, Never>?
+        /// Post-attach liveness backstop; see `frameStallTimeout`.
+        var stallTask: Task<Void, Never>?
+        /// When the last decodable frame arrived, on any lane.
+        var lastFrameAt = Date()
         var attached = false
         /// True when frames are arriving on the peer's SESSION link because the
         /// source couldn't dial a dedicated lane. Surfaced in stats so a
@@ -58,8 +88,23 @@ public actor ScreenViewerEngine {
     }
 
     private var sessions: [String: Session] = [:]
-    /// Maps the wire (uint16) session id → screen session id, for attach.
-    private var wireToSession: [UInt16: String] = [:]
+    /// Maps a peer's wire (uint16) session id → screen session id.
+    ///
+    /// Keyed by peer, not by wire id alone. Every source allocates its wire ids
+    /// from 1, so two peers sharing to this viewer at once both pick 1: a flat
+    /// map let the second offer overwrite the first, and control-lane frames
+    /// resolved by wire id alone were then decoded against the wrong session's
+    /// format description (garbage output), while the displaced session silently
+    /// never attached and died at the attach timeout blaming the network.
+    /// Ending either session also deleted the other's mapping. The bulk lane was
+    /// never exposed to this because its attach is authenticated by a 128-bit
+    /// bulkToken; the control lane has no such gate, so an unscoped map also let
+    /// any paired peer inject frames into another peer's viewer session.
+    private struct WireKey: Hashable {
+        let peerDeviceID: String
+        let wireSessionID: UInt16
+    }
+    private var wireToSession: [WireKey: String] = [:]
     private let emit: @Sendable (ConduitEvent) -> Void
     private let diagnostics: Diagnostics
 
@@ -87,7 +132,7 @@ public actor ScreenViewerEngine {
             await self?.attachWatchdogFired(screenSessionID: screenSessionID)
         }
         sessions[screenSessionID] = session
-        wireToSession[offer.wireSessionID] = screenSessionID
+        wireToSession[WireKey(peerDeviceID: peerDeviceID, wireSessionID: offer.wireSessionID)] = screenSessionID
         emit(.screenViewerStarted(peerDeviceID: peerDeviceID, offer: offer, render: render))
     }
 
@@ -120,6 +165,7 @@ public actor ScreenViewerEngine {
         diagnostics.viewerLane("bulk")
         sessions[screenSessionID]?.watchdogTask?.cancel()
         sessions[screenSessionID]?.watchdogTask = nil
+        startStallWatchdog(screenSessionID: screenSessionID)
         let task = Task { await self.runReadLoop(framed, screenSessionID: screenSessionID) }
         sessions[screenSessionID]?.readTask = task
         // Ask for a keyframe immediately so the first displayable frame is soon.
@@ -134,9 +180,17 @@ public actor ScreenViewerEngine {
     ///
     /// `framed` is the session connection, used only to ack (SCREEN_ACK is a
     /// control message, so it routes back to the source normally).
-    public func handleControlLaneFrame(_ frame: ScreenFrame, framed: FramedConnection) async {
-        guard let screenSessionID = wireToSession[frame.sessionID],
-              var session = sessions[screenSessionID] else { return }
+    public func handleControlLaneFrame(
+        _ frame: ScreenFrame, framed: FramedConnection, from peerDeviceID: String
+    ) async {
+        let key = WireKey(peerDeviceID: peerDeviceID, wireSessionID: frame.sessionID)
+        guard let screenSessionID = wireToSession[key],
+              var session = sessions[screenSessionID],
+              // Belt and braces: the map is already peer-scoped, but this lane
+              // carries no bulkToken, so the frame's origin is asserted against
+              // the session's owner before a byte of it is decoded.
+              session.peerDeviceID == peerDeviceID else { return }
+        session.controlFramed = framed
         if !session.attached {
             session.attached = true
             session.usesControlLane = true
@@ -146,9 +200,49 @@ public actor ScreenViewerEngine {
             diagnostics.viewerAttached(true)
             diagnostics.viewerLane("control")
             screenLog.info("screen stream arriving on the session link (no direct lane)")
+            startStallWatchdog(screenSessionID: screenSessionID)
             await sendAck(framed, screenSessionID: screenSessionID, requestKeyframe: true)
+        } else {
+            sessions[screenSessionID] = session
         }
         await handleFrame(frame, framed: framed, screenSessionID: screenSessionID)
+    }
+
+    // MARK: Stall detection
+
+    /// Arms the post-attach liveness backstop. Idempotent: re-arming (on a
+    /// re-attach after a demote) replaces the previous task.
+    private func startStallWatchdog(screenSessionID: String) {
+        sessions[screenSessionID]?.stallTask?.cancel()
+        sessions[screenSessionID]?.lastFrameAt = Date()
+        sessions[screenSessionID]?.stallTask = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .seconds(Self.stallCheckInterval))
+                if Task.isCancelled { return }
+                guard let self else { return }
+                if await self.stallCheckShouldEnd(screenSessionID: screenSessionID) {
+                    await self.endStalled(screenSessionID: screenSessionID)
+                    return
+                }
+            }
+        }
+    }
+
+    /// True when an attached session has gone quiet past `frameStallTimeout`.
+    /// Sessions that are mid-demote (`attached == false`) are left to
+    /// `laneLostGrace`, which owns that window.
+    private func stallCheckShouldEnd(screenSessionID: String) -> Bool {
+        guard let session = sessions[screenSessionID], session.attached else { return false }
+        return Date().timeIntervalSince(session.lastFrameAt) > Self.frameStallTimeout
+    }
+
+    private func endStalled(screenSessionID: String) async {
+        guard let session = sessions[screenSessionID] else { return }
+        screenLog.warning("screen stream stalled with no frames for \(Int(Self.frameStallTimeout))s; ending")
+        await end(
+            screenSessionID: screenSessionID,
+            reason: "Video from \(session.offer.sourceName) stopped arriving. The connection may have dropped without closing — check both devices are on the same Wi-Fi network."
+        )
     }
 
     private func runReadLoop(_ framed: FramedConnection, screenSessionID: String) async {
@@ -236,6 +330,9 @@ public actor ScreenViewerEngine {
             ) {
                 session.render.enqueue(sampleBuffer)
                 session.decodedCount += 1
+                // Liveness: any frame we could actually decode proves the lane
+                // is alive, whichever lane it came in on.
+                session.lastFrameAt = Date()
                 diagnostics.viewerDecoded()
             }
             session.highestSeq = max(session.highestSeq, frame.seq)
@@ -283,9 +380,14 @@ public actor ScreenViewerEngine {
     /// The render layer failed and flushed; ask the source for a fresh keyframe
     /// on the bound lane so it has something decodable to resume from.
     private func layerNeedsKeyframe(screenSessionID: String) async {
-        guard let session = sessions[screenSessionID], let bulk = session.bulk else { return }
+        guard let session = sessions[screenSessionID] else { return }
+        // Ack on whichever lane is actually carrying this stream. Previously this
+        // required `bulk`, so on the control-lane fallback the request was
+        // dropped and a flushed layer had no way to ask for the keyframe it
+        // needs — it stayed black until the encoder's next scheduled one.
+        guard let lane = session.bulk ?? session.controlFramed else { return }
         sessions[screenSessionID]?.needKeyframe = true
-        await sendAck(bulk, screenSessionID: screenSessionID, requestKeyframe: true)
+        await sendAck(lane, screenSessionID: screenSessionID, requestKeyframe: true)
     }
 
     // MARK: Teardown
@@ -330,10 +432,12 @@ public actor ScreenViewerEngine {
     private func end(screenSessionID: String, reason: String? = nil) async {
         guard let session = sessions.removeValue(forKey: screenSessionID) else { return }
         session.watchdogTask?.cancel()
+        session.stallTask?.cancel()
         session.readTask?.cancel()
         session.bulk?.closeUnderlying()
         session.render.flush()
-        wireToSession.removeValue(forKey: session.offer.wireSessionID)
+        wireToSession.removeValue(forKey: WireKey(peerDeviceID: session.peerDeviceID,
+                                                  wireSessionID: session.offer.wireSessionID))
         diagnostics.viewerEnded()
         if let reason {
             emit(.screenViewerFailed(peerDeviceID: session.peerDeviceID,

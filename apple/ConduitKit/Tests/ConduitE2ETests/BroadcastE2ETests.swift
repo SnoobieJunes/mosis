@@ -7,6 +7,26 @@ import ConduitCapabilities
 import ConduitProtocol
 import ConduitTransport
 
+/// Probes whether this environment can perform an `NSFileProtectionComplete`
+/// (class A) atomic write — i.e. the keybag is unlocked. Returns false on a
+/// locked developer Mac, where such writes fail with EPERM, so the broadcast
+/// suite skips rather than failing red for an environmental reason. See the
+/// note on `BroadcastE2ETests`.
+func broadcastKeybagIsUnlocked() -> Bool {
+    let dir = FileManager.default.temporaryDirectory
+        .appendingPathComponent("mosis-keybag-probe-\(UUID().uuidString)")
+    guard (try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)) != nil
+    else { return false }
+    defer { try? FileManager.default.removeItem(at: dir) }
+    do {
+        try Data("probe".utf8).write(to: dir.appendingPathComponent("p"),
+                                     options: [.atomic, .completeFileProtection])
+        return true
+    } catch {
+        return false
+    }
+}
+
 /// The iPhone→viewer broadcast path (spec §9 Phase 3 step 4) exercised
 /// same-process over real TLS sockets: `prepareIOSScreenBroadcast` writes the
 /// shared config (App Group stood in by a temp directory), and a real
@@ -17,7 +37,20 @@ import ConduitTransport
 /// keeps recording": the streamer never noticed a rejected attach, never died
 /// with its viewer, and the viewer killed live broadcasts when the phone app's
 /// control link dropped (the extension's lane is a different process!).
-@Suite(.serialized) struct BroadcastE2ETests {
+///
+/// Environmental gate: the broadcast config carries the node's TLS **private
+/// key**, so `BroadcastSharedStore.write` uses `NSFileProtectionComplete`. That
+/// data-protection class is only writable while the device's keybag is unlocked.
+/// On a headless/unlocked CI runner that is always true, so the suite runs; on a
+/// developer Mac whose screen has auto-locked, a class-A write fails with EPERM
+/// and these tests would go red for a reason that has nothing to do with the
+/// code under test. The gate makes that an honest SKIP with a reason, exactly
+/// like `RealNetworkE2ETests` skips without a LAN IP. Unlock the screen to run
+/// them. The protection class is a deliberate security choice and is not
+/// weakened to make the test convenient.
+@Suite(.serialized, .enabled(if: broadcastKeybagIsUnlocked(),
+                             "requires an unlocked keybag for NSFileProtectionComplete writes — unlock the screen"))
+struct BroadcastE2ETests {
 
     /// Launches a phone-role node whose broadcast store points at its temp root.
     private static func launchPhone() async throws -> TestNode {
@@ -58,6 +91,17 @@ import ConduitTransport
             if case .sessionStateChanged(let id, .ready, _) = $0 { return id == viewer.deviceID }
             return false
         }
+        // Wait for HELLO capabilities, not just for the session to go .ready.
+        // `prepareIOSScreenBroadcast` gates on `remoteAdvertises(screenView)`,
+        // which is only populated once the peer's HELLO has been processed —
+        // a strictly later event than .ready. Without this the test raced the
+        // handshake and failed with a bare "config → nil", blaming the broadcast
+        // path for what was really the test starting too early.
+        _ = try await phone.hub.waitFor {
+            if case .remoteCapabilities(let id, _) = $0 { return id == viewer.deviceID }
+            return false
+        }
+
         let config = await phone.node.prepareIOSScreenBroadcast(
             to: viewer.deviceID, width: 320, height: 240, fps: 30
         )

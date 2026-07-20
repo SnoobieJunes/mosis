@@ -35,12 +35,15 @@ public actor ScreenSourceEngine {
         let deviceID: String
         let screenSessionID: String
         let wireSessionID: UInt16
-        let bulk: FramedConnection
+        /// Nil while the viewer's lane is still being dialed. The entry exists
+        /// from the moment the grant is given so a repeat request can't slip
+        /// past the dedup check and prompt the user twice.
+        let bulk: FramedConnection?
         let scope: PermissionScope
         var sentSeq: UInt32 = 0
         var ackTask: Task<Void, Never>?
         init(deviceID: String, screenSessionID: String, wireSessionID: UInt16,
-             bulk: FramedConnection, scope: PermissionScope) {
+             bulk: FramedConnection?, scope: PermissionScope) {
             self.deviceID = deviceID
             self.screenSessionID = screenSessionID
             self.wireSessionID = wireSessionID
@@ -95,6 +98,10 @@ public actor ScreenSourceEngine {
     private let grantViewer: @Sendable (String, String) async -> PermissionScope?
 
     private var sharing: Sharing?
+    /// Peer whose source-picker is currently open. Reserves the single-share
+    /// slot across the picker await, which `sharing` cannot do because it isn't
+    /// assigned until the share is fully built. See `handleRequest`.
+    private var pendingShareFor: String?
     private var nextWireSession: UInt16 = 1
 
     public init(
@@ -134,6 +141,27 @@ public actor ScreenSourceEngine {
             }
             return
         }
+        // `sharing` is not assigned until the END of beginSharing, and the path
+        // to it awaits the source picker — a sheet that can be open for as long
+        // as the user takes. The guard above therefore did not exclude a second
+        // request arriving in that window (the node dispatches each request into
+        // its own Task so the read loop isn't blocked, so nothing serialized
+        // them). Two requests both passed, two pickers opened, and the second
+        // beginSharing overwrote `sharing` with no teardown: the first encoder,
+        // sender task, feed continuation and upgrade task were orphaned, and the
+        // first viewer — which had already received a valid SCREEN_OFFER — sat
+        // blank until its 45s watchdog blamed the network for a local race.
+        // A double-tap on "View Screen", or the new persistent Retry, is enough.
+        if let pending = pendingShareFor {
+            if pending != link.peer.deviceID {
+                try? await link.send(.screenReject(ScreenRejectBody(
+                    reason: "the source is still choosing what to share"
+                )))
+            }
+            return   // same peer asking twice: the picker is already up for them
+        }
+        pendingShareFor = link.peer.deviceID
+        defer { pendingShareFor = nil }
         guard await capturer.isPermitted() else {
             await capturer.requestPermission()
             try? await link.send(.screenReject(ScreenRejectBody(
@@ -291,10 +319,31 @@ public actor ScreenSourceEngine {
     private func attemptBulkUpgrade(
         screenSessionID: String, peer: PinnedPeer, peerName: String, port: UInt16, bulkToken: String
     ) async {
+        // Run the dial as a task we own, so that a connection landing *after* the
+        // budget expires still gets closed. `withTimeout` deliberately does not
+        // await the loser and its cancel is best-effort, while the candidate
+        // chain can run to 3 x 6s against a 6s budget — so the ordinary
+        // slow-but-successful case (macOS shows the Local Network prompt, the
+        // user takes ten seconds to tap Allow, the dial then succeeds) used to
+        // leak a live NWConnection every single time. Neither FramedConnection
+        // nor LANConnection has a deinit, so nothing reclaimed it.
+        let dial = Task { try await self.bulkOpener(peer, port) }
+        let bulk: FramedConnection
         do {
-            let bulk = try await withTimeout(seconds: Self.bulkDialBudget) {
-                try await self.bulkOpener(peer, port)
+            bulk = try await withTimeout(seconds: Self.bulkDialBudget) { try await dial.value }
+        } catch {
+            Task {
+                if let late = try? await dial.value {
+                    screenLog.info("direct lane landed after the dial budget; closing it")
+                    late.closeUnderlying()
+                }
             }
+            screenLog.warning("no direct lane (\(error)); staying on the session link")
+            emit(.nodeLog("Sharing over the session link — couldn't open a direct lane to \(peerName)."))
+            return
+        }
+
+        do {
             await bulk.adoptSessionID(UUID().uuidString)
             try await bulk.send(.screenAttach(ScreenAttachBody(
                 screenSessionID: screenSessionID, bulkToken: bulkToken
@@ -310,8 +359,10 @@ public actor ScreenSourceEngine {
             sharing?.encoder?.requestKeyframe()
             screenLog.info("direct screen lane up; switching at the next keyframe")
         } catch {
-            screenLog.warning("no direct lane (\(error)); staying on the session link")
-            emit(.nodeLog("Sharing over the session link — couldn't open a direct lane to \(peerName)."))
+            // We hold a connected socket here; the attach send is what failed.
+            // Logging alone left it open forever.
+            bulk.closeUnderlying()
+            screenLog.warning("direct lane attach failed (\(error)); staying on the session link")
         }
     }
 
@@ -387,6 +438,9 @@ public actor ScreenSourceEngine {
             }
             // Fan the same encoded frame out to every additional viewer.
             for viewer in session.secondaries.values {
+                // Still dialing: no lane to send on yet. It gets a keyframe when
+                // its attach completes.
+                guard let viewerBulk = viewer.bulk else { continue }
                 let vSeq = viewer.sentSeq
                 viewer.sentSeq &+= 1
                 let vFrame = ScreenFrame(
@@ -394,7 +448,7 @@ public actor ScreenSourceEngine {
                     isKeyframe: frame.isKeyframe, ptsMillis: ptsMillis, data: packed
                 )
                 do {
-                    try await viewer.bulk.sendScreenFrame(vFrame)
+                    try await viewerBulk.sendScreenFrame(vFrame)
                 } catch {
                     await revokeViewer(deviceID: viewer.deviceID, reason: "send failed")
                 }
@@ -434,18 +488,47 @@ public actor ScreenSourceEngine {
             try? await link.send(.screenEnd(ScreenEndBody(screenSessionID: screenSessionID, reason: "no reachable listener")))
             return
         }
+        // Reserve the slot BEFORE dialing. The dial can hang for the full
+        // candidate chain, and handleRequest's dedup check reads
+        // `secondaries[deviceID]` — which used to be written only after a
+        // successful dial. A repeat request during the dial therefore passed
+        // dedup and prompted the source user a second time; granting it started
+        // a second dial whose result overwrote the entry, leaking the first
+        // connection with no ack task to notice.
+        let placeholder = SecondaryViewer(
+            deviceID: link.peer.deviceID, screenSessionID: screenSessionID,
+            wireSessionID: wireSessionID, bulk: nil, scope: scope
+        )
+        self.sharing?.secondaries[link.peer.deviceID] = placeholder
+
         do {
-            let bulk = try await bulkOpener(link.peer, port)
+            // Bounded like the primary path. An unbounded dial here left the
+            // source user's grant prompt answered but nothing happening, for as
+            // long as the network cared to stall.
+            let bulk = try await withTimeout(seconds: Self.bulkDialBudget) {
+                try await self.bulkOpener(link.peer, port)
+            }
             await bulk.adoptSessionID(UUID().uuidString)
             try await bulk.send(.screenAttach(ScreenAttachBody(screenSessionID: screenSessionID, bulkToken: bulkToken)))
+            // Still wanted? A revoke or a share end during the dial wins.
+            guard self.sharing?.secondaries[link.peer.deviceID]?.screenSessionID == screenSessionID else {
+                bulk.closeUnderlying()
+                return
+            }
             let viewer = SecondaryViewer(
                 deviceID: link.peer.deviceID, screenSessionID: screenSessionID,
                 wireSessionID: wireSessionID, bulk: bulk, scope: scope
             )
+            // Without this the secondary got no ack loop at all: no adaptive
+            // bitrate, no keyframe requests honoured, no liveness, and its
+            // inbound SCREEN_ACK bytes were never drained from the socket. The
+            // field was declared and cancelled but never once assigned.
+            viewer.ackTask = Task { await self.readAcks(bulk, screenSessionID: screenSessionID) }
             self.sharing?.secondaries[link.peer.deviceID] = viewer
             self.sharing?.encoder?.requestKeyframe()   // so the new viewer starts now
             emit(.viewerJoined(peerDeviceID: link.peer.deviceID, scope: scope.rawValue))
         } catch {
+            self.sharing?.secondaries.removeValue(forKey: link.peer.deviceID)
             try? await link.send(.screenEnd(ScreenEndBody(screenSessionID: screenSessionID, reason: "bulk connect failed")))
         }
     }
@@ -458,8 +541,8 @@ public actor ScreenSourceEngine {
         // Clean end from the revoked viewer's POV: a deliberate revoke (or a dead
         // lane) isn't a retryable failure — don't send a reason that would prompt
         // them to Retry into a wall. `reason` stays for our own emit below.
-        try? await viewer.bulk.send(.screenEnd(ScreenEndBody(screenSessionID: viewer.screenSessionID, reason: nil)))
-        viewer.bulk.closeUnderlying()
+        try? await viewer.bulk?.send(.screenEnd(ScreenEndBody(screenSessionID: viewer.screenSessionID, reason: nil)))
+        viewer.bulk?.closeUnderlying()
         sharing?.secondaries.removeValue(forKey: deviceID)
         emit(.viewerRevoked(peerDeviceID: deviceID))
     }
@@ -557,8 +640,8 @@ public actor ScreenSourceEngine {
         // Tear down every additional viewer too.
         for viewer in session.secondaries.values {
             viewer.ackTask?.cancel()
-            try? await viewer.bulk.send(.screenEnd(ScreenEndBody(screenSessionID: viewer.screenSessionID, reason: reason)))
-            viewer.bulk.closeUnderlying()
+            try? await viewer.bulk?.send(.screenEnd(ScreenEndBody(screenSessionID: viewer.screenSessionID, reason: reason)))
+            viewer.bulk?.closeUnderlying()
         }
         emit(.screenSourceEnded(peerDeviceID: session.peerDeviceID))
         diagnostics.sourceStopped()

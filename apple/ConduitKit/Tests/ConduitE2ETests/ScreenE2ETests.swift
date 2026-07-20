@@ -52,6 +52,19 @@ final class FakeScreenCapturer: ScreenCapturer, @unchecked Sendable {
         timer = nil
     }
 
+    /// Stops producing frames WITHOUT ending the share or closing anything —
+    /// the stream simply goes quiet while every connection stays open.
+    ///
+    /// This is the viewer-side signature of the black-holed-lane failure: on real
+    /// Wi-Fi (radio sleep, AP dropping the flow, a roam) the socket is neither
+    /// reset nor closed, so no EOF ever arrives. From the viewer's position that
+    /// is indistinguishable from the source going silent, which is what this
+    /// reproduces. Used by `frozenStreamIsSurfacedInsteadOfHangingForever`.
+    func freeze() {
+        timer?.cancel()
+        timer = nil
+    }
+
     static func makePixelBuffer(width: Int, height: Int, tick: Int) -> CVPixelBuffer? {
         var pb: CVPixelBuffer?
         let attrs: [CFString: Any] = [

@@ -728,7 +728,7 @@ public actor ConduitNode {
             // Control-lane fallback: the source couldn't dial a bulk lane back
             // to us and is streaming over the session connection instead.
             guard let link = sessions[deviceID] else { return }
-            await screenViewerEngine.handleControlLaneFrame(frame, framed: link.framed)
+            await screenViewerEngine.handleControlLaneFrame(frame, framed: link.framed, from: deviceID)
         }
     }
 

@@ -69,11 +69,31 @@ import Darwin
             Issue.record("no screenViewerStarted"); return
         }
 
-        // The payoff: frames actually reach the render target — proving the source
-        // reverse-dialed the viewer's listener over the LAN IP (candidate chain),
-        // not just that a control-lane offer arrived.
+        // Frames reach the render target.
         try await pollUntil(timeout: 30) { render.enqueuedCount >= 3 }
-        #expect(render.enqueuedCount >= 3, "frames must arrive via the LAN-IP reverse dial")
+        #expect(render.enqueuedCount >= 3, "frames must arrive over the LAN IP")
+
+        // The payoff, and the part that makes this test mean anything: the viewer
+        // must end up on the DEDICATED lane.
+        //
+        // Asserting only that frames arrive is not a reverse-dial test. Since the
+        // loop-2 re-architecture the source starts streaming on the session link
+        // immediately and upgrades in the background, so `enqueuedCount >= 3` is
+        // satisfied by the control-lane fallback alone — this test passed with the
+        // candidate chain entirely broken, while still claiming in its own
+        // docstring to prove it. Every user could have been silently pinned to the
+        // 2.5 Mbps fallback forever with the suite uniformly green.
+        //
+        // `viewerLane == "bulk"` is the one assertion that fails if the reverse
+        // dial off loopback regresses, which is the entire reason this suite exists.
+        let laneEvent = try await ipad.hub.waitFor {
+            if case .diagnosticsSnapshot(let snapshot) = $0 { return snapshot.viewerLane == "bulk" }
+            return false
+        }
+        if case .diagnosticsSnapshot(let snapshot) = laneEvent {
+            #expect(snapshot.viewerLane == "bulk",
+                    "the source must reverse-dial the viewer over the LAN IP (M3 candidate chain), not settle for the session-link fallback")
+        }
 
         // And it must NOT have blank-screen-failed with a reason.
         let events = await ipad.hub.allEvents()
