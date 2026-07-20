@@ -442,6 +442,40 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
 
 /// Service type constants live here (not ConduitProtocol) so the transport
 /// module stays protocol-agnostic while sharing the registered names (spec §5.3).
+///
+/// **This is the single source of truth for the service type** — the browser
+/// (`:279`) and the advertiser (`ConduitNode.swift:273`) both read it, and it is
+/// mirrored only by the `NSBonjourServices` arrays in the three Info.plists
+/// (via `project.yml`) and by Kotlin's `Proto.SERVICE_TYPE`. iOS silently
+/// refuses to browse a service type that is missing from `NSBonjourServices`,
+/// so those must move together.
 public enum ProtocolServiceType {
+    /// Bonjour / Wi-Fi Aware service type for the app-to-app channel (spec §5.3).
+    ///
+    /// **Do not rename this on its own.** It is a compatibility boundary: a
+    /// device advertising and browsing a different service type is invisible to
+    /// every other device, so discovery — and therefore reconnection of
+    /// already-paired peers — breaks until the whole fleet is updated together.
+    ///
+    /// A previous rename to `_mosis-app._tcp` was reverted in 3b7d227 with the
+    /// message that it "broke pairing". **That diagnosis does not survive
+    /// checking, and the correction matters more than the original claim:** the
+    /// rename in 40e5c69 was internally consistent (browse site, advertise site,
+    /// all three Info.plists, project.yml, and Kotlin all moved together). What
+    /// actually broke pairing was one commit *earlier*, e6c6eb3, which renamed
+    /// the App Group to `group.org.auston.mosis` and the iOS bundle ID to
+    /// `org.auston.mosis`. On iOS every piece of pairing state hangs off those
+    /// two strings — the App Group container holds `peers.json` (the pinning
+    /// database) and `identity.json`, and the keychain access group is derived
+    /// from the bundle ID — so the phone silently minted a fresh identity while
+    /// the Mac went on pinning the old one and refusing the connection.
+    ///
+    /// So: renaming this string is a real fleet-wide break and still must not be
+    /// done piecemeal, but it is not what caused the failure it was blamed for.
+    /// It belongs to the same one-time pre-publication break as the
+    /// `conduit-*-v1` crypto domain strings (frozen into the golden vectors),
+    /// the Keychain service in IdentityStore, and the Application Support
+    /// directory holding peers.json — all move together, once, with a planned
+    /// reinstall + re-pair. See plans/01-rename-to-mosis.md.
     public static let appService = "_cndt-app._tcp"
 }

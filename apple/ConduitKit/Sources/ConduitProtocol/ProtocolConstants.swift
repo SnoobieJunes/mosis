@@ -6,22 +6,19 @@ public enum ProtocolConstants {
     /// Protocol version carried in every envelope. Frozen shape; see spec §6.
     public static let version = "0.2"
 
-    /// Bonjour / Wi-Fi Aware service type for the app-to-app channel (spec §5.3).
-    ///
-    /// DO NOT rename this to `_mosis-*` on its own. It is a compatibility
-    /// boundary, not cosmetics: a device running a build that advertises and
-    /// browses a different service type is invisible to every other device, so
-    /// discovery — and therefore reconnection of already-paired peers — breaks
-    /// until *every* device in the fleet is reinstalled simultaneously. This was
-    /// tried, and it broke pairing.
-    ///
-    /// It belongs to the same one-time pre-publication break as the
-    /// `conduit-*-v1` crypto domain strings (frozen into the golden vectors),
-    /// the Keychain service in IdentityStore, and the Application Support
-    /// directory that holds peers.json. Those four move together, once, with a
-    /// planned reinstall + re-pair — never piecemeal.
-    /// See plans/01-rename-to-mosis.md.
-    public static let serviceType = "_cndt-app._tcp"
+    // NOTE: the Bonjour service type is deliberately NOT defined here.
+    //
+    // There used to be a `serviceType` constant in this enum carrying a large
+    // DO-NOT-RENAME warning — on a string that nothing referenced. The live
+    // constant is `ProtocolServiceType.appService` in ConduitTransport, which is
+    // what the browser and the advertiser actually use. Two copies of a
+    // compatibility-boundary string, with the documentation attached to the dead
+    // one, is precisely the shape of the bug the warning was trying to prevent:
+    // rename the documented constant and nothing changes; rename the real one
+    // and discovery breaks with no warning in sight.
+    //
+    // The transport module owns it (see the comment on `ProtocolServiceType`),
+    // so this module has no business holding a second copy.
 
     /// Maximum encoded size of a control (JSON) frame payload.
     public static let maxControlPayload = 1 << 20 // 1 MiB
