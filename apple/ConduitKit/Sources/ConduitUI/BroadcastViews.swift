@@ -58,7 +58,14 @@ struct ScreenBroadcastSheet: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                         .multilineTextAlignment(.center)
-                    BroadcastPickerView(preferredExtension: "org.auston.mosis.broadcast")
+                    // Derived, never hardcoded: this must match the extension's
+                    // real bundle id exactly or RPSystemBroadcastPickerView
+                    // silently falls back to generic AirPlay/TV destinations
+                    // with no error — the "black sheet offering only Share to
+                    // TV" symptom. A literal here drifts on every rename.
+                    BroadcastPickerView(
+                        preferredExtension: (Bundle.main.bundleIdentifier ?? "") + ".broadcast"
+                    )
                         .frame(width: 70, height: 70)
                         .background(Circle().fill(.quaternary))
                     statusLine

@@ -5,7 +5,7 @@ import ConduitProtocol
 import ConduitSession
 import ConduitTransport
 
-let screenLog = Logger(subsystem: "org.conduit", category: "screen")
+let screenLog = Logger(subsystem: "org.mosis", category: "screen")
 
 /// Viewer side of screen sharing (spec §9 Phase 3 step 3). Receives an offer,
 /// prepares a render target, then binds the source's inbound bulk connection,

@@ -10,7 +10,7 @@ import ConduitProtocol
 /// Screen Recording (TCC) permission is required and surfaced through a guided
 /// flow, mirroring the Accessibility flow from Phase 2.
 public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Sendable, SCStreamOutput, SCStreamDelegate {
-    private let queue = DispatchQueue(label: "org.conduit.screen.capture")
+    private let queue = DispatchQueue(label: "org.mosis.screen.capture")
     private var stream: SCStream?
     private var frameHandler: (@Sendable (CVPixelBuffer, CMTime) -> Void)?
     /// Notified when the SCStream stops on its own (didStopWithError). Lets the
@@ -22,10 +22,15 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
     }
 
     public func isPermitted() async -> Bool {
-        // Enumerating shareable content succeeds only with Screen Recording granted.
+        // Enumerating shareable content succeeds only with Screen Recording
+        // granted — but it also succeeds, returning an EMPTY display list, after
+        // a first grant and before the app relaunches. Treating "didn't throw"
+        // as granted is what let the Permissions panel report green while every
+        // share produced nothing to pick: the user saw a picker with two filter
+        // buttons over a blank list and no explanation.
         do {
-            _ = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
-            return true
+            let content = try await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
+            return !content.displays.isEmpty
         } catch {
             return false
         }

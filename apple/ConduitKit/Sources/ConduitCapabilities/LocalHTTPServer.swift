@@ -9,7 +9,7 @@ import ConduitTransport
 final class LocalHTTPServer: @unchecked Sendable {
     private weak var publisher: HLSPublisher?
     private var listener: NWListener?
-    private let queue = DispatchQueue(label: "org.conduit.hls.http")
+    private let queue = DispatchQueue(label: "org.mosis.hls.http")
 
     init(publisher: HLSPublisher) {
         self.publisher = publisher

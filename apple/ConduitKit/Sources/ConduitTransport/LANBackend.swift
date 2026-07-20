@@ -3,7 +3,7 @@ import Network
 import Security
 import os
 
-let transportLog = Logger(subsystem: "org.conduit", category: "transport")
+let transportLog = Logger(subsystem: "org.mosis", category: "transport")
 
 /// A single TLS-over-TCP connection wrapped for async use.
 public final class LANConnection: ByteStreamConnection, @unchecked Sendable {
@@ -149,7 +149,7 @@ enum TLSParametersBuilder {
 public final class LANBackend: TransportBackend, @unchecked Sendable {
     public let kind: TransportBackendKind = .lan
 
-    private let queue = DispatchQueue(label: "org.conduit.transport.lan")
+    private let queue = DispatchQueue(label: "org.mosis.transport.lan")
     private let identity: sec_identity_t
     /// Policy for connections we accept; consulted per handshake so pairing
     /// mode and newly pinned peers take effect immediately.
@@ -443,5 +443,5 @@ public final class LANBackend: TransportBackend, @unchecked Sendable {
 /// Service type constants live here (not ConduitProtocol) so the transport
 /// module stays protocol-agnostic while sharing the registered names (spec §5.3).
 public enum ProtocolServiceType {
-    public static let appService = "_cndt-app._tcp"
+    public static let appService = "_mosis-app._tcp"
 }

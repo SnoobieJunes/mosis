@@ -146,7 +146,7 @@ In Xcode, once per machine:
 > so it's Developer-ID / direct-run, not Mac App Store. Running from Xcode is
 > fine.
 
-Bundle IDs (`org.auston.conduit.*`) and the App Group (`group.org.auston.conduit`)
+Bundle IDs (`org.auston.mosis.*`) and the App Group (`group.org.auston.mosis`)
 are placeholders pending the product name — rename before any TestFlight upload.
 
 ---
@@ -231,7 +231,7 @@ Mac if not already green).
 > close, and streaming that survives the app's control link dropping); what
 > only a device can validate is ReplayKit itself + the extension's Local
 > Network access. Every failure is named on the phone; the extension also logs
-> under subsystem `org.conduit`, category `broadcast-ext`. The scripted
+> under subsystem `org.mosis`, category `broadcast-ext`. The scripted
 > session lives in `docs/DEVICE_CHECKLIST.md`.
 
 ---
@@ -375,7 +375,7 @@ reason with a **Retry** (re-requests the same peer) instead of sitting blank.
 Stream the structured logs from any device while reproducing an issue:
 
 ```bash
-log stream --predicate 'subsystem == "org.conduit"' --info
+log stream --predicate 'subsystem == "org.mosis"' --info
 ```
 
 ---

@@ -149,6 +149,18 @@ public actor ScreenSourceEngine {
             try? await link.send(.screenReject(ScreenRejectBody(reason: "cannot enumerate screens")))
             return
         }
+        // An empty list is not an error from ScreenCaptureKit's point of view, so
+        // it used to sail straight through to the picker — which rendered a
+        // segmented filter above a blank list, with no empty state and nothing
+        // reported on either end. That is the "I click the options and nothing
+        // happens" report. The usual cause is a Screen Recording grant that has
+        // not been followed by a relaunch.
+        guard !sources.isEmpty else {
+            let reason = "no displays or windows available to share — grant Screen Recording, then quit and reopen MOSIS"
+            try? await link.send(.screenReject(ScreenRejectBody(reason: reason)))
+            emit(.screenFailed(reason: reason))
+            return
+        }
         guard let chosen = await pickSource(link.peer.deviceID, sources) else {
             try? await link.send(.screenReject(ScreenRejectBody(reason: "declined")))
             return

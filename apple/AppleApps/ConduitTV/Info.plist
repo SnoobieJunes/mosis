@@ -22,7 +22,7 @@
 	<string>1</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_cndt-app._tcp</string>
+		<string>_mosis-app._tcp</string>
 	</array>
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Conduit discovers your own devices on your local network and connects to them directly to show their screen on this Apple TV.</string>

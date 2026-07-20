@@ -5,7 +5,7 @@ import ConduitProtocol
 import ConduitSession
 import ConduitTransport
 
-let nodeLog = Logger(subsystem: "org.conduit", category: "node")
+let nodeLog = Logger(subsystem: "org.mosis", category: "node")
 
 public struct NodeConfiguration: Sendable {
     public var deviceName: String

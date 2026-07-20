@@ -16,7 +16,15 @@ import Testing
         #expect(fromCert == material.publicKeyHash)
     }
 
-    @Test(.timeLimit(.minutes(1))) func pkcs12ImportIsRobustAcrossRandomSalts() throws {
+    // 3 minutes, not 1: this is the slowest test in the suite (64 real keygen +
+    // PKCS#12 import round-trips) and it is load-sensitive — ~35 s run alone,
+    // ~66 s under full-suite parallel load on the same machine, i.e. it was
+    // already over a 1-minute limit locally and would flake red on a slower
+    // hosted CI runner. Now that CI runs the FULL suite rather than the
+    // conformance filter, a wall-clock-tight test is a trust problem: a suite
+    // that goes red at random teaches people to ignore it. The limit exists to
+    // catch a genuine hang, so it should sit well clear of legitimate slowness.
+    @Test(.timeLimit(.minutes(3))) func pkcs12ImportIsRobustAcrossRandomSalts() throws {
         // Salts are random per build; a KDF or DER edge case would surface as
         // a sporadic import failure. Hammer it.
         for round in 0..<64 {

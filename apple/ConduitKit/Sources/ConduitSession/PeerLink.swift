@@ -4,7 +4,7 @@ import os
 import ConduitProtocol
 import ConduitTransport
 
-let sessionLog = Logger(subsystem: "org.conduit", category: "session")
+let sessionLog = Logger(subsystem: "org.mosis", category: "session")
 
 /// Connection state machine (spec §9 Phase 1 step 6):
 /// idle → connecting → hello → ready → degraded → closed.

@@ -8,10 +8,10 @@ first time (the rename resets everything once), ≈ 15 min after.
 
 ```bash
 # Mac side (app + transport + screen engines):
-log stream --predicate 'subsystem == "org.conduit"' --info
+log stream --predicate 'subsystem == "org.mosis"' --info
 
 # iPhone side (including the broadcast extension, category "broadcast-ext"):
-# Console.app → select the iPhone → filter: subsystem:org.conduit
+# Console.app → select the iPhone → filter: subsystem:org.mosis
 ```
 
 ---
@@ -183,6 +183,6 @@ real signing, with only the phone replaced.
 
 1. The exact on-screen reason text (everything is named now).
 2. The Mac `log stream` capture ± 30 s around the failure.
-3. For broadcast failures: Console.app filtered to `org.conduit` including
+3. For broadcast failures: Console.app filtered to `org.mosis` including
    category `broadcast-ext` — the extension logs its dial, attach
    confirmation, and end reason.

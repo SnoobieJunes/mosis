@@ -8,7 +8,7 @@ public enum ProtocolConstants {
 
     /// Bonjour / Wi-Fi Aware service type for the app-to-app channel (spec §5.3).
     /// Registered name placeholder pending final product naming.
-    public static let serviceType = "_cndt-app._tcp"
+    public static let serviceType = "_mosis-app._tcp"
 
     /// Maximum encoded size of a control (JSON) frame payload.
     public static let maxControlPayload = 1 << 20 // 1 MiB

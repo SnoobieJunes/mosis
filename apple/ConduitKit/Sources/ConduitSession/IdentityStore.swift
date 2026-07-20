@@ -32,6 +32,14 @@ public struct KeychainIdentityStore: IdentityStore {
     public var service: String
     public var account: String
 
+    /// NOTE: `service` is the Keychain service name this device's Ed25519
+    /// private key is filed under. It is deliberately NOT renamed to
+    /// `org.mosis.*` with everything else: change it and the lookup misses, the
+    /// device mints a brand-new identity, and every existing pairing breaks —
+    /// silently, because a fresh identity looks like a fresh install. It belongs
+    /// with the other one-time clean break (the `conduit-*-v1` crypto domain
+    /// strings baked into the frozen vectors), done deliberately and paid for
+    /// once with a full re-pair. See plans/01-rename-to-mosis.md.
     public init(service: String = "org.conduit.identity", account: String = "primary") {
         self.service = service
         self.account = account

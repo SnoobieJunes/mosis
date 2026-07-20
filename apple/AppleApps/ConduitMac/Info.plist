@@ -24,7 +24,7 @@
 	<string>public.app-category.utilities</string>
 	<key>NSBonjourServices</key>
 	<array>
-		<string>_cndt-app._tcp</string>
+		<string>_mosis-app._tcp</string>
 	</array>
 	<key>NSHumanReadableCopyright</key>
 	<string></string>

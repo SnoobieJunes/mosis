@@ -165,25 +165,53 @@ struct ScreenSourcePicker: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                Picker("What to share", selection: $kind) {
+                // These two are a FILTER, not the action — tapping them only
+                // narrows the list below. That was genuinely unclear: users
+                // clicked them expecting a share to start, nothing visibly
+                // happened, and the real control (a row) was off-screen or, when
+                // the list was empty, absent entirely.
+                Picker("Filter", selection: $kind) {
                     Text("Whole Display").tag(ScreenCaptureKind.display)
                     Text("Single Window").tag(ScreenCaptureKind.window)
                 }
                 .pickerStyle(.segmented)
-                .padding()
+                .padding(.horizontal)
+                .padding(.top)
 
-                List(sourcesForKind) { source in
-                    Button {
-                        model.resolveScreenPick(sourceID: source.id)
-                        dismiss()
-                    } label: {
-                        HStack {
-                            Image(systemName: source.kind == .display ? "display" : "macwindow")
-                            VStack(alignment: .leading) {
-                                Text(source.name).lineLimit(1)
-                                Text("\(source.width)×\(source.height)")
-                                    .font(.caption).foregroundStyle(.secondary)
+                if sourcesForKind.isEmpty {
+                    ContentUnavailableView {
+                        Label(
+                            kind == .display ? "No displays available" : "No windows available",
+                            systemImage: "exclamationmark.triangle"
+                        )
+                    } description: {
+                        Text(kind == .display
+                             ? "If you just granted Screen Recording, quit and reopen MOSIS — ScreenCaptureKit keeps returning an empty list until the app restarts."
+                             : "Open a window at least 100×100 points, or share the whole display instead.")
+                    }
+                } else {
+                    Text("Pick one to start sharing:")
+                        .font(.caption).foregroundStyle(.secondary)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal).padding(.top, 8)
+
+                    List(sourcesForKind) { source in
+                        Button {
+                            model.resolveScreenPick(sourceID: source.id)
+                            dismiss()
+                        } label: {
+                            HStack {
+                                Image(systemName: source.kind == .display ? "display" : "macwindow")
+                                VStack(alignment: .leading) {
+                                    Text(source.name).lineLimit(1)
+                                    Text("\(source.width)×\(source.height)")
+                                        .font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption).foregroundStyle(.tertiary)
                             }
+                            .contentShape(Rectangle())
                         }
                     }
                 }

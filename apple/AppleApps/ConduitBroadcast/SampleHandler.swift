@@ -4,7 +4,7 @@ import os
 import ConduitCapabilities
 import ConduitTransport
 
-private let broadcastLog = Logger(subsystem: "org.conduit", category: "broadcast-ext")
+private let broadcastLog = Logger(subsystem: "org.mosis", category: "broadcast-ext")
 
 /// ReplayKit broadcast upload extension (spec §9 Phase 3 step 4). Reads the
 /// config the container app wrote to the shared App Group, opens a direct
@@ -38,7 +38,7 @@ class SampleHandler: RPBroadcastSampleHandler {
                 phase: .failed, detail: "no broadcast config — start from inside the app", viewerName: ""
             ))
             finishBroadcastWithError(NSError(
-                domain: "org.conduit.broadcast", code: 1,
+                domain: "org.mosis.broadcast", code: 1,
                 userInfo: [NSLocalizedDescriptionKey:
                     "Start screen sharing from inside Conduit (pick a Mac first)."]
             ))
@@ -95,7 +95,7 @@ class SampleHandler: RPBroadcastSampleHandler {
     private func finishOnce(errorText: String) {
         guard !finished.withValue({ let was = $0; $0 = true; return was }) else { return }
         finishBroadcastWithError(NSError(
-            domain: "org.conduit.broadcast", code: 2,
+            domain: "org.mosis.broadcast", code: 2,
             userInfo: [NSLocalizedDescriptionKey: errorText]
         ))
     }

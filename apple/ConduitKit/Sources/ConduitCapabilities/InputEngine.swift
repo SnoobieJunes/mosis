@@ -4,7 +4,7 @@ import ConduitProtocol
 import ConduitSession
 import ConduitTransport
 
-let inputLog = Logger(subsystem: "org.conduit", category: "input")
+let inputLog = Logger(subsystem: "org.mosis", category: "input")
 
 /// Receiver side of the remote-input capability (spec §9 Phase 2 steps 2 & 5).
 ///

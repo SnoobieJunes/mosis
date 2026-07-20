@@ -3,7 +3,7 @@
 # convenience; this file is the source of truth.
 name: ConduitApps
 options:
-  bundleIdPrefix: org.auston.conduit
+  bundleIdPrefix: org.auston.mosis
   deploymentTarget:
     iOS: "18.0"
     macOS: "15.0"
@@ -37,7 +37,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Conduit
-        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.mac
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.mosis.mac
         # Hardened runtime, NOT sandboxed: the App Sandbox has no entitlement
         # that permits CGEvent injection into other apps, which is Phase 2's
         # Mac receiver role. Non-sandboxed + Accessibility (TCC) is the standard
@@ -58,7 +58,7 @@ targets:
           Conduit discovers your own devices on your local network and connects
           to them directly to move files and clipboard content between them.
           Nothing leaves your network.
-        NSBonjourServices: ["_cndt-app._tcp"]
+        NSBonjourServices: ["_mosis-app._tcp"]
         NSHumanReadableCopyright: ""
 
   Conduit-iOS:
@@ -73,12 +73,12 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Conduit
-        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.ios
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.mosis
         TARGETED_DEVICE_FAMILY: "1,2"
     entitlements:
       path: ConduitIOS/Conduit.entitlements
       properties:
-        com.apple.security.application-groups: [group.org.auston.conduit]
+        com.apple.security.application-groups: [group.org.auston.mosis]
     info:
       path: ConduitIOS/Info.plist
       properties:
@@ -87,7 +87,7 @@ targets:
           Conduit discovers your own devices on your local network and connects
           to them directly to move files, clipboard, and screen content between
           them. Nothing leaves your network.
-        NSBonjourServices: ["_cndt-app._tcp"]
+        NSBonjourServices: ["_mosis-app._tcp"]
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         UILaunchScreen: {}
@@ -110,7 +110,7 @@ targets:
     settings:
       base:
         PRODUCT_NAME: Conduit
-        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.tv
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.mosis.tv
     info:
       path: ConduitTV/Info.plist
       properties:
@@ -118,7 +118,7 @@ targets:
         NSLocalNetworkUsageDescription: >-
           Conduit discovers your own devices on your local network and connects
           to them directly to show their screen on this Apple TV.
-        NSBonjourServices: ["_cndt-app._tcp"]
+        NSBonjourServices: ["_mosis-app._tcp"]
 
   # ReplayKit broadcast upload extension: streams the iPhone screen to a paired
   # viewer (spec §9 Phase 3 step 4). Device-only; see docs/adr/0006.
@@ -131,18 +131,19 @@ targets:
         product: ConduitCapabilities
     settings:
       base:
+        ENABLE_DEBUG_DYLIB: NO
         PRODUCT_NAME: ConduitBroadcast
-        PRODUCT_BUNDLE_IDENTIFIER: org.auston.conduit.ios.broadcast
+        PRODUCT_BUNDLE_IDENTIFIER: org.auston.mosis.broadcast
         TARGETED_DEVICE_FAMILY: "1,2"
     entitlements:
       path: ConduitBroadcast/ConduitBroadcast.entitlements
       properties:
-        com.apple.security.application-groups: [group.org.auston.conduit]
+        com.apple.security.application-groups: [group.org.auston.mosis]
     info:
       path: ConduitBroadcast/Info.plist
       properties:
         CFBundleDisplayName: Conduit Screen
         NSExtension:
           NSExtensionPointIdentifier: com.apple.broadcast-services-upload
-          NSExtensionPrincipalClass: SampleHandler
+          NSExtensionPrincipalClass: $(PRODUCT_MODULE_NAME).SampleHandler
           RPBroadcastProcessMode: RPBroadcastProcessModeSampleBuffer
