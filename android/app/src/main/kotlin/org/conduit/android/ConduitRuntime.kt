@@ -54,14 +54,31 @@ class ConduitRuntime private constructor(val node: AndroidNode) {
         }
 
         private fun loadOrCreate(context: Context, dir: File): Pair<Identity, TlsMaterial> {
-            // Identity persistence: Ed25519 seed in a file (a KeyStore-backed
-            // store is a hardening follow-up). TLS material regenerated if absent.
+            // BOTH halves of the Ed25519 identity are stored. Storing only the
+            // seed forced a re-derivation on every launch through
+            // `Identity.fromSeed`, whose public-key derivation assumes an
+            // OpenJDK generator behaviour that Android's Conscrypt does not
+            // share — so the device advertised a public key its signatures did
+            // not match, and pairing could not complete. (A KeyStore-backed
+            // store is a hardening follow-up; the file is inside the app's
+            // private `filesDir`.)
             val seedFile = File(dir, "ed25519.seed")
-            val identity = if (seedFile.exists()) Identity.fromSeed(seedFile.readBytes())
-            else Identity.generate().also { seedFile.writeBytes(it.privateSeed) }
-            // TLS material is ephemeral per install here for brevity; production
-            // persists the P-256 key (see docs). Pinning uses its hash at pairing.
-            val material = TlsMaterial.generate("conduit-${identity.deviceId.take(16)}")
+            val pubFile = File(dir, "ed25519.pub")
+            val identity = if (seedFile.exists() && pubFile.exists()) {
+                Identity(seedFile.readBytes(), pubFile.readBytes()).also { it.assertConsistent() }
+            } else {
+                Identity.generate().also {
+                    seedFile.writeBytes(it.privateSeed)
+                    pubFile.writeBytes(it.publicKeyRaw)
+                }
+            }
+            // TLS material is persisted too: peers pin the hash of this key at
+            // pairing, so minting a new one each launch orphaned every pairing.
+            val material = TlsMaterial.loadOrCreate(
+                keyFile = File(dir, "tls.p8"),
+                certFile = File(dir, "tls.cer"),
+                commonName = "conduit-${identity.deviceId.take(16)}",
+            )
             return identity to material
         }
     }

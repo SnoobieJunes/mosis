@@ -17,6 +17,10 @@ android/*/build/
 android/local.properties
 android/.idea/
 *.jar
+# ...except the Gradle wrapper jar, which MUST be committed: without it
+# `./gradlew` cannot bootstrap, and a repo with no wrapper is a repo nobody
+# else can build. (Verified against the published SHA-256 for Gradle 8.9.)
+!android/gradle/wrapper/gradle-wrapper.jar
 
 # Private strategy notes live outside the repo (MOSIS/marketing-notes/)
 marketing/

@@ -21,6 +21,29 @@ class Identity(val privateSeed: ByteArray, val publicKeyRaw: ByteArray) {
     /** Ed25519 signature over "conduit-tls-binding-v1" || tlsKeyHash (docs/adr/0002). */
     fun signTlsBinding(tlsKeyHash: ByteArray): ByteArray = sign(TLS_BINDING_CONTEXT + tlsKeyHash)
 
+    /**
+     * Proves the seed and the public key are actually a pair, by signing with
+     * one and verifying with the other.
+     *
+     * Every peer verifies our TLS binding signature against the public key we
+     * advertise. A mismatched pair therefore fails at the far end, during
+     * pairing, as an opaque rejection — the kind of bug that reads as "the
+     * network is broken". One signature at startup turns that into an
+     * immediate, local, named failure.
+     */
+    fun assertConsistent() {
+        val probe = ByteArray(32) { it.toByte() }
+        val ok = try {
+            verifyTlsBinding(signTlsBinding(probe), probe, publicKeyRaw)
+        } catch (e: Exception) {
+            throw IllegalStateException("Ed25519 identity is unusable on this platform: $e", e)
+        }
+        check(ok) {
+            "Ed25519 seed and public key do not match — this platform's key generator " +
+                "does not derive the public key from the supplied seed."
+        }
+    }
+
     private fun sign(message: ByteArray): ByteArray {
         val kf = KeyFactory.getInstance("Ed25519")
         val priv = kf.generatePrivate(EdECPrivateKeySpec(NamedParameterSpec.ED25519, privateSeed))
@@ -30,17 +53,43 @@ class Identity(val privateSeed: ByteArray, val publicKeyRaw: ByteArray) {
     companion object {
         val TLS_BINDING_CONTEXT = "conduit-tls-binding-v1".toByteArray(Charsets.UTF_8)
 
+        /**
+         * Mints a fresh identity using the platform's own Ed25519 generator, and
+         * reads BOTH halves out of the standard RFC 8410 encodings:
+         * the raw point is the last 32 bytes of the X.509 SPKI, and the seed is
+         * the last 32 bytes of the PKCS#8 `CurvePrivateKey` OCTET STRING.
+         *
+         * It deliberately does not go through [fromSeed]. That path assumes the
+         * generator draws its private seed as a single 32-byte read from the
+         * `SecureRandom` it is handed — true of OpenJDK's SunEC, false of
+         * Android's BoringSSL-backed Conscrypt, which generates the key
+         * internally and ignores the supplied RNG. On a phone that produced a
+         * public key unrelated to the stored seed, so the TLS binding signature
+         * never verified and **pairing with a Mac could not succeed** — while the
+         * JVM conformance suite stayed green, because it runs on OpenJDK.
+         */
         fun generate(): Identity {
-            val seed = ByteArray(32).also { SecureRandom().nextBytes(it) }
-            return fromSeed(seed)
+            val kpg = KeyPairGenerator.getInstance("Ed25519")
+            kpg.initialize(NamedParameterSpec.ED25519, SecureRandom())
+            val kp = kpg.generateKeyPair()
+            val spki = kp.public.encoded
+            val pkcs8 = kp.private.encoded
+            require(spki.size >= 32 && pkcs8.size >= 32) { "unexpected Ed25519 key encoding" }
+            val pubRaw = spki.copyOfRange(spki.size - 32, spki.size)
+            val seed = pkcs8.copyOfRange(pkcs8.size - 32, pkcs8.size)
+            return Identity(seed, pubRaw).also { it.assertConsistent() }
         }
 
         /**
-         * Deterministic identity from a 32-byte Ed25519 seed (used by vectors).
-         * The public key is derived by seeding the JDK generator's RNG with the
-         * seed — the Ed25519 generator consumes exactly 32 bytes as its private
-         * seed — then reading the raw point from the SPKI encoding. No
-         * hand-rolled curve arithmetic.
+         * Deterministic identity from a 32-byte Ed25519 seed — the golden
+         * vectors need this, and they run on the JVM.
+         *
+         * On platforms whose generator ignores the supplied RNG (Android's
+         * Conscrypt) the derived public key is wrong. Rather than mint a
+         * silently-broken identity that fails every handshake later, the result
+         * is verified here and the failure is named at the point of derivation.
+         * Android does not depend on this path: [generate] takes both halves
+         * from the platform, and both are persisted (see `ConduitRuntime`).
          */
         fun fromSeed(seed: ByteArray): Identity {
             require(seed.size == 32) { "Ed25519 seed must be 32 bytes" }
@@ -55,7 +104,7 @@ class Identity(val privateSeed: ByteArray, val publicKeyRaw: ByteArray) {
             val kp = kpg.generateKeyPair()
             val enc = kp.public.encoded            // X.509 SPKI; last 32 bytes = raw point
             val pubRaw = enc.copyOfRange(enc.size - 32, enc.size)
-            return Identity(seed, pubRaw)
+            return Identity(seed, pubRaw).also { it.assertConsistent() }
         }
 
         fun deviceId(publicKeyRaw: ByteArray): String =

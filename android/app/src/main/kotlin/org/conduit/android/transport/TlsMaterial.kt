@@ -4,13 +4,17 @@ import org.bouncycastle.asn1.x500.X500Name
 import org.bouncycastle.cert.jcajce.JcaX509CertificateConverter
 import org.bouncycastle.cert.jcajce.JcaX509v3CertificateBuilder
 import org.bouncycastle.operator.jcajce.JcaContentSignerBuilder
+import java.io.File
 import java.math.BigInteger
+import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.MessageDigest
 import java.security.PrivateKey
+import java.security.cert.CertificateFactory
 import java.security.cert.X509Certificate
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
+import java.security.spec.PKCS8EncodedKeySpec
 import java.util.Date
 
 /**
@@ -39,6 +43,38 @@ class TlsMaterial(
             val signer = JcaContentSignerBuilder("SHA256withECDSA").build(kp.private)
             val cert = JcaX509CertificateConverter().getCertificate(builder.build(signer))
             return TlsMaterial(cert, kp.private, publicKeyHashX963(kp.public as ECPublicKey))
+        }
+
+        /**
+         * Loads persisted material, or mints and stores it.
+         *
+         * Persisting this is not an optimisation, it is a correctness
+         * requirement. Peers pin the SHA-256 of this public key at pairing
+         * (docs/protocol.md §Security), so regenerating it on every process
+         * start — which is what happened before — invalidated the Mac's pinned
+         * record every single launch. The device could pair once and then never
+         * reconnect, and the symptom on the Mac ("it refuses the connection")
+         * looks exactly like the bundle-rename breakage that was already
+         * misdiagnosed once in this project.
+         */
+        fun loadOrCreate(keyFile: File, certFile: File, commonName: String): TlsMaterial {
+            if (keyFile.exists() && certFile.exists()) {
+                try {
+                    val key = KeyFactory.getInstance("EC")
+                        .generatePrivate(PKCS8EncodedKeySpec(keyFile.readBytes()))
+                    val cert = CertificateFactory.getInstance("X.509")
+                        .generateCertificate(certFile.inputStream()) as X509Certificate
+                    return TlsMaterial(cert, key, publicKeyHashX963(cert.publicKey as ECPublicKey))
+                } catch (_: Exception) {
+                    // Corrupt or unreadable: fall through and mint a new one.
+                    // Costs a re-pair, which is strictly better than not starting.
+                    keyFile.delete(); certFile.delete()
+                }
+            }
+            val material = generate(commonName)
+            keyFile.writeBytes(material.privateKey.encoded)
+            certFile.writeBytes(material.certificate.encoded)
+            return material
         }
 
         /** SHA-256 over the X9.63 uncompressed EC point (0x04 ‖ X ‖ Y). */
