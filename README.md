@@ -14,7 +14,7 @@ three-implementation codebase. Licensed **Apache-2.0** ([LICENSE](LICENSE)).
 > id (keychain access group), the Bonjour service type, and the `conduit-*-v1`
 > crypto domain strings frozen into the golden vectors are all compatibility or
 > identity boundaries that must move together, once, with a re-pair. See
-> [`../plans/01-rename-to-mosis.md`](../plans/01-rename-to-mosis.md).
+> [`docs/plans/01-rename-to-mosis.md`](docs/plans/01-rename-to-mosis.md).
 
 Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
 Wire protocol: [`docs/protocol.md`](docs/protocol.md).
@@ -31,8 +31,8 @@ Decisions: [`docs/adr/`](docs/adr).
 > by three byte-exact implementations and a real-socket test suite; the
 > last-mile device seams (screen-lane fallback, reverse-dial addressing, input
 > lane, permissions) are being converted from "green on loopback" to
-> "demonstrated on hardware" — see [`../quirky-tickling-dongarra.md`](../quirky-tickling-dongarra.md)
-> and [`../loop-state.md`](../loop-state.md).
+> "demonstrated on hardware" — see [`docs/quirky-tickling-dongarra.md`](docs/quirky-tickling-dongarra.md)
+> and [`docs/loop-state.md`](docs/loop-state.md).
 
 | Piece | State |
 |---|---|
