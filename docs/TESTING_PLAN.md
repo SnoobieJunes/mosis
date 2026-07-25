@@ -14,7 +14,7 @@
 ## 0. TL;DR — read this first
 
 **What is proven right now, with no hardware:**
-- 105 Swift tests (unit + full end-to-end over real TLS sockets) — green via
+- 109 Swift tests (unit + full end-to-end over real TLS sockets) — green via
   `swift test --disable-sandbox`. The broadcast E2E suite (4 tests) self-skips
   unless the screen is unlocked — it writes an `NSFileProtectionComplete` file
   (the broadcast config carries a TLS private key), which fails on a locked Mac;
@@ -143,12 +143,32 @@ CI-testable.
 | What | Status | Notes |
 |---|---|---|
 | Canonical JSON + framing + messages | ✅ proven | passes the **same** 47 vectors as Swift/Go |
-| Full app (discovery, TLS, transfers, screen) | ⚠️ needs a device | the core is proven; the app shell needs an Android device/emulator to exercise NSD + TLS + UI |
+| The `app` module compiles at all | ✅ **as of 2026-07-20** | It did **not** before: CI compiles `android/core` only, and `:app` had a hard Kotlin error nobody had ever hit. Gradle wrapper is now committed |
+| Full app (discovery, pairing, transfers) | ⚠️ needs a device | never run on hardware |
+| Screen sharing, either direction | ❌ **not built** | no decoder for viewing; the source is written but unwired. See `../android/README.md` |
+| Bluetooth HID, Wi-Fi Aware | ❌ **not wired** | written, never instantiated |
 
-**Device test:** `./gradlew installDebug` to an Android device on the same LAN;
-pair with a Mac/PC. **Gotcha:** Android NSD and the TLS pinning need a real
-network; the emulator's NAT can hide the host — test on a physical device on the
-same Wi-Fi first.
+**Device test:**
+
+```bash
+cd android
+echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew :app:assembleDebug
+adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+**Gotchas:** needs Android **13+** (`minSdk 33` — the identity layer's
+`EdECPrivateKeySpec` is API 33 and sits on the first-launch path). Android NSD
+and TLS pinning need a real network; the emulator's NAT can hide the host — use
+a physical device on the same Wi-Fi. `assembleRelease` produces an unsigned,
+uninstallable APK (no signing config).
+
+**The two Android bugs that a green JVM suite could never have caught** (both
+fixed 2026-07-20, both unproven on hardware): the Ed25519 public key was derived
+by assuming OpenJDK generator behaviour that Android's Conscrypt does not share,
+so pairing could not complete; and the TLS material plus the pinned-peer map were
+both ephemeral, so every relaunch orphaned every pairing on both sides.
 
 ---
 
@@ -163,11 +183,25 @@ same Wi-Fi first.
 | **Matter Casting-out** | ⚠️ SDK-gated | real `MTRCastingApp` integration behind `#if canImport(MatterTvCastingBridge)`; needs the SDK + a Matter-cast TV |
 | Virtual display (tablet as 2nd monitor) | ❌ **not functional yet** | Windows **IddCx** + Linux **evdi** are *skeletons*; see §8/§10 |
 
-**What IS proven for the senders:** the shared re-publish mechanism (tee the viewed
-`CMSampleBuffer`s → `AVAssetWriter` HLS passthrough → local HTTP server) is tested
-end-to-end (`HLSPublisherTests`): a real HTTP GET returns the playlist + init
-segment. So the *stream* every cast target would load is proven real; only the
-final hop to a physical TV is device-gated.
+**What IS proven for the senders:** the shared re-publish mechanism
+(`CMSampleBuffer`s → `AVAssetWriter` HLS passthrough → local HTTP server) is
+tested end-to-end (`HLSPublisherTests`): real HTTP GETs return the playlist, the
+init segment, **and the browser watch page**. So the *stream* every cast target
+would load is proven real; only the final hop to a physical TV is device-gated.
+
+**What changed 2026-07-20 (and why the old cast path could never have worked on a
+Mac):** every entry point was gated on `activeScreenView`, which is non-nil only
+while *viewing another device's* screen — so on a Mac the Cast button was a
+silent no-op by construction. There is now a `LocalScreenCast` with its own
+capturer and encoder that publishes **this device's own screen** with no peer
+involved, and a zero-install watch page at `/` so any browser on the LAN can
+watch. `HLSPublisher.start` throws named `StartError`s instead of returning
+`nil` at four separate points into a `guard let … else { return }`.
+
+**Gotcha — the watch page needs native HLS.** Safari, iOS/iPadOS, tvOS, Android
+Chrome, and most smart-TV browsers play it; desktop Chrome and Firefox do not.
+The page detects this and offers the raw URL for VLC rather than showing a black
+box. Vendoring hls.js would close the gap and has not been done.
 
 **Gotcha — cast latency.** The re-publish path is segment-based HLS: expect a few
 seconds of latency. That's fine for "throw this on the TV," **not** for interactive
@@ -206,8 +240,15 @@ control. Interactive stays on the Phase 3 low-latency path.
    decision. The LAN path is the product today; Aware is unlit. **This is the long
    pole.** Nothing in the demo needs it, but "faster/again-without-Wi-Fi" claims
    depend on it.
-2. **Virtual display (tablet as a real 2nd monitor) — NOT functional.** This is
-   the biggest "looks done, isn't" risk:
+2. **Virtual display (tablet as a real 2nd monitor) — NOT functional**, and the
+   `unsupported/macos-virtual-display/` module is **not** the head start it looks
+   like: it has never been compiled by anything (its `#if` flag is defined
+   nowhere in the repo), its mode initialiser is a stub, the descriptor's
+   dispatch queue and termination handler are never set, and there is no frame
+   path at all. What *does* work today for a genuine extended desktop: macOS's
+   own AirPlay-extend to an Apple TV, Sidecar to an iPad, or a $10 HDMI dummy
+   plug plus MOSIS streaming — see `extending-your-screen.md`. This is the
+   biggest "looks done, isn't" risk:
    - **Windows (IddCx):** driver skeleton + INF only. A real indirect display
      driver must be **built with the WDK and signed** — unsigned, Windows won't
      load it. Signing is the actual work and isn't done.

@@ -106,10 +106,14 @@ device row rather than spinning on "Connecting…".
 ## 2. iPhone → Mac (broadcast — the previously "just recording" flow)
 
 1. iPhone: **Share → Share My Screen** on the Mac row.
-2. The sheet says what to do and now shows **live status**. The Mac immediately
-   shows "Connecting to <iPhone>…" — it will wait **45 s** for the broadcast to
-   start, so:
-3. Tap the picker button, choose **Conduit**, **Start Broadcast** right away.
+2. The sheet says what to do and now shows **live status**. The Mac shows
+   "Connecting to <iPhone>…". Its attach watchdog is 45 s, but the phone now
+   **re-sends the same offer every 20 s** while you're still in the picker, and
+   the Mac treats a repeat as a watchdog re-arm — so take as long as you need.
+   (Before this, the 45 s started when the *sheet* opened, i.e. before you had
+   touched Apple's picker at all. That alone made this flow look broken.)
+3. Tap the picker button, choose **MOSIS Screen**, then **Start Broadcast**.
+   (The extension's display name is "MOSIS Screen", not "Conduit".)
 4. Expect within ~5 s of the countdown ending:
    - iPhone sheet/banner: **"Broadcasting to <Mac> ✓ — N frames sent, you can
      leave the app now."**
@@ -124,9 +128,24 @@ device row rather than spinning on "Connecting…".
    - Mac viewer → **Stop** (the extension notices the closed lane and ends
      the recording with "<Mac> stopped watching").
 
-Every failure is now named on the phone (alert + status line), e.g.:
-- "didn't accept the stream — it likely stopped waiting": you took > 45 s
-  between opening the sheet and starting the broadcast. Reopen and go faster.
+Two things to watch for that automated tests structurally cannot catch (the
+broadcast E2E runs in-process, over loopback, with 320×240 synthetic frames):
+
+- **Ordering.** Both per-frame `Task` fan-outs are gone — capture→encoder and
+  encoder→socket are now single-consumer bounded streams — so frames can no
+  longer be encoded or sequenced out of order. Watch for stutter or blocky
+  artefacts that aren't just bitrate.
+- **Memory.** Raw frames are queued at depth **1**, and the broadcast is now
+  really capped at a 1920 long edge (the previous "cap" was the identity
+  function, so a 15 Pro Max was sending 1290×2796 from a ~50 MB process). If the
+  status line reports "N frames dropped keeping up", that is the new backpressure
+  working, not a fault. A phone that stops with no `.ended` status at all is the
+  jetsam signature — report it.
+
+Every failure is named on the phone (alert + status line), e.g.:
+- "didn't accept the stream — it likely stopped waiting": the Mac gave up. With
+  the keep-alive above this should now be rare; if you see it, say how long you
+  took.
 - "no viewer host reachable — tried …": addressing/network; each candidate and
   its error is listed.
 - "start timed out at: <phase>": the extension hung at the named phase
@@ -147,7 +166,69 @@ extension self-terminates with a reason in every one of these paths.
    the flow is viewer-agnostic; the TV auto-shows an incoming stream).
 2. Same expectations and failure surfaces as §2.
 
-## 5. Regression sweep (5 min)
+## 5. Mac → anywhere, started **from the Mac** (new, loop 6 — unproven on hardware)
+
+This is the flow that did not exist before: previously the far end had to pull,
+and the Mac's picker only ever appeared unprompted.
+
+1. Mac: toolbar **Show My Screen** (or a peer's **Share ▸ Show My Screen on…**).
+2. Pick **A Display** or **A Window**, then choose one from the menu.
+3. Pick a destination:
+   - **A paired device** → expect frames on it within ~1–2 s. Check the HUD for
+     `lane bulk|control` exactly as in §1 — the same lane logic applies.
+   - **Any TV, laptop, or tablet with a browser** → a URL + QR appears. Open it
+     on a phone, a laptop, or a smart TV. Expect video a few seconds behind.
+     Safari/iOS/tvOS/Android Chrome play it natively; desktop Chrome and Firefox
+     show the "open in Safari or VLC" fallback, which is correct, not a failure.
+   - **Apple TV, via AirPlay** → opens System Settings ▸ Displays. This is a
+     hand-off, not a MOSIS stream: macOS owns it, and it is the only route that
+     can **Extend** rather than mirror. Verify the pane opens; the rest is Apple's.
+4. **Send to a second destination while the first is live.** Both must keep
+   streaming from one capture. This is the case that used to fail: extra viewers
+   had no control-lane fallback. Expect a quality drop (the shared encoder falls
+   to the ~2.5 Mbps ceiling while anyone is on a session link) — that is by
+   design, not a fault.
+5. Stop from the purple banner or the sheet's footer. Both ends within ~2 s.
+
+Failure surfaces to check: nothing here may fail silently. A missing capturer,
+a Screen Recording grant that needs a relaunch, no LAN address, an unbindable
+port — each has its own named message now.
+
+## 6. The pick prompt no longer goes dead (2 min)
+
+Reproduces the exact "I select a screen and nothing happens" report.
+
+1. From the phone, **Connect → View Screen** on the Mac.
+2. On the Mac: MOSIS should **come to the front by itself**, and post a
+   notification if it was in the background. (The picker is a sheet; before this
+   it could appear on a window behind everything else.)
+3. Now *wait more than two minutes* without choosing.
+4. Expect: the picker **closes itself** with "…stopped waiting for you to pick a
+   screen." Previously it stayed open and every click did nothing at all.
+
+## 7. Android (unproven — the app had never compiled before 2026-07-20)
+
+```bash
+cd android && echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew :app:assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
+```
+
+Needs Android **13+**. In order, stopping at the first failure:
+
+- [ ] The app launches without crashing. (If it dies at startup with an Ed25519
+      message, `Identity.assertConsistent()` did its job — report the text.)
+- [ ] The Mac appears under **Nearby**; pair; codes and words match on both.
+- [ ] **Force-quit the app and reopen it.** The pairing must survive — the TLS
+      key and the pinned-peer list are now persisted. This is the fix most likely
+      to matter and least likely to have been exercised.
+- [ ] Send a file Mac → Android.
+- [ ] Enable Accessibility on the phone, then drive it from the Mac.
+- [ ] **To watch the Mac's screen on the tablet today, use the browser page**
+      (§6) — the Android app has no video decoder, and the corrected
+      `android/README.md` says so.
+
+## 8. Regression sweep (5 min)
 
 - [ ] File both directions (HUD shows lane == "bulk", not control-lane fallback).
 - [ ] Clipboard both ways.

@@ -41,9 +41,12 @@ Decisions: [`docs/adr/`](docs/adr).
 | **Kotlin core** (`android/core`, pure JVM) — third implementation | ✅ 47/47 vectors byte-exact + JVM session smoke |
 | **Live Swift↔Go interop**: pair, file transfer, clipboard, notification | ✅ real Go node ↔ Swift node over loopback TLS |
 | **`conduitd` daemon** (Windows/Linux/macOS) + cross-compilation | ✅ builds for all three; runs on macOS |
-| **Android app** (Compose + NSD/TLS + BT-HID/Accessibility/MediaProjection/Aware) | ◐ built + architected; Android Studio + device gated |
+| **Android app** — discovery, pairing, TLS, file receive, input receive, notification source | ◐ **builds now** (`./gradlew :app:assembleDebug`, wrapper committed); no device session yet. Screen sharing in **either** direction, BT-HID, and Wi-Fi Aware are written-but-unwired — see [`android/README.md`](android/README.md) for the corrected per-capability table |
 | **tvOS viewer** (Apple TV — screen viewer + on-TV pairing) | ✅ builds for tvOS |
-| **Convenience senders**: AirPlay + Google Cast + Matter Casting (re-cast a viewed screen to a TV) | ✅ HLS re-publisher verified end-to-end; AirPlay built-in, Cast/Matter SDK-gated (ADR 0011) |
+| **Show My Screen** (macOS): push this Mac's display/window to a paired device — the "Share" half of the verb pair | ✅ `PushShareE2ETests` over real sockets, incl. two destinations with the reverse-dial impossible; no device session yet |
+| **Cast this Mac to a TV or any browser** — own capturer + encoder + live HLS, no peer required, with a zero-install watch page + QR | ✅ `HLSPublisherTests` serves playlist, init segment, and watch page over real HTTP; final hop to a physical TV is device-gated |
+| **Convenience senders**: AirPlay + Google Cast + Matter Casting | ✅ HLS re-publisher verified end-to-end; AirPlay built-in, Cast/Matter SDK-gated (ADR 0011). **Note:** HLS runs a few seconds behind — for watching, not controlling |
+| **Extending** a Mac desktop (not mirroring) onto another device | ◐ works today via macOS AirPlay/Sidecar, or an HDMI dummy plug + MOSIS. Software-only needs a virtual display macOS has no public API for — [`docs/extending-your-screen.md`](docs/extending-your-screen.md) |
 | **Virtual display** (tablet as extra monitor): Windows IddCx, Linux evdi, macOS `unsupported/` | ◐ driver skeletons + design (ADR 0012); native/driver gated |
 | **Contexts & Routines**: profiles (region/dock/display/time/peer) → one-tap offer | ✅ ProfileEngine + ContextCoordinator, suggest-then-confirm, unit-tested |
 | **On-device suggestion engine**: mines a local log for habits, proposes automations | ✅ heuristic tested; data never leaves device; Foundation Models lens device-gated |
@@ -73,7 +76,7 @@ Requires Xcode 26+ on macOS 26+.
 
 ```bash
 cd apple/ConduitKit
-swift test --disable-sandbox      # 105 tests: protocol, pairing, TLS, input, video, contexts, multi-viewer, E2E
+swift test --disable-sandbox      # 109 tests: protocol, pairing, TLS, input, video, contexts, multi-viewer, E2E
                                   # --disable-sandbox is REQUIRED — the sandbox HANGS the
                                   # Network/PKCS#12/VideoToolbox paths (docs/TESTING_PLAN.md §1).
                                   # The broadcast E2E suite self-skips unless the screen is
@@ -95,10 +98,26 @@ Accessibility when macOS prompts (the app guides you to the Settings pane).
 A persistent orange banner on the Mac shows who's in control with a one-tap
 **Stop**. The Mac app is not sandboxed — input injection requires it (ADR 0005).
 
-To view the Mac's screen on the phone: tap **Connect → View Screen**; the Mac
-prompts you to pick a display or a single window, then streams it. To share the
-iPhone's screen to the Mac: **Share → Share My Screen**, then Start Broadcast in
-the system picker (ReplayKit extension; needs a real device — ADR 0006).
+Two directions, two verbs (spec §8):
+
+- **Pull** — on the phone or Apple TV, tap **Connect → View Screen**. The Mac
+  prompts for a display or a single window, then streams it.
+- **Push** — on the Mac, click **Show My Screen** in the toolbar. Pick what
+  (a display or a window), then where: a paired device, **any browser on your
+  network** (you get a URL and a QR code — nothing to install on the far end),
+  AirPlay, or a Cast route. Sending to a second destination adds it to the same
+  capture rather than restarting it.
+
+To share the iPhone's screen to the Mac: **Share → Share My Screen**, then Start
+Broadcast in the system picker (ReplayKit extension; needs a real device —
+ADR 0006). That sheet also tells you, honestly, that Apple's own AirPlay is
+simpler for iPhone→Mac; MOSIS's value there is the destinations AirPlay won't
+serve (Apple TV running MOSIS, Android, Windows, Linux, a browser).
+
+**Extending vs mirroring** — everything above mirrors. For a genuine second
+desktop, read [`docs/extending-your-screen.md`](docs/extending-your-screen.md):
+macOS does it natively to an Apple TV and an iPad, and a $10 HDMI dummy plug
+plus MOSIS does it to anything else, today.
 
 ## Layout (spec §10)
 
