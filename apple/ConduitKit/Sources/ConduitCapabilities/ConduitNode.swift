@@ -1010,7 +1010,7 @@ public actor ConduitNode {
             emit(.screenFailed(reason: "\(link.peer.name) can't share its screen"))
             return
         }
-        let request = ScreenRequestBody(maxWidth: 1920, maxHeight: 1200, maxFps: 30, codecs: [.hevc, .h264])
+        let request = ScreenRequestBody(maxWidth: 1920, maxHeight: 1200, maxFps: 60, codecs: [.hevc, .h264])
         do {
             try await link.send(.screenRequest(request))
         } catch {

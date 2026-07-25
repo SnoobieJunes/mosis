@@ -87,6 +87,11 @@ func makeVerify(policy PinPolicy) func([][]byte, [][]*x509.Certificate) error {
 }
 
 // Dial opens a pinned TLS connection to host:port.
+//
+// Latency parity note: Go's net.TCPConn ships with TCP_NODELAY on and (since
+// Go 1.23) keepalives enabled by default, matching the Swift backend's
+// explicit noDelay/keepalive and the Android transport's tcpNoDelay=true —
+// no per-socket tuning is needed here.
 func (b *Backend) Dial(host string, port uint16, policy PinPolicy) (*Conn, error) {
 	cfg := &tls.Config{
 		Certificates:          []tls.Certificate{b.cert},

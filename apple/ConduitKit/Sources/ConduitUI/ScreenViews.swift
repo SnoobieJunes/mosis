@@ -146,8 +146,14 @@ public struct ScreenViewerScreen: View {
             Text("\(offer.width)×\(offer.height)")
             Text(String(format: "%.0f fps", model.screenFps))
             Text(String(format: "%.0f kbps", model.screenKbps))
+            Text(String(format: "%.0f ms lag", model.screenLagMillis))
         }
         .font(.caption2.monospaced())
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(
+            format: "Stream stats: %.0f frames per second, %.0f kilobits per second, %.0f milliseconds lag",
+            model.screenFps, model.screenKbps, model.screenLagMillis
+        ))
         .padding(.horizontal, 10)
         .padding(.vertical, 5)
         .background(.ultraThinMaterial, in: Capsule())

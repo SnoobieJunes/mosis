@@ -21,6 +21,10 @@ public struct RemoteControlView: View {
     }
 
     private var isControlling: Bool { model.controllingPeerID == peer.deviceID }
+    private var sessionReady: Bool {
+        let state = model.state(of: peer)
+        return state == .ready || state == .degraded
+    }
 
     public var body: some View {
         VStack(spacing: 12) {
@@ -55,21 +59,53 @@ public struct RemoteControlView: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .onAppear {
-            if model.state(of: peer) == .ready || model.state(of: peer) == .degraded {
+            if sessionReady {
+                model.startControlling(peer)
+            } else {
+                // Kick the session instead of showing dead air; the onChange
+                // below requests control once it comes up.
+                model.connect(peer)
+            }
+        }
+        .onChange(of: model.state(of: peer)) { _, newState in
+            if newState == .ready || newState == .degraded,
+               !isControlling, !model.controlPending, model.controlFailedReason == nil {
                 model.startControlling(peer)
             }
         }
-        .onDisappear { model.stopControlling() }
+        .onDisappear {
+            model.stopControlling()
+            model.controlFailedReason = nil
+        }
     }
 
+    /// Every state names itself and dead ends offer a way out — previously any
+    /// non-controlling state read "Connecting…" forever with no retry.
     private var header: some View {
         HStack {
-            Circle()
-                .fill(isControlling ? .green : .orange)
-                .frame(width: 10, height: 10)
-            Text(isControlling ? "Controlling" : "Connecting…")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            if isControlling {
+                statusDot(.green)
+                statusText("Controlling")
+            } else if model.controlPending {
+                ProgressView()
+                    .controlSize(.small)
+                statusText("Asking \(peer.name)…")
+            } else if let reason = model.controlFailedReason {
+                statusDot(.red)
+                statusText(reason)
+                Button("Retry") { model.startControlling(peer) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            } else if !sessionReady {
+                statusDot(.orange)
+                statusText("Not connected")
+                Button("Connect") { model.connect(peer) }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+            } else {
+                statusDot(.orange)
+                statusText("Connecting…")
+            }
             Spacer()
             if model.showStats, let rtt = model.rttMillis[peer.deviceID] {
                 Text(String(format: "RTT %.0f ms", rtt))
@@ -78,6 +114,20 @@ public struct RemoteControlView: View {
             }
         }
         .padding(.horizontal)
+    }
+
+    private func statusDot(_ color: Color) -> some View {
+        Circle()
+            .fill(color)
+            .frame(width: 10, height: 10)
+            .accessibilityHidden(true)
+    }
+
+    private func statusText(_ text: String) -> some View {
+        Text(text)
+            .font(.subheadline)
+            .foregroundStyle(.secondary)
+            .lineLimit(1)
     }
 }
 
@@ -107,6 +157,9 @@ struct TrackpadSurface: View {
             }
             .allowsHitTesting(false)
         }
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel("Trackpad")
+        .accessibilityHint("Drag to move the remote pointer, tap to click. Two-finger drag scrolls; two-finger tap right-clicks.")
     }
 }
 

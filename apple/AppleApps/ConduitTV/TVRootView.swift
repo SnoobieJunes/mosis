@@ -41,8 +41,19 @@ struct TVRootView: View {
                 Button {
                     model.viewScreen(of: peer)
                 } label: {
-                    Label("View \(peer.name)'s screen", systemImage: "play.tv")
+                    HStack {
+                        Label("View \(peer.name)'s screen", systemImage: "play.tv")
+                        if model.pendingPeerName == peer.name {
+                            ProgressView()
+                        }
+                    }
                 }
+                .disabled(model.pendingPeerName != nil)
+            }
+            if let pending = model.pendingPeerName {
+                Text("Requesting \(pending)'s screen — approve it there…")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
             }
 
             if !model.discovered.filter({ !$0.isPaired }).isEmpty {

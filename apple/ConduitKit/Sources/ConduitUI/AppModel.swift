@@ -31,8 +31,23 @@ public final class AppModel {
     public var rttMillis: [String: Double] = [:]
     public var transfers: [TransferSnapshot] = []
     public var pairingPrompt: PairingPromptInfo?
+    /// Discovered-peer id a pairing request is in flight to (row spinner);
+    /// cleared when the prompt arrives, or pairing completes/fails.
+    public var pairingPeerID: String?
     public var incomingOffer: (fromDeviceID: String, offer: FileOfferBody)?
-    public var toast: String?
+    /// Transient feedback. Auto-dismisses after a few seconds; every assignment
+    /// restarts the clock, so the last message never lingers as stale state.
+    public var toast: String? {
+        didSet {
+            toastTask?.cancel()
+            guard toast != nil else { return }
+            toastTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(3.5))
+                guard !Task.isCancelled else { return }
+                self?.toast = nil
+            }
+        }
+    }
     public var lastError: String?
     public var listenPort: UInt16?
     public var localName = ""
@@ -50,6 +65,10 @@ public final class AppModel {
     public var inputControlledByPeerID: String?
     /// Controller: which peer we're currently driving (nil = none).
     public var controllingPeerID: String?
+    /// Controller: a control request is in flight (waiting for consent/session).
+    public var controlPending = false
+    /// Controller: the last control request failed; drives a Retry affordance.
+    public var controlFailedReason: String?
     /// Controller: the remote reported a secure-input (password) field.
     public var remoteSecureInput = false
 
@@ -72,9 +91,13 @@ public final class AppModel {
     /// source is dialing the bulk lane back. Drives a "Connecting…" overlay so
     /// the wait isn't an inscrutable black screen.
     public var screenViewerConnecting = false
+    /// Viewer: a screen request is in flight to this peer (spinner + cancel);
+    /// cleared when the stream starts, fails, or times out.
+    public var pendingScreenPeerID: String?
     /// Viewer stats for the overlay.
     public var screenFps: Double = 0
     public var screenKbps: Double = 0
+    public var screenLagMillis: Double = 0
     /// iOS: the peer we're about to broadcast our screen to (drives the sheet).
     public var broadcastPeer: PinnedPeer?
     /// iOS: whether the shared broadcast config is written and the picker is ready.
@@ -128,6 +151,9 @@ public final class AppModel {
     /// Security-scoped source URLs held for the duration of outgoing transfers.
     private var scopedSendURLs: [String: URL] = [:]
     private var eventTask: Task<Void, Never>?
+    private var toastTask: Task<Void, Never>?
+    private var screenRequestTimeout: Task<Void, Never>?
+    private var permissionPollTask: Task<Void, Never>?
 
     public init() {}
 
@@ -160,6 +186,11 @@ public final class AppModel {
             localDeviceID = await node.localDeviceID
             pinned = await node.pinnedPeers()
         } catch {
+            // Reset so startIfNeeded() can be retried — leaving the half-built
+            // node in place made the first launch failure permanent.
+            eventTask?.cancel()
+            eventTask = nil
+            self.node = nil
             lastError = "Failed to start: \(error)"
         }
     }
@@ -249,11 +280,14 @@ public final class AppModel {
             rttMillis[id] = millis
         case .pairingPrompt(let prompt):
             pairingPrompt = prompt
+            pairingPeerID = nil
         case .pairingCompleted(let peer):
             pairingPrompt = nil
+            pairingPeerID = nil
             toast = "Paired with \(peer.name)"
         case .pairingFailed(let reason):
             pairingPrompt = nil
+            pairingPeerID = nil
             lastError = "Pairing failed: \(reason)"
         case .incomingFileOffer(let from, let offer):
             incomingOffer = (from, offer)
@@ -294,14 +328,18 @@ public final class AppModel {
             toast = "Keys blocked: a password field is focused"
         case .inputControlStarted(let peerID, let secure):
             controllingPeerID = peerID
+            controlPending = false
+            controlFailedReason = nil
             remoteSecureInput = secure
             toast = "Controlling \(peerName(peerID))"
         case .inputControlEnded:
             controllingPeerID = nil
+            controlPending = false
             remoteSecureInput = false
         case .inputControlFailed(let reason):
             controllingPeerID = nil
-            toast = "Control ended: \(reason)"
+            controlPending = false
+            controlFailedReason = reason
         case .inputRemoteSecureInput(_, let active):
             remoteSecureInput = active
         case .screenSourcePickRequested(let peerID, let sources):
@@ -334,16 +372,21 @@ public final class AppModel {
             activeScreenOffer = offer
             screenViewerError = nil        // a fresh attempt is underway
             screenViewerConnecting = true  // waiting on the bulk lane + first frame
+            screenRequestTimeout?.cancel()
+            pendingScreenPeerID = nil
         case .screenViewerStats(_, let fps, let kbps):
             screenFps = fps
             screenKbps = kbps
             screenViewerConnecting = false // frames are flowing
+        case .screenViewerLag(_, let millis):
+            screenLagMillis = millis
         case .screenViewerEnded:
             activeScreenView = nil
             activeScreenOffer = nil
             screenFps = 0
             screenKbps = 0
             screenViewerConnecting = false
+            screenLagMillis = 0
         case .screenViewerFailed(let peerID, _, let reason):
             // The stream never started or died — drop the blank view and show a
             // persistent, actionable error rather than a toast that vanishes.
@@ -351,12 +394,18 @@ public final class AppModel {
             activeScreenOffer = nil
             screenFps = 0
             screenKbps = 0
+            screenLagMillis = 0
             screenViewerConnecting = false
+            screenRequestTimeout?.cancel()
+            pendingScreenPeerID = nil
             screenViewerError = ScreenViewerFailure(peerDeviceID: peerID, reason: reason)
         case .screenFailed(let reason):
-            // Not a toast: this is the message that explains why nothing
-            // happened when the user asked to see a screen, and a toast that
-            // vanishes reads exactly like "the button does nothing".
+            // Clear the in-flight request state, but this stays a persistent
+            // `lastError` rather than a toast: it is the message that explains why
+            // nothing happened when the user asked to see a screen, and a toast
+            // that vanishes reads exactly like "the button does nothing".
+            screenRequestTimeout?.cancel()
+            pendingScreenPeerID = nil
             lastError = reason
         case .inputInjectFailed(let reason):
             // Receiver side: the injector keeps rejecting events (the controller's
@@ -454,6 +503,7 @@ public final class AppModel {
 
     public func pair(with peer: DiscoveredPeer) {
         let node = node
+        pairingPeerID = peer.id
         Task { await node?.beginPairing(withDiscoveredID: peer.id) }
     }
 
@@ -523,12 +573,17 @@ public final class AppModel {
     /// pane, then poll until the OS reports the permission granted.
     public func openInputPermissionSettings() {
         let node = node
-        Task {
+        permissionPollTask?.cancel()
+        permissionPollTask = Task { [weak self] in
             await node?.openInputPermissionSettings()
             for _ in 0..<120 { // up to ~60s
                 try? await Task.sleep(for: .milliseconds(500))
+                guard !Task.isCancelled else { return }
                 if await node?.inputPermissionGranted() == true {
-                    await MainActor.run { self.inputPermissionPrompt = nil }
+                    await MainActor.run {
+                        self?.inputPermissionPrompt = nil
+                        self?.toast = "Accessibility enabled"
+                    }
                     return
                 }
             }
@@ -536,6 +591,8 @@ public final class AppModel {
     }
 
     public func dismissInputPermissionPrompt() {
+        permissionPollTask?.cancel()
+        permissionPollTask = nil
         inputPermissionPrompt = nil
     }
 
@@ -546,6 +603,8 @@ public final class AppModel {
     }
 
     public func startControlling(_ peer: PinnedPeer) {
+        controlPending = true
+        controlFailedReason = nil
         let node = node
         Task { await node?.requestInputControl(of: peer.deviceID) }
     }
@@ -601,7 +660,21 @@ public final class AppModel {
     /// Connect = pull: view the peer's screen.
     public func viewScreen(of peer: PinnedPeer) {
         let node = node
+        pendingScreenPeerID = peer.deviceID
+        screenRequestTimeout?.cancel()
+        screenRequestTimeout = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(15))
+            guard !Task.isCancelled, let self, self.pendingScreenPeerID == peer.deviceID else { return }
+            self.pendingScreenPeerID = nil
+            self.toast = "No answer from \(peer.name) — they may need to approve, or grant Screen Recording"
+        }
         Task { await node?.requestScreen(from: peer.deviceID) }
+    }
+
+    /// Cancels the pending "requesting screen…" state (the banner's Cancel).
+    public func cancelScreenRequest() {
+        screenRequestTimeout?.cancel()
+        pendingScreenPeerID = nil
     }
 
     public func stopViewingScreen() {

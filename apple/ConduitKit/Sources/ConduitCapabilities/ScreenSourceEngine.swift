@@ -10,10 +10,10 @@ import ConduitTransport
 /// H.264 fallback) → streams SCREEN_FRAMEs over a dedicated bulk connection,
 /// adapting bitrate and issuing keyframes from the viewer's SCREEN_ACK feedback.
 public actor ScreenSourceEngine {
-    static let defaultFps = 30
+    static let defaultFps = 60               // cadence floor: 16.7ms/frame
     static let initialBitrate = 8_000_000   // 8 Mbps for 1080p-ish
     static let minBitrate = 1_000_000
-    static let maxLagFrames: UInt32 = 45     // ~1.5s at 30fps → back off
+    static let maxLagFrames: UInt32 = 45     // ~0.75s at 60fps → back off
     static let goodLagFrames: UInt32 = 6
     /// Consecutive encode failures tolerated before ending the share with a
     /// reason instead of silently dropping every frame (was a `try?`).
@@ -277,8 +277,12 @@ public actor ScreenSourceEngine {
             ? .hevc : .h264
 
         // Frame feed: encoder callback → sender task (bounded, drops under load).
+        // Depth 2, not 4: a deeper queue only buys latency on a live stream, since
+        // .bufferingNewest discards the stale frames anyway. Created here rather
+        // than after the offer because makeStartedEncoder needs the continuation
+        // to probe HEVC before we commit to a codec in the offer.
         let (feed, continuation) = AsyncStream.makeStream(
-            of: (EncodedVideoFrame, CMTime).self, bufferingPolicy: .bufferingNewest(4)
+            of: (EncodedVideoFrame, CMTime).self, bufferingPolicy: .bufferingNewest(2)
         )
 
         // Build the encoder BEFORE the offer: an HEVC session that can't start on

@@ -35,6 +35,9 @@ public struct RootView: View {
                     ScreenSourceBanner(peerName: model.peerName(sourcingID), model: model)
                     #endif
                 }
+                if let pendingID = model.pendingScreenPeerID {
+                    ScreenRequestPendingBanner(peerName: model.peerName(pendingID), model: model)
+                }
                 DevicesScreen(model: model, filePickerTarget: $filePickerTarget)
             }
                 .navigationTitle("MOSIS")
@@ -89,6 +92,23 @@ public struct RootView: View {
             await model.startIfNeeded()
             await model.refreshPermissions()
         }
+        // Transient toast for things that resolve on their own; anything the user
+        // must act on becomes a persistent lastError instead.
+        .overlay(alignment: .bottom) {
+            if let toast = model.toast {
+                Text(toast)
+                    .font(.footnote.weight(.medium))
+                    .lineLimit(2)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .background(.regularMaterial, in: Capsule())
+                    .padding(.bottom, 12)
+                    .padding(.horizontal, 20)
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+                    .accessibilityAddTraits(.updatesFrequently)
+            }
+        }
+        .animation(.snappy, value: model.toast)
         // Debug HUD (spec §8): the Stats toggle reveals the device-seam counters.
         .overlay(alignment: .bottomLeading) {
             if model.showStats {
@@ -154,6 +174,11 @@ public struct RootView: View {
             get: { model.lastError != nil },
             set: { if !$0 { model.lastError = nil } }
         )) {
+            // Node start can fail (e.g. keychain/network hiccup); without a
+            // retry the app was dead until relaunch.
+            if model.node == nil {
+                Button("Retry") { Task { await model.startIfNeeded() } }
+            }
             Button("OK", role: .cancel) {}
         } message: {
             Text(model.lastError ?? "")
@@ -235,6 +260,32 @@ struct ControlledIndicatorBanner: View {
     }
 }
 
+/// Shown between "View Screen" and the first frame (or timeout): the request
+/// needs the source's approval, so this window used to be silent dead air.
+struct ScreenRequestPendingBanner: View {
+    let peerName: String
+    @Bindable var model: AppModel
+
+    var body: some View {
+        HStack(spacing: 10) {
+            ProgressView()
+                .controlSize(.small)
+            Text("Requesting \(peerName)'s screen…")
+                .font(.subheadline.weight(.medium))
+                .lineLimit(1)
+            Spacer()
+            Button("Cancel") { model.cancelScreenRequest() }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
+        .background(.blue.opacity(0.15))
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("Requesting \(peerName)'s screen, waiting for approval")
+    }
+}
+
 // MARK: - Devices
 
 struct DevicesScreen: View {
@@ -265,22 +316,31 @@ struct DevicesScreen: View {
             Section("Nearby") {
                 let unpaired = model.discovered.filter { !$0.isPaired }
                 if unpaired.isEmpty {
-                    Text("Searching on the local network…")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    HStack(spacing: 8) {
+                        ProgressView()
+                            .controlSize(.small)
+                        Text("Searching on the local network…")
+                    }
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
                 }
                 ForEach(unpaired) { peer in
                     HStack {
                         PeerBubble(deviceClassRaw: peer.deviceClassRaw, state: .idle, isPaired: false)
                         VStack(alignment: .leading) {
                             Text(peer.name)
-                            Text("Not paired")
+                            Text(model.pairingPeerID == peer.id ? "Pairing…" : "Not paired")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
                         Spacer()
-                        Button("Pair") { model.pair(with: peer) }
-                            .buttonStyle(.borderedProminent)
+                        if model.pairingPeerID == peer.id {
+                            ProgressView()
+                                .controlSize(.small)
+                        } else {
+                            Button("Pair") { model.pair(with: peer) }
+                                .buttonStyle(.borderedProminent)
+                        }
                     }
                 }
             }
@@ -292,10 +352,6 @@ struct DevicesScreen: View {
                     LabeledContent("Device ID", value: String(model.localDeviceID.prefix(16)) + "…")
                         .font(.caption.monospaced())
                 }
-            } footer: {
-                if let toast = model.toast {
-                    Text(toast).font(.footnote)
-                }
             }
         }
     }
@@ -305,6 +361,7 @@ struct PairedPeerRow: View {
     let peer: PinnedPeer
     @Bindable var model: AppModel
     @Binding var filePickerTarget: PinnedPeer?
+    @State private var confirmingUnpair = false
 
     private var state: SessionState { model.state(of: peer) }
     private var isConnected: Bool { state == .ready || state == .degraded }
@@ -402,7 +459,17 @@ struct PairedPeerRow: View {
             }
         }
         .contextMenu {
+            Button("Unpair", role: .destructive) { confirmingUnpair = true }
+        }
+        .confirmationDialog(
+            "Unpair \(peer.name)?",
+            isPresented: $confirmingUnpair,
+            titleVisibility: .visible
+        ) {
             Button("Unpair", role: .destructive) { model.unpair(peer) }
+            Button("Cancel", role: .cancel) {}
+        } message: {
+            Text("The saved trust for this device is removed; you'll need to pair again to reconnect.")
         }
     }
 
@@ -458,6 +525,17 @@ struct PeerBubble: View {
         }
     }
 
+    /// The ring color is the only visual state cue, so spell it out for
+    /// VoiceOver (and anyone who can't distinguish the colors).
+    private var stateDescription: String {
+        switch state {
+        case .ready: "connected"
+        case .degraded: "connected, unstable"
+        case .connecting, .hello: "connecting"
+        case .idle, .closed: isPaired ? "paired, not connected" : "not paired"
+        }
+    }
+
     var body: some View {
         Image(systemName: symbol)
             .font(.system(size: 18))
@@ -465,6 +543,7 @@ struct PeerBubble: View {
             .background(Circle().fill(.quaternary))
             .overlay(Circle().stroke(ringColor, lineWidth: 2.5))
             .padding(2)
+            .accessibilityLabel("\(deviceClassRaw) device, \(stateDescription)")
     }
 }
 

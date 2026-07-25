@@ -41,6 +41,8 @@ class AndroidNode(
 
     val discovered = MutableStateFlow<List<DiscoveredPeer>>(emptyList())
     val pinned = MutableStateFlow<List<PinnedPeer>>(emptyList())
+    /** Device ids with a live session — drives the Connected badge + actions. */
+    val connected = MutableStateFlow<Set<String>>(emptySet())
     val toast = MutableStateFlow<String?>(null)
     var confirmPairing: (suspend (PairPrompt) -> Boolean)? = null
     var pairingEnabled = false
@@ -101,6 +103,7 @@ class AndroidNode(
         val peer = peers.values.firstOrNull { it.tlsPubkeySha256.toHex() == keyHash } ?: return conn.close()
         HelloFlow.respond(conn, hello, sessionId, local, capabilities(), listenPort)
         links[peer.deviceId] = conn
+        connected.value = links.keys.toSet()
         runReadLoop(conn, peer)
     }
 
@@ -117,7 +120,12 @@ class AndroidNode(
     /// (The initiator path simply omitted the bridge and did not compile —
     /// nothing has ever built this module; CI compiles `core` only.)
     suspend fun pair(host: String, port: Int) = withContext(Dispatchers.IO) {
-        val stream = transport.dial(host, port, LanTransport.PinPolicy { true })
+        val stream = try {
+            transport.dial(host, port, LanTransport.PinPolicy { true })
+        } catch (e: Exception) {
+            toast.value = "Couldn't reach the device — are you on the same network?"
+            return@withContext
+        }
         val conn = FramedConnection(stream)
         val outcome = PairingFlow.initiate(conn, local) { p ->
             runBlocking { confirmPairing?.invoke(p) ?: false }
@@ -126,12 +134,20 @@ class AndroidNode(
         conn.close()
     }
 
+    /// Same IO-wrapping rule as `pair`: the HELLO exchange is blocking socket
+    /// work, so the whole sequence stays off the main thread.
     suspend fun connect(peer: PinnedPeer, host: String, port: Int): FramedConnection? =
         withContext(Dispatchers.IO) {
-            val stream = transport.dial(host, port, pinnedPolicy(peer))
+            val stream = try {
+                transport.dial(host, port, pinnedPolicy(peer))
+            } catch (e: Exception) {
+                toast.value = "Couldn't reach ${peer.name}"
+                return@withContext null
+            }
             val conn = FramedConnection(stream)
             HelloFlow.initiate(conn, local, capabilities(), listenPort)
             links[peer.deviceId] = conn
+            connected.value = links.keys.toSet()
             scope.launch { runReadLoop(conn, peer) }
             conn
         }
@@ -149,8 +165,20 @@ class AndroidNode(
         links[peerId]?.send(MessageType.CLIPBOARD_PUSH, Bodies.clipboardText(text))
     }
 
-    fun sendInputMove(peerId: String, dx: Double, dy: Double) {
+    private val moveCoalescer = InputMoveCoalescer(scope) { peerId, dx, dy ->
         links[peerId]?.send(MessageType.INPUT_EVENT, Bodies.inputEventMove(dx, dy))
+    }
+
+    /** Motion is coalesced so a drag doesn't emit one wire frame per pointer sample. */
+    fun sendInputMove(peerId: String, dx: Double, dy: Double) {
+        moveCoalescer.move(peerId, dx, dy)
+    }
+
+    /** Left tap. Flushes pending motion first so the click lands where the
+     *  cursor visibly is (same ordering contract as the Swift coalescer). */
+    fun sendInputClick(peerId: String) {
+        moveCoalescer.flush()
+        links[peerId]?.send(MessageType.INPUT_EVENT, Bodies.inputEventClick())
     }
 
     /** Mirror a notification to every peer advertising notify-show. */
@@ -189,6 +217,7 @@ class AndroidNode(
         } catch (_: Exception) {
         } finally {
             links.remove(peer.deviceId)
+            connected.value = links.keys.toSet()
         }
     }
 
@@ -252,4 +281,9 @@ class AndroidNode(
     fun listenPort() = listenPort
     fun peerFor(deviceId: String) = peers[deviceId]
     fun discoveredFor(serviceName: String) = discoveredMap[serviceName]
+
+    /** Lookup by device id — NSD service names can carry dedup suffixes, so
+     *  matching a pinned peer by name is unreliable. */
+    fun discoveredForDevice(deviceId: String): DiscoveredPeer? =
+        discoveredMap.values.firstOrNull { it.deviceId == deviceId }
 }

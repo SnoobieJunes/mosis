@@ -2,11 +2,12 @@ import Foundation
 import ConduitProtocol
 
 /// Batches high-frequency pointer motion so the wire sees at most one move per
-/// tick (spec §9 Phase 2 step 1: coalesce at 120 Hz, send deltas). Moves and
-/// scrolls accumulate; clicks and keys flush immediately and in order so a
-/// click never overtakes the motion that positioned the cursor.
+/// tick (spec §9 Phase 2 step 1: coalesce and send deltas; the spec's 120 Hz is
+/// a floor — we tick at 240 Hz to halve the worst-case added motion latency to
+/// ~4 ms). Moves and scrolls accumulate; clicks and keys flush immediately and
+/// in order so a click never overtakes the motion that positioned the cursor.
 public actor InputCoalescer {
-    public static let tickHz: Double = 120
+    public static let tickHz: Double = 240
 
     private var pendingMoveDX = 0.0
     private var pendingMoveDY = 0.0

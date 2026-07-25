@@ -67,7 +67,7 @@ struct CastSheet: View {
                 } header: {
                     Text("Send to a TV")
                 } footer: {
-                    Text("Prepare the stream, then pick a receiver. AirPlay is built in; Google Cast and Matter Casting appear here when their SDKs are added to the app (ADR 0011). The TV runs a few seconds behind — good for watching, not for controlling.")
+                    Text("Prepare the stream, then pick a receiver. AirPlay is built in; Google Cast and Matter Casting appear here when their SDKs are added to the app (ADR 0011). The TV runs a few seconds behind (HLS) — good for watching, not for controlling.")
                 }
                 if let watch = model.castManager.watchURL {
                     Section {
@@ -128,6 +128,8 @@ struct CastSheet: View {
         // AVPlayer has the stream URL loaded when a receiver is selected.
         if let route = model.castManager.routes.first(where: { $0.kind == .airplay }) {
             model.castCurrentScreen(to: route)
+        } else {
+            model.toast = "AirPlay is still discovering — try again in a moment"
         }
     }
 }

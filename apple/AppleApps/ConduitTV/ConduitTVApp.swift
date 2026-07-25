@@ -31,9 +31,24 @@ final class TVModel: ObservableObject {
     @Published var acceptPairing = false
     @Published var pairingPrompt: PairingPromptInfo?
     @Published var activeScreen: (render: ScreenRenderTarget, offer: ScreenOfferBody)?
-    @Published var toast: String?
+    /// Name of the peer a screen request is in flight to (spinner in the list).
+    @Published var pendingPeerName: String?
+    /// Transient status line; auto-clears so it can't misreport state later.
+    @Published var toast: String? {
+        didSet {
+            toastTask?.cancel()
+            guard toast != nil else { return }
+            toastTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(4))
+                guard !Task.isCancelled else { return }
+                self?.toast = nil
+            }
+        }
+    }
 
     private var node: ConduitNode?
+    private var toastTask: Task<Void, Never>?
+    private var screenRequestTimeout: Task<Void, Never>?
 
     func start() async {
         guard node == nil else { return }
@@ -72,6 +87,14 @@ final class TVModel: ObservableObject {
     /// Connect to view a peer's screen (Connect = pull).
     func viewScreen(of peer: PinnedPeer) {
         let node = node
+        pendingPeerName = peer.name
+        screenRequestTimeout?.cancel()
+        screenRequestTimeout = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(15))
+            guard !Task.isCancelled, let self, self.pendingPeerName != nil else { return }
+            self.pendingPeerName = nil
+            self.toast = "No answer from \(peer.name) — approve the request on that device"
+        }
         Task {
             await node?.connect(toDevice: peer.deviceID)
             await node?.requestScreen(from: peer.deviceID)
@@ -84,11 +107,20 @@ final class TVModel: ObservableObject {
         case .pinnedPeersChanged(let peers): pinned = peers
         case .pairingPrompt(let p): pairingPrompt = p
         case .pairingCompleted(let peer): toast = "Paired with \(peer.name)"
-        case .screenViewerStarted(_, let offer, let render): activeScreen = (render, offer)
+        case .screenViewerStarted(_, let offer, let render):
+            screenRequestTimeout?.cancel()
+            pendingPeerName = nil
+            activeScreen = (render, offer)
         case .screenViewerEnded: activeScreen = nil
         case .screenViewerFailed(_, _, let reason):
+            screenRequestTimeout?.cancel()
+            pendingPeerName = nil
             activeScreen = nil
             toast = "Couldn't show that screen: \(reason)"
+        case .screenFailed(let reason):
+            screenRequestTimeout?.cancel()
+            pendingPeerName = nil
+            toast = "Screen: \(reason)"
         case .notificationReceived(_, let body): toast = "🔔 \(body.appName): \(body.title)"
         default: break
         }
