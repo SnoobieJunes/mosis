@@ -51,6 +51,17 @@ public struct RootView: View {
                 }
                 .toolbar {
                     #if os(macOS)
+                    // The headline action, not buried in a per-peer submenu:
+                    // "put my screen somewhere else" is the thing people open
+                    // this app to do.
+                    ToolbarItem {
+                        Button {
+                            model.openShareScreenSheet()
+                        } label: {
+                            Label("Show My Screen", systemImage: "rectangle.on.rectangle.angled")
+                        }
+                        .help("Show this Mac's screen on a paired device, a TV, or any browser")
+                    }
                     ToolbarItem {
                         Button {
                             model.showPermissions = true
@@ -87,6 +98,9 @@ public struct RootView: View {
             }
         }
         #if os(macOS)
+        .sheet(isPresented: $model.showShareScreen) {
+            ShareScreenSheet(model: model)
+        }
         .sheet(isPresented: $model.showPermissions) {
             VStack(alignment: .leading, spacing: 14) {
                 PermissionsPanel(model: model)
@@ -323,12 +337,15 @@ struct PairedPeerRow: View {
                             }
                         } else {
                             // Say why it's unavailable. Silently omitting it is
-                            // indistinguishable from the feature being broken —
-                            // and the usual cause is a peer that genuinely
-                            // can't source a screen (an iPhone, or the iPad
-                            // build of this app running on a Mac).
+                            // indistinguishable from the feature being broken.
+                            //
+                            // But be *accurate*: an iPhone or iPad absolutely
+                            // can share its screen — iOS just has no API that
+                            // lets us pull it, so the phone has to push. Saying
+                            // "can't share its screen" about a device that can
+                            // is worse than saying nothing.
                             Button {} label: {
-                                Label("\(peer.name) can't share its screen", systemImage: "rectangle.slash")
+                                Label(unavailableScreenReason, systemImage: "rectangle.slash")
                             }
                             .disabled(true)
                         }
@@ -344,6 +361,16 @@ struct PairedPeerRow: View {
                             model.beginScreenBroadcast(to: peer)
                         } label: {
                             Label("Share My Screen", systemImage: "rectangle.dashed.badge.record")
+                        }
+                        #else
+                        // The macOS Share menu had no screen option at all, so
+                        // the only way a Mac's screen went anywhere was for the
+                        // far end to pull it. That is the missing half of the
+                        // spec §8 verb pair.
+                        Button {
+                            model.openShareScreenSheet()
+                        } label: {
+                            Label("Show My Screen on \(peer.name)…", systemImage: "rectangle.on.rectangle.angled")
                         }
                         #endif
                     }
@@ -376,6 +403,19 @@ struct PairedPeerRow: View {
         }
         .contextMenu {
             Button("Unpair", role: .destructive) { model.unpair(peer) }
+        }
+    }
+
+    /// iOS can capture its whole screen only through a ReplayKit broadcast
+    /// extension, which the *phone* starts — there is no API for a peer to pull
+    /// it. So an iPhone never advertises `screen-source`, and the honest line is
+    /// "start it from that device", not "it can't".
+    private var unavailableScreenReason: String {
+        switch DeviceClass(rawValue: peer.deviceClassRaw) ?? .unknown {
+        case .phone, .tablet:
+            "Start sharing from \(peer.name): Share → Share My Screen"
+        default:
+            "\(peer.name) can't share its screen"
         }
     }
 

@@ -16,13 +16,21 @@ public final class VideoEncoder: @unchecked Sendable {
         public var fps: Int
         public var bitrate: Int
         public var codec: ScreenVideoCodec
+        /// Seconds between forced keyframes. Two for the interactive peer
+        /// stream (spec §9 Phase 3: late joiners recover without asking); one
+        /// for the HLS re-publish path, whose segmenter can only cut a new
+        /// segment on a keyframe — a longer interval there produces segments
+        /// that overshoot `EXT-X-TARGETDURATION` and stall players.
+        public var keyframeIntervalSeconds: Int
 
-        public init(width: Int, height: Int, fps: Int, bitrate: Int, codec: ScreenVideoCodec) {
+        public init(width: Int, height: Int, fps: Int, bitrate: Int, codec: ScreenVideoCodec,
+                    keyframeIntervalSeconds: Int = 2) {
             self.width = width
             self.height = height
             self.fps = fps
             self.bitrate = bitrate
             self.codec = codec
+            self.keyframeIntervalSeconds = keyframeIntervalSeconds
         }
     }
 
@@ -100,9 +108,11 @@ public final class VideoEncoder: @unchecked Sendable {
         setBitrate(config.bitrate)
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ExpectedFrameRate,
                              value: NSNumber(value: config.fps))
-        // Keyframe at least every 2s so late joiners recover without a request.
+        // Keyframe on a fixed cadence so late joiners recover without asking.
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameInterval,
-                             value: NSNumber(value: config.fps * 2))
+                             value: NSNumber(value: config.fps * max(1, config.keyframeIntervalSeconds)))
+        VTSessionSetProperty(session, key: kVTCompressionPropertyKey_MaxKeyFrameIntervalDuration,
+                             value: NSNumber(value: max(1, config.keyframeIntervalSeconds)))
         // Pin BT.709 to avoid the HDR/wide-color washout pitfall (spec §9 Phase 3).
         VTSessionSetProperty(session, key: kVTCompressionPropertyKey_ColorPrimaries,
                              value: kCMFormatDescriptionColorPrimaries_ITU_R_709_2)

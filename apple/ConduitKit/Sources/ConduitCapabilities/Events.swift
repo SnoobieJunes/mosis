@@ -94,6 +94,16 @@ public enum ConduitEvent: Sendable {
     /// Source: a peer asked to view this screen; the UI shows the display/window
     /// picker over these sources and resolves it.
     case screenSourcePickRequested(peerDeviceID: String, sources: [CaptureSourceDescriptor])
+    /// Source: the pick request expired (or was withdrawn) before the user
+    /// answered, so the UI must take the picker down.
+    ///
+    /// Without this the picker sheet stayed on screen after the request behind
+    /// it had already been resolved as "declined", and every subsequent tap on a
+    /// display or window hit `resolveScreenPick`'s `guard let continuation …
+    /// else { return }` and did **nothing** — no stream, no error, no log. That
+    /// is precisely the "I select a screen or app on the Mac and nothing
+    /// happens" report, and it is silent by construction.
+    case screenSourcePickCancelled(peerDeviceID: String, reason: String)
     /// Source: this device started sharing its screen to a peer (indicator).
     case screenSourceStarted(peerDeviceID: String, sourceName: String)
     /// Source: sharing to a peer ended.

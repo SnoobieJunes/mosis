@@ -88,7 +88,10 @@ public actor ConduitNode {
     /// being streamed by the extension — so cancelling/stopping can tell the
     /// viewer over the control link instead of leaving it waiting on the
     /// attach watchdog.
-    private var pendingIOSBroadcast: (deviceID: String, screenSessionID: String)?
+    /// The announced-but-not-yet-streaming iOS broadcast. Keeps the offer so it
+    /// can be re-sent as a keep-alive while the user works through Apple's
+    /// broadcast picker (see `refreshIOSScreenBroadcastOffer`).
+    private var pendingIOSBroadcast: (deviceID: String, screenSessionID: String, offer: ScreenOfferBody)?
 
     public nonisolated let events: AsyncStream<ConduitEvent>
     private let eventsContinuation: AsyncStream<ConduitEvent>.Continuation
@@ -589,13 +592,29 @@ public actor ConduitNode {
         }
         do {
             let policy = TLSVerifyPolicy.pinned([peer.tlsPubkeySHA256])
-            let connection: any ByteStreamConnection
+            // Try EVERY address we have, best-first, within one attempt — the
+            // same candidate-chain discipline the bulk dial already uses (M3).
+            //
+            // This used to pick exactly one: the Bonjour record if the peer had
+            // been discovered, otherwise the manual address. So a stale or
+            // wrong-interface mDNS resolution beat a known-good address and the
+            // whole attempt failed, then backed off 1→2→4→8→16→30s before
+            // trying again — and tried the same bad candidate every time. On a
+            // busy network that is minutes of "Connecting…" with a perfectly
+            // reachable peer.
+            var connection: (any ByteStreamConnection)?
+            var errors: [String] = []
             if let discovered {
-                connection = try await backend.connect(to: discovered.endpoint, policy: policy)
-            } else if let manual {
-                connection = try await backend.connect(host: manual.host, port: manual.port, policy: policy)
-            } else {
-                return false
+                do { connection = try await backend.connect(to: discovered.endpoint, policy: policy) }
+                catch { errors.append("bonjour: \(error)") }
+            }
+            if connection == nil, let manual {
+                do { connection = try await backend.connect(host: manual.host, port: manual.port, policy: policy) }
+                catch { errors.append("\(manual.host):\(manual.port): \(error)") }
+            }
+            guard let connection else {
+                throw TransportError.connectFailed(errors.isEmpty
+                    ? "no reachable address" : errors.joined(separator: " | "))
             }
             let framed = FramedConnection(connection)
             let link = PeerLink(
@@ -949,6 +968,12 @@ public actor ConduitNode {
     /// this fires the requester has already given up and been told why.
     static let promptTimeout: TimeInterval = 120
 
+    /// Longest edge an iPhone screen broadcast is scaled to. The ReplayKit
+    /// extension encodes inside a ~50 MB process, and native phone resolutions
+    /// (1290×2796 on a 15 Pro Max) cost far more memory and bitrate than a
+    /// viewer can use.
+    static let broadcastMaxLongEdge = 1920
+
     /// Bridges the receive engine's consent request to the app's UI round-trip.
     fileprivate func awaitInputConsent(peerID: String) async -> Bool {
         await withCheckedContinuation { continuation in
@@ -993,6 +1018,33 @@ public actor ConduitNode {
         }
     }
 
+    /// Displays and windows this device can share, for a picker shown *before*
+    /// anything is offered. Empty when there's no capturer or Screen Recording
+    /// is off.
+    public func localScreenSources() async -> [CaptureSourceDescriptor] {
+        await screenSourceEngine?.localSources() ?? []
+    }
+
+    /// Source side: "show my screen on <peer>" — push, the other half of the
+    /// spec §8 verb pair. Until now the Mac could only ever have its screen
+    /// *pulled* by the far end, so there was no way to put the Mac on a TV or a
+    /// tablet from the Mac. Returns nil on success or a reason to show.
+    ///
+    /// Calling it again with another peer while a share is live adds that peer
+    /// to the same capture (one encode, fanned out) rather than restarting.
+    public func shareScreen(source: CaptureSourceDescriptor, with deviceID: String) async -> String? {
+        guard let engine = screenSourceEngine else {
+            return "This device can't share its screen."
+        }
+        guard let link = sessions[deviceID] else {
+            return "Not connected — connect first, then share."
+        }
+        guard await link.remoteAdvertises(CapabilityID.screenView) else {
+            return "\(link.peer.name) can't display a screen."
+        }
+        return await engine.shareScreen(source: source, to: link)
+    }
+
     /// Source side: stop sharing (also the kill switch for the source indicator).
     /// A clean, user-initiated stop (nil reason) so the viewer ends quietly
     /// rather than seeing it as a failure with a Retry.
@@ -1012,10 +1064,39 @@ public actor ConduitNode {
     }
 
     /// The source app answers a screenSourcePickRequested prompt through here.
+    ///
+    /// A tap that arrives after the request already expired used to return
+    /// silently, leaving a live-looking picker whose every button did nothing.
+    /// Now the UI is told to take it down and why.
     public func resolveScreenPick(peerDeviceID: String, sourceID: String?) {
-        guard let continuation = screenPickWaiters.removeValue(forKey: peerDeviceID) else { return }
+        guard let continuation = screenPickWaiters.removeValue(forKey: peerDeviceID) else {
+            if sourceID != nil {
+                emit(.screenSourcePickCancelled(
+                    peerDeviceID: peerDeviceID,
+                    reason: "That request expired before a screen was chosen. Ask again from \(peerName(peerDeviceID))."
+                ))
+            }
+            return
+        }
         let sources = pendingScreenSources.removeValue(forKey: peerDeviceID) ?? []
         continuation.resume(returning: sources.first { $0.id == sourceID })
+    }
+
+    private func peerName(_ deviceID: String) -> String {
+        sessions[deviceID]?.peer.name ?? "that device"
+    }
+
+    /// The pick prompt timed out. Resolve the waiting request AND take the
+    /// picker off the source's screen — leaving it up is what made the next tap
+    /// look like a broken button.
+    private func expireScreenPick(peerID: String) {
+        guard let continuation = screenPickWaiters.removeValue(forKey: peerID) else { return }
+        pendingScreenSources.removeValue(forKey: peerID)
+        continuation.resume(returning: nil)
+        emit(.screenSourcePickCancelled(
+            peerDeviceID: peerID,
+            reason: "\(peerName(peerID)) stopped waiting for you to pick a screen. Ask again from that device."
+        ))
     }
 
     // MARK: Multi-viewer social permissions API (Phase 7)
@@ -1093,7 +1174,19 @@ public actor ConduitNode {
             emit(.screenFailed(reason: "viewer has no reachable listener"))
             return nil
         }
-        let (w, h) = ScreenSourceEngine.fit(sourceW: width, sourceH: height, maxW: width, maxH: height)
+        // Actually cap it. This read `maxW: width, maxH: height`, which makes
+        // `fit`'s scale `min(1, 1, 1)` — the source dimensions, unchanged. So
+        // the comment at the call site promised a cap that did not exist, and a
+        // modern iPhone broadcast 1290×2796 at 8 Mbps from inside a process the
+        // OS jetsams at ~50 MB. Cap the long edge to 1080p-class instead.
+        let longEdge = max(width, height)
+        let (w, h) = longEdge > Self.broadcastMaxLongEdge
+            ? ScreenSourceEngine.fit(
+                sourceW: width, sourceH: height,
+                maxW: width >= height ? Self.broadcastMaxLongEdge : Int.max,
+                maxH: height > width ? Self.broadcastMaxLongEdge : Int.max
+              )
+            : ScreenSourceEngine.fit(sourceW: width, sourceH: height, maxW: width, maxH: height)
         let codec: ScreenVideoCodec = VideoEncoder.isHEVCAvailable() ? .hevc : .h264
         let wireSessionID = iosBroadcastWireSession; iosBroadcastWireSession &+= 1
         let token = Data((0..<16).map { _ in UInt8.random(in: 0...255) }).hexString
@@ -1130,9 +1223,23 @@ public actor ConduitNode {
             emit(.screenFailed(reason: "cannot write broadcast config: \(error)"))
             return nil
         }
-        pendingIOSBroadcast = (deviceID, screenSessionID)
+        pendingIOSBroadcast = (deviceID, screenSessionID, offer)
         emit(.screenSourceStarted(peerDeviceID: deviceID, sourceName: "your iPhone screen"))
         return bcConfig
+    }
+
+    /// Re-sends the pending broadcast offer as a keep-alive.
+    ///
+    /// The viewer starts a 45 s attach watchdog when the offer arrives, but the
+    /// user still has the whole system broadcast picker + countdown ahead of
+    /// them. Repeating the *same* offer re-arms that watchdog on the viewer
+    /// (`ScreenViewerEngine.handleOffer` treats a repeat as a keep-alive) so the
+    /// far end waits as long as the person actually takes. No wire change: it is
+    /// the same message, sent again.
+    public func refreshIOSScreenBroadcastOffer() async {
+        guard let pending = pendingIOSBroadcast,
+              let link = sessions[pending.deviceID] else { return }
+        try? await link.send(.screenOffer(pending.offer))
     }
 
     /// Retire the announced broadcast: clear the shared config and tell the
@@ -1179,7 +1286,7 @@ public actor ConduitNode {
             emit(.screenSourcePickRequested(peerDeviceID: peerID, sources: sources))
             Task { [weak self] in
                 try? await Task.sleep(for: .seconds(Self.promptTimeout))
-                await self?.resolveScreenPick(peerDeviceID: peerID, sourceID: nil)
+                await self?.expireScreenPick(peerID: peerID)
             }
         }
     }

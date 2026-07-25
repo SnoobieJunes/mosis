@@ -307,6 +307,20 @@ public final class AppModel {
         case .screenSourcePickRequested(let peerID, let sources):
             screenPickPeerID = peerID
             screenPickSources = sources
+            // The picker is a sheet on the app's window. If MOSIS is behind
+            // whatever you were actually doing, it appears on a window you
+            // cannot see, and by the time you find it the request has expired.
+            // Come to the front and say so.
+            PlatformBridges.activateApp()
+            NotificationBridge.postIfBackgrounded(
+                title: "\(peerName(peerID)) wants to see your screen",
+                body: "Choose a display or window in MOSIS."
+            )
+        case .screenSourcePickCancelled(let peerID, let reason):
+            guard screenPickPeerID == peerID else { break }
+            screenPickPeerID = nil
+            screenPickSources = []
+            lastError = reason
         case .screenSourceStarted(let peerID, let name):
             screenSourcingToPeerID = peerID
             screenSourcingName = name
@@ -624,6 +638,47 @@ public final class AppModel {
         Task { await node?.stopSourcingScreen() }
     }
 
+    // MARK: Sharing this device's screen (push) — spec §8 "Share"
+
+    /// Displays and windows this device can share, loaded up front so the user
+    /// picks *before* anything is offered. macOS only; empty elsewhere.
+    public var localScreenSources: [CaptureSourceDescriptor] = []
+    /// Drives the "Show my screen on…" sheet.
+    public var showShareScreen = false
+    /// What the sheet is doing right now, so a slow start isn't a dead button.
+    public var shareScreenBusy = false
+
+    public func openShareScreenSheet() {
+        showShareScreen = true
+        Task { await refreshLocalScreenSources() }
+        castManager.startDiscovery()
+    }
+
+    public func refreshLocalScreenSources() async {
+        localScreenSources = await node?.localScreenSources() ?? []
+    }
+
+    /// Push this device's screen to a paired peer. The other half of the verb
+    /// pair: until now macOS could only have its screen pulled by the far end,
+    /// so there was no way to put the Mac on a TV or a tablet from the Mac.
+    public func shareMyScreen(_ source: CaptureSourceDescriptor, with peer: PinnedPeer) async {
+        shareScreenBusy = true
+        defer { shareScreenBusy = false }
+        if state(of: peer) != .ready, state(of: peer) != .degraded {
+            await node?.connect(toDevice: peer.deviceID)
+            // Give the session a moment to reach ready before offering.
+            for _ in 0..<40 where state(of: peer) != .ready {
+                try? await Task.sleep(for: .milliseconds(100))
+            }
+        }
+        if let reason = await node?.shareScreen(source: source, with: peer.deviceID) {
+            lastError = reason
+        } else {
+            toast = "Showing \(source.name) on \(peer.name)"
+            showShareScreen = false
+        }
+    }
+
     // MARK: Convenience senders (Phase 6 step 6)
 
     /// Open the "cast this screen to a TV" sheet and begin discovering routes
@@ -633,16 +688,64 @@ public final class AppModel {
         showCastSheet = true
     }
 
-    public func castCurrentScreen(to route: CastRoute) {
-        guard let render = activeScreenView else { return }
-        castManager.cast(render, to: route)
+    /// Cast the stream this device is currently *viewing* onward to a TV.
+    public func castCurrentScreen(to route: CastRoute?) {
+        guard let render = activeScreenView else {
+            lastError = "There's no stream to relay. To put THIS device's screen on a TV, "
+                + "use Share → Show My Screen instead."
+            return
+        }
+        Task {
+            await castManager.cast(render, to: route)
+            reportCastOutcome(route)
+        }
+    }
+
+    /// Cast **this device's own screen** to a TV / browser. No peer needed.
+    public func castMyScreen(_ source: CaptureSourceDescriptor, to route: CastRoute?) {
+        guard let capturer = ConduitNode.defaultScreenCapturer() else {
+            lastError = "This device can't capture its screen."
+            return
+        }
+        shareScreenBusy = true
+        Task {
+            await castManager.castLocalScreen(source: source, capturer: capturer, to: route)
+            shareScreenBusy = false
+            reportCastOutcome(route)
+        }
+    }
+
+    private func reportCastOutcome(_ route: CastRoute?) {
+        if let failure = castManager.lastError {
+            lastError = failure
+            castManager.lastError = nil
+            return
+        }
         showCastSheet = false
-        toast = "Casting to \(route.name)"
+        if let route {
+            toast = "Casting to \(route.name)"
+        } else if let url = castManager.watchURL {
+            toast = "Open \(url.host ?? "this Mac"):\(url.port ?? 80) in any browser to watch"
+        }
     }
 
     public func stopCasting() {
         castManager.stopCasting()
         castManager.stopDiscovery()
+    }
+
+    /// Opens the macOS Screen Mirroring control. macOS can put a Mac desktop on
+    /// an Apple TV as a real **extended** display (a second desktop, not a
+    /// mirror) — but only the user can select it: there is no public API to
+    /// pick an AirPlay display, and the UI-scripting workarounds break on every
+    /// Control Center redesign. So MOSIS points at it honestly rather than
+    /// pretending to drive it.
+    public func openAirPlayDisplaySettings() {
+        #if os(macOS)
+        if let url = URL(string: "x-apple.systempreferences:com.apple.Displays-Settings.extension") {
+            NSWorkspace.shared.open(url)
+        }
+        #endif
     }
 
     // MARK: Social permissions (Phase 7)
@@ -716,10 +819,19 @@ public final class AppModel {
     private func startBroadcastStatusPolling() {
         guard broadcastPollTask == nil else { return }
         broadcastPollTask = Task { [weak self] in
+            var tick = 0
             while !Task.isCancelled {
                 try? await Task.sleep(for: .seconds(1))
                 guard let self else { return }
                 self.applyBroadcastStatus(BroadcastSharedStore.readStatus())
+                tick += 1
+                // Keep the viewer's attach watchdog alive while the user is
+                // still working through Apple's broadcast picker — otherwise the
+                // Mac gives up 45 s after the sheet opened, which is often
+                // before the phone has even started recording.
+                if tick % 20 == 0, self.broadcastStatus?.phase != .streaming {
+                    await self.node?.refreshIOSScreenBroadcastOffer()
+                }
             }
         }
     }

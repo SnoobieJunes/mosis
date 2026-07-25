@@ -46,18 +46,39 @@ struct CastSheet: View {
         NavigationStack {
             List {
                 Section {
+                    // Start publishing FIRST, then let the system picker choose
+                    // a receiver. The route picker is an AppKit/UIKit control:
+                    // a SwiftUI `.onTapGesture` layered on top of it competes
+                    // with its own button for the tap, so the system sheet
+                    // often never opened — and when it did, the AVPlayer had no
+                    // item loaded yet, so picking a TV played nothing.
+                    Button {
+                        startAirPlay()
+                    } label: {
+                        Label("Prepare this stream for AirPlay", systemImage: "airplayvideo")
+                    }
                     HStack {
-                        Image(systemName: "airplayvideo")
-                        Text("AirPlay")
+                        Text("Choose a receiver")
                         Spacer()
                         AirPlayRoutePicker(player: model.castManager.airPlayPlayer)
                             .frame(width: 44, height: 44)
-                            .onTapGesture { startAirPlay() }
                     }
+                    .disabled(!model.castManager.isPublishing)
                 } header: {
                     Text("Send to a TV")
                 } footer: {
-                    Text("AirPlay is built in. Google Cast and Matter Casting appear here when their SDKs are added to the app (ADR 0011).")
+                    Text("Prepare the stream, then pick a receiver. AirPlay is built in; Google Cast and Matter Casting appear here when their SDKs are added to the app (ADR 0011). The TV runs a few seconds behind — good for watching, not for controlling.")
+                }
+                if let watch = model.castManager.watchURL {
+                    Section {
+                        Text(watch.absoluteString)
+                            .font(.callout.monospaced())
+                            .textSelection(.enabled)
+                    } header: {
+                        Text("Or open this in any browser")
+                    } footer: {
+                        Text("Works on a laptop, a tablet, or a smart TV's browser — nothing to install, no pairing.")
+                    }
                 }
 
                 let external = model.castManager.routes.filter { $0.kind != .airplay }

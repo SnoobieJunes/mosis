@@ -67,20 +67,38 @@ actor EventHub {
         if let existing = buffer.dropFirst(index).first(where: check) {
             return existing
         }
-        // Register a FUTURE-ONLY waiter: the buffer[index...] was already
-        // checked, so we must not re-scan the whole buffer (which would match a
-        // stale earlier event of the same type).
+        // Register a waiter that re-scans only buffer[index...], so it can never
+        // match a stale earlier event of the same type but also cannot miss one
+        // that landed while this waiter was being scheduled.
         return try await withTimeout(seconds: timeoutSeconds) {
             await withCheckedContinuation { continuation in
-                Task { await self.enqueueFutureOnly(check: check, continuation: continuation) }
+                Task { await self.enqueueFutureOnly(since: index, check: check, continuation: continuation) }
             }
         }
     }
 
     private func enqueueFutureOnly(
+        since index: Int,
         check: @escaping @Sendable (ConduitEvent) -> Bool,
         continuation: CheckedContinuation<ConduitEvent, Never>
     ) {
+        // Re-check from `index` before parking.
+        //
+        // `waitFor(since:)` scans the buffer, then registers the waiter from
+        // inside a *nested* Task — so any event arriving in the gap between
+        // those two steps was appended to the buffer with no waiter present,
+        // and then never seen by the waiter that arrived a moment later. The
+        // wait then hung for its whole timeout. The window is invisible on an
+        // idle machine and wide open under full-suite load, which is exactly
+        // when it bit: the first test of a suite, where the event being awaited
+        // is produced by the very call that precedes the wait.
+        //
+        // Re-scanning here closes it: this runs on the actor, so it cannot
+        // interleave with `push`.
+        if let existing = buffer.dropFirst(index).first(where: check) {
+            continuation.resume(returning: existing)
+            return
+        }
         waiters.append((check, continuation))
     }
 

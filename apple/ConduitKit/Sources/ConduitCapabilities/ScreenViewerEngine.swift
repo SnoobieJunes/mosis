@@ -116,6 +116,28 @@ public actor ScreenViewerEngine {
     // MARK: Offer
 
     public func handleOffer(_ offer: ScreenOfferBody, from peerDeviceID: String) {
+        // A repeat of an offer we're already waiting on is a keep-alive, not a
+        // new share: re-arm the attach watchdog and leave the existing session
+        // (and the UI showing it) alone.
+        //
+        // This is what makes an iPhone broadcast survivable. The offer is sent
+        // when the share sheet opens, but the user still has to tap the picker,
+        // wait for the system sheet, find MOSIS, tap Start Broadcast and sit
+        // through a 3-2-1 countdown before the extension so much as dials. Any
+        // hesitation burned the whole 45 s budget and the Mac gave up before
+        // the phone had begun — which is indistinguishable, from the phone,
+        // from the feature being broken.
+        if let existing = sessions[offer.screenSessionID], !existing.attached,
+           existing.peerDeviceID == peerDeviceID {
+            sessions[offer.screenSessionID]?.watchdogTask?.cancel()
+            let screenSessionID = offer.screenSessionID
+            sessions[offer.screenSessionID]?.watchdogTask = Task { [weak self] in
+                try? await Task.sleep(for: .seconds(Self.attachTimeout))
+                await self?.attachWatchdogFired(screenSessionID: screenSessionID)
+            }
+            screenLog.info("re-armed attach watchdog for a repeated offer")
+            return
+        }
         let render = ScreenRenderTarget(
             screenSessionID: offer.screenSessionID,
             width: offer.width, height: offer.height, sourceName: offer.sourceName

@@ -59,6 +59,8 @@ final class LocalHTTPServer: @unchecked Sendable {
         guard let publisher else { conn.cancel(); return }
         let (body, contentType): (Data?, String)
         switch path {
+        case "/", "/index.html", "/watch":
+            (body, contentType) = (Data(Self.watchPage.utf8), "text/html; charset=utf-8")
         case "/stream.m3u8":
             (body, contentType) = (Data(publisher.playlist().utf8), "application/vnd.apple.mpegurl")
         case "/init.mp4":
@@ -93,4 +95,76 @@ final class LocalHTTPServer: @unchecked Sendable {
         let parts = firstLine.split(separator: " ")
         return parts.count >= 2 ? String(parts[1]) : "/"
     }
+
+    /// The zero-install viewer: any browser on the LAN — a laptop, a tablet, a
+    /// smart TV — opens this URL and watches, with nothing to install and no
+    /// pairing. It is the 2013 APPture demo ("put in the web address and it
+    /// streams") that `plans/06-appture-2013-gap-analysis.md` calls the single
+    /// highest-leverage gap, and it is the only cast target that works when the
+    /// TV is not an Apple TV or a Chromecast.
+    ///
+    /// Deliberately dependency-free: Safari, iOS, iPadOS, tvOS and most
+    /// smart-TV browsers play HLS from a plain `<video>` element. Chrome and
+    /// Firefox on the desktop do not, and rather than vendor a megabyte of
+    /// hls.js the page says so plainly and offers the raw stream URL for VLC.
+    private static let watchPage = """
+    <!doctype html>
+    <html lang="en">
+    <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>MOSIS — shared screen</title>
+    <style>
+      :root { color-scheme: dark; }
+      * { box-sizing: border-box; }
+      html, body { margin: 0; height: 100%; background: #000; color: #f2f2f7;
+        font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+      body { display: flex; flex-direction: column; }
+      video { flex: 1 1 auto; width: 100%; min-height: 0; background: #000; }
+      .bar { flex: 0 0 auto; display: flex; gap: 12px; align-items: center;
+        padding: 10px 16px; background: #1c1c1e; border-top: 1px solid #2c2c2e; }
+      .dot { width: 9px; height: 9px; border-radius: 50%; background: #30d158; flex: 0 0 auto; }
+      .name { font-weight: 600; }
+      .hint { color: #98989d; font-size: 13px; }
+      #fallback { display: none; padding: 24px; max-width: 44rem; margin: auto; text-align: center; }
+      #fallback code { background: #1c1c1e; padding: 3px 7px; border-radius: 5px;
+        font-size: 13px; user-select: all; word-break: break-all; }
+      button { font: inherit; color: inherit; background: #2c2c2e; border: 0;
+        border-radius: 8px; padding: 8px 14px; cursor: pointer; }
+    </style>
+    </head>
+    <body>
+    <video id="v" controls autoplay playsinline muted></video>
+    <div id="fallback">
+      <h2>This browser can't play the stream</h2>
+      <p>Safari, an iPhone, an iPad, an Apple TV, and most smart-TV browsers play it directly.
+         Chrome and Firefox on a desktop don't support HLS without a plugin.</p>
+      <p>Open this page in Safari, or paste this into VLC:</p>
+      <p><code id="u"></code></p>
+    </div>
+    <div class="bar">
+      <span class="dot"></span>
+      <span class="name">MOSIS</span>
+      <span class="hint">Live screen over your local network &middot; a few seconds behind</span>
+      <span style="flex:1"></span>
+      <button onclick="document.getElementById('v').requestFullscreen&&document.getElementById('v').requestFullscreen()">Full screen</button>
+    </div>
+    <script>
+      var v = document.getElementById('v');
+      var src = new URL('stream.m3u8', location.href).href;
+      document.getElementById('u').textContent = src;
+      if (v.canPlayType('application/vnd.apple.mpegurl')) {
+        v.src = src;
+        // The stream is a live window of segments; if the player falls behind
+        // or the source restarts, reload rather than sit on a stalled buffer.
+        v.addEventListener('error', function () { setTimeout(function () { v.src = src; }, 1500); });
+        v.addEventListener('ended', function () { setTimeout(function () { v.src = src; }, 1500); });
+      } else {
+        v.style.display = 'none';
+        document.getElementById('fallback').style.display = 'block';
+      }
+    </script>
+    </body>
+    </html>
+    """
 }

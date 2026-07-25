@@ -29,6 +29,19 @@ enum PasteboardBridge {
     }
 }
 
+/// Small platform affordances the UI needs but SwiftUI doesn't expose.
+enum PlatformBridges {
+    /// Bring the app to the front. Prompts here (pick a screen, allow control)
+    /// are sheets on the app's window: if the app is behind whatever the user
+    /// was actually doing, the prompt is invisible and times out unanswered,
+    /// which reads exactly like the feature being broken.
+    @MainActor static func activateApp() {
+        #if os(macOS)
+        NSApplication.shared.activate(ignoringOtherApps: true)
+        #endif
+    }
+}
+
 /// Local notifications for receive events while the app is in the background
 /// (spec §9 Phase 1 step 8).
 enum NotificationBridge {

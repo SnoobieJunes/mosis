@@ -13,6 +13,35 @@ import ConduitTransport
 /// resulting fMP4 init + media segments are served from a tiny local HTTP
 /// server. Cast SDKs all load a URL, so one mechanism feeds all three.
 public final class HLSPublisher: NSObject, @unchecked Sendable {
+
+    /// Why publishing couldn't start. Every one of these used to be a bare
+    /// `return nil` that the cast path turned into silence: `CastManager` did
+    /// `guard let url else { return }` and the user saw a button that did
+    /// nothing. Naming them is the whole point.
+    public enum StartError: LocalizedError, Equatable {
+        case writerRejectedInput
+        case writerWouldNotStart
+        case httpServerPortUnavailable
+        case noLANAddress
+        case noFramesCaptured
+
+        public var errorDescription: String {
+            switch self {
+            case .writerRejectedInput:
+                "This Mac's video writer wouldn't accept the screen's format."
+            case .writerWouldNotStart:
+                "Couldn't start the video writer for the cast stream."
+            case .httpServerPortUnavailable:
+                "Couldn't open a local port to serve the stream from."
+            case .noLANAddress:
+                "This Mac has no local network address — connect it to Wi-Fi or Ethernet, "
+                    + "since the TV has to reach it."
+            case .noFramesCaptured:
+                "Screen capture started but produced no frames, so there was nothing to send."
+            }
+        }
+    }
+
     public private(set) var streamURL: URL?
 
     private var writer: AVAssetWriter?
@@ -31,10 +60,11 @@ public final class HLSPublisher: NSObject, @unchecked Sendable {
     private var server: LocalHTTPServer?
 
     /// Begins publishing. `formatHint` is the video format description of the
-    /// incoming stream (from the viewer's decoder). Returns the URL, or nil on
-    /// failure. Call `append` for each decoded sample buffer thereafter.
-    public func start(formatHint: CMFormatDescription, port: UInt16 = 0) -> URL? {
-        guard !started else { return streamURL }
+    /// stream (from a keyframe's parameter sets). Throws a named `StartError`
+    /// on every failure path. Call `append` for each sample buffer thereafter.
+    @discardableResult
+    public func start(formatHint: CMFormatDescription, port: UInt16 = 0) throws -> URL {
+        if started, let existing = streamURL { return existing }
         let writer = AVAssetWriter(contentType: .mpeg4Movie)
         writer.outputFileTypeProfile = .mpeg4AppleHLS
         writer.preferredOutputSegmentInterval = CMTime(seconds: 1, preferredTimescale: 1)
@@ -43,21 +73,42 @@ public final class HLSPublisher: NSObject, @unchecked Sendable {
 
         let input = AVAssetWriterInput(mediaType: .video, outputSettings: nil, sourceFormatHint: formatHint)
         input.expectsMediaDataInRealTime = true
-        guard writer.canAdd(input) else { return nil }
+        guard writer.canAdd(input) else { throw StartError.writerRejectedInput }
         writer.add(input)
-        guard writer.startWriting() else { return nil }
+        guard writer.startWriting() else { throw StartError.writerWouldNotStart }
         writer.startSession(atSourceTime: .zero)
+
+        let server = LocalHTTPServer(publisher: self)
+        guard let boundPort = server.start(port: port) else {
+            writer.cancelWriting()
+            throw StartError.httpServerPortUnavailable
+        }
+        guard let host = Self.primaryLANAddress() else {
+            server.stop()
+            writer.cancelWriting()
+            throw StartError.noLANAddress
+        }
+        guard let url = URL(string: "http://\(host):\(boundPort)/stream.m3u8") else {
+            server.stop()
+            writer.cancelWriting()
+            throw StartError.noLANAddress
+        }
         self.writer = writer
         self.input = input
         self.started = true
-
-        let server = LocalHTTPServer(publisher: self)
-        guard let boundPort = server.start(port: port) else { return nil }
         self.server = server
-        guard let host = Self.primaryLANAddress() else { return nil }
-        let url = URL(string: "http://\(host):\(boundPort)/stream.m3u8")
         self.streamURL = url
         return url
+    }
+
+    /// The page a browser opens to watch this stream — `stream.m3u8` minus the
+    /// filename. Any laptop, tablet, or smart-TV browser on the LAN can load it
+    /// with nothing installed.
+    public var watchPageURL: URL? {
+        guard let streamURL, var components = URLComponents(url: streamURL, resolvingAgainstBaseURL: false)
+        else { return nil }
+        components.path = "/"
+        return components.url
     }
 
     /// Appends one decoded sample buffer (retimed so the first is at zero).
@@ -66,7 +117,7 @@ public final class HLSPublisher: NSObject, @unchecked Sendable {
         let pts = CMSampleBufferGetPresentationTimeStamp(sampleBuffer)
         if startTime == nil { startTime = pts }
         let base = startTime ?? .zero
-        var timing = CMSampleTimingInfo(
+        let timing = CMSampleTimingInfo(
             duration: CMSampleBufferGetDuration(sampleBuffer),
             presentationTimeStamp: CMTimeSubtract(pts, base),
             decodeTimeStamp: .invalid
@@ -86,6 +137,13 @@ public final class HLSPublisher: NSObject, @unchecked Sendable {
         server?.stop()
         server = nil
         streamURL = nil
+        // Fully reset so the same publisher can be started again for the next
+        // cast. Leaving the writer and the accumulated segments behind meant a
+        // second cast served the *first* cast's playlist.
+        writer = nil
+        input = nil
+        startTime = nil
+        state.set(Segments())
     }
 
     // MARK: HLS playlist + segment access (used by the HTTP server)

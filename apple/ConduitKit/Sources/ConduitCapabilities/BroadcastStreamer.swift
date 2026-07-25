@@ -27,6 +27,18 @@ public actor BroadcastStreamer {
     static let maxSendFailures = 30
     /// Report progress every N sent frames.
     static let statusEveryFrames: UInt64 = 30
+    /// How many *raw* captured frames may be waiting for the encoder.
+    ///
+    /// One. A full-resolution iPhone frame is 10–14 MB and this process is
+    /// jetsammed at roughly 50 MB, so a queue of four is a kill. Dropping a
+    /// stale frame is always better than dying: the encoder catches up on the
+    /// next one, whereas a jetsam kills the extension without running
+    /// `broadcastFinished()`, which leaves the phone's banner claiming to
+    /// stream forever and the red recording pill on with nothing behind it.
+    static let rawFrameQueueDepth = 1
+    /// How many *encoded* frames may be waiting for the socket. Small, so it's
+    /// cheap, but deep enough to ride out a brief write stall.
+    static let encodedFrameQueueDepth = 4
 
     private let config: BroadcastConfig
     private var backend: LANBackend?
@@ -40,6 +52,26 @@ public actor BroadcastStreamer {
     private var finishing = false
     private var endedReported = false
     private var attachContinuation: CheckedContinuation<Bool, Never>?
+    private var encodeFailures = 0
+
+    /// Capture → encoder, and encoder → socket, are both single-consumer
+    /// pipelines rather than a Task per frame.
+    ///
+    /// The Task-per-frame version had two defects that a loopback test with
+    /// synthetic 320×240 frames cannot show. First, independently created Tasks
+    /// are not delivered to an actor in FIFO order, so frames could be *encoded*
+    /// out of PTS order and stamped with out-of-order `sentSeq` — the viewer's
+    /// decoder and sequence logic both assume order, and the result is stutter
+    /// and artefacts with no error anywhere. Second, every queued Task pinned a
+    /// full-resolution `CVPixelBuffer` alive, which is precisely the unbounded
+    /// raw-frame buffering the memory cap forbids.
+    private var rawFeed: AsyncStream<(SendableBox<CVPixelBuffer>, CMTime)>.Continuation?
+    private var encodedFeed: AsyncStream<(EncodedVideoFrame, CMTime)>.Continuation?
+    private var encodeTask: Task<Void, Never>?
+    private var sendTask: Task<Void, Never>?
+    /// Raw frames dropped because the encoder was still busy — reported in the
+    /// status line so a struggling broadcast is visible rather than mysterious.
+    private var framesDropped: UInt64 = 0
 
     private let onLog: @Sendable (String) -> Void
     /// Status heartbeat for the container app's UI (phase, detail, frames).
@@ -126,16 +158,40 @@ public actor BroadcastStreamer {
         }
 
         let wireSessionID = config.wireSessionID
+        // Encoded frames go onto a bounded stream drained by ONE task, so
+        // sequence numbers are stamped in encode order.
+        let (encodedStream, encodedContinuation) = AsyncStream.makeStream(
+            of: (EncodedVideoFrame, CMTime).self,
+            bufferingPolicy: .bufferingNewest(Self.encodedFrameQueueDepth)
+        )
+        self.encodedFeed = encodedContinuation
         let encoder = VideoEncoder(
             config: .init(width: config.width, height: config.height,
                           fps: config.fps, bitrate: config.bitrate, codec: config.codec)
-        ) { [weak self] frame, pts in
-            guard let self else { return }
-            Task { await self.sendFrame(frame, pts: pts, wireSessionID: wireSessionID) }
+        ) { frame, pts in
+            encodedContinuation.yield((frame, pts))
         }
         try encoder.start()
         encoder.requestKeyframe()
         self.encoder = encoder
+        sendTask = Task { [weak self] in
+            for await (frame, pts) in encodedStream {
+                await self?.sendFrame(frame, pts: pts, wireSessionID: wireSessionID)
+            }
+        }
+
+        // Raw capture → encoder, likewise single-consumer and depth-1, so at
+        // most one full-resolution pixel buffer is ever held waiting.
+        let (rawStream, rawContinuation) = AsyncStream.makeStream(
+            of: (SendableBox<CVPixelBuffer>, CMTime).self,
+            bufferingPolicy: .bufferingNewest(Self.rawFrameQueueDepth)
+        )
+        self.rawFeed = rawContinuation
+        encodeTask = Task { [weak self] in
+            for await (box, pts) in rawStream {
+                await self?.encode(box, pts: pts)
+            }
+        }
 
         onStatus(.streaming, "connected to \(viewerLabel) via \(connectedHost):\(config.viewerPort)", 0)
         onLog("broadcast streaming to \(connectedHost):\(config.viewerPort)")
@@ -153,14 +209,37 @@ public actor BroadcastStreamer {
 
     /// Called from the broadcast SampleHandler for each video sample buffer.
     /// Nonisolated so the extension can call it directly with a non-Sendable
-    /// CVPixelBuffer; boxing/hop happens here, inside the module.
+    /// CVPixelBuffer; boxing happens here, inside the module.
+    ///
+    /// Yields onto a depth-1 bounded stream. Under load the *older* frame is
+    /// dropped, which is the only correct behaviour in a 50 MB process: the
+    /// alternative is queueing 14 MB buffers until the OS kills the extension.
     public nonisolated func handleSampleBuffer(_ pixelBuffer: CVPixelBuffer, pts: CMTime) {
         let box = SendableBox(pixelBuffer)
-        Task { await self.encode(box, pts: pts) }
+        Task { await self.enqueueRaw(box, pts: pts) }
+    }
+
+    private func enqueueRaw(_ box: SendableBox<CVPixelBuffer>, pts: CMTime) {
+        guard let rawFeed, !finishing else { return }
+        if case .dropped = rawFeed.yield((box, pts)) {
+            framesDropped &+= 1
+        }
     }
 
     private func encode(_ box: SendableBox<CVPixelBuffer>, pts: CMTime) {
-        try? encoder?.encode(box.value, pts: pts)
+        guard let encoder else { return }
+        do {
+            try encoder.encode(box.value, pts: pts)
+            encodeFailures = 0
+        } catch {
+            // Swallowing this meant a dead encoder looked exactly like a frozen
+            // phone screen: the recording pill stayed red and the viewer sat on
+            // its last frame until a watchdog blamed the network.
+            encodeFailures += 1
+            if encodeFailures >= Self.maxSendFailures {
+                endBroadcast(reason: "this iPhone's video encoder stopped working: \(error)", clean: false)
+            }
+        }
     }
 
     private func sendFrame(_ frame: EncodedVideoFrame, pts: CMTime, wireSessionID: UInt16) async {
@@ -176,7 +255,10 @@ public actor BroadcastStreamer {
             sendFailures = 0
             framesSent &+= 1
             if framesSent % Self.statusEveryFrames == 0 {
-                onStatus(.streaming, "streaming to \(viewerLabel)", framesSent)
+                let detail = framesDropped > 0
+                    ? "streaming to \(viewerLabel) · \(framesDropped) frames dropped keeping up"
+                    : "streaming to \(viewerLabel)"
+                onStatus(.streaming, detail, framesSent)
             }
         } catch {
             onLog("frame send failed: \(error)")
@@ -225,6 +307,12 @@ public actor BroadcastStreamer {
     public func finish() async {
         finishing = true
         readTask?.cancel()
+        // Close the pipelines before stopping the encoder so nothing is left
+        // yielding into a torn-down session.
+        rawFeed?.finish(); rawFeed = nil
+        encodedFeed?.finish(); encodedFeed = nil
+        encodeTask?.cancel(); encodeTask = nil
+        sendTask?.cancel(); sendTask = nil
         encoder?.stop()
         if let bulk {
             try? await bulk.send(.screenEnd(ScreenEndBody(screenSessionID: config.screenSessionID)))

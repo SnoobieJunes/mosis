@@ -79,6 +79,32 @@ struct ScreenBroadcastSheet: View {
                 .foregroundStyle(.secondary)
                 .multilineTextAlignment(.center)
 
+            // Be honest about the better tool for one specific case. Apple's own
+            // AirPlay is more reliable for iPhone → Mac and needs no code from
+            // us — it just cannot be started programmatically, cannot be
+            // observed, and only works Apple-to-Apple. MOSIS earns its keep on
+            // the receivers AirPlay refuses to serve: an Apple TV running the
+            // MOSIS viewer, an Android tablet, a Windows or Linux node, or any
+            // browser. Saying so costs nothing and buys trust.
+            if peer.deviceClass == .desktop || peer.deviceClass == .laptop {
+                DisclosureGroup("Or use AirPlay instead") {
+                    Text("""
+                    For a Mac, Apple's own screen mirroring is simpler and more reliable:
+
+                    1. On the Mac, turn on **AirPlay Receiver** in System Settings → General → AirDrop & Continuity.
+                    2. On this iPhone, open Control Center → **Screen Mirroring** → pick the Mac.
+
+                    No app can start that for you — Apple exposes no API — so it's a manual step. \
+                    MOSIS's own sharing is what works with an Apple TV, an Android tablet, a PC, or a browser, \
+                    which AirPlay can't do.
+                    """)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .padding(.top, 4)
+                }
+                .font(.caption)
+            }
+
             HStack(spacing: 16) {
                 Button("Cancel Share", role: .destructive) {
                     model.stopIOSBroadcast()

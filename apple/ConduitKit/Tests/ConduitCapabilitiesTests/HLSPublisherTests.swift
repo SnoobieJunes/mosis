@@ -64,7 +64,7 @@ private final class FrameCollector: @unchecked Sendable {
 
         // Feed the reconstructed sample buffers to the publisher.
         let publisher = HLSPublisher()
-        let url = try #require(publisher.start(formatHint: format), "publisher must produce a URL")
+        let url = try publisher.start(formatHint: format)
         #expect(url.absoluteString.contains("/stream.m3u8"))
         defer { publisher.stop() }
 
@@ -90,6 +90,15 @@ private final class FrameCollector: @unchecked Sendable {
         #expect(String(decoding: m3u8, as: UTF8.self).contains("#EXTM3U"))
         let initSeg = try await httpGet("http://\(host):\(port)/init.mp4")
         #expect(!initSeg.isEmpty)
+
+        // The zero-install viewer: the same server serves a page any browser on
+        // the LAN can open. This is the only cast target that works when the TV
+        // is neither an Apple TV nor a Chromecast.
+        let page = try await httpGet("http://\(host):\(port)/")
+        let html = String(decoding: page, as: UTF8.self)
+        #expect(html.contains("<video"))
+        #expect(html.contains("stream.m3u8"))
+        #expect(publisher.watchPageURL?.path == "/")
     }
 
     private func httpGet(_ urlString: String) async throws -> Data {

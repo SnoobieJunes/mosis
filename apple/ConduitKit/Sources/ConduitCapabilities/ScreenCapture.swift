@@ -6,7 +6,7 @@ import ConduitProtocol
 /// A thing a source can capture (spec §9 Phase 3 step 2: display OR single
 /// window — the mosis capture-kind toggle). Platform-neutral so the source
 /// engine and UI don't depend on ScreenCaptureKit directly.
-public struct CaptureSourceDescriptor: Sendable, Identifiable, Equatable {
+public struct CaptureSourceDescriptor: Sendable, Identifiable, Equatable, Hashable {
     public let id: String
     public let kind: ScreenCaptureKind
     public let name: String
