@@ -14,9 +14,9 @@
             buildForAnalyzing = "YES">
             <BuildableReference
                BuildableIdentifier = "primary"
-               BlueprintIdentifier = "81AF205366A2831325D63C5D"
+               BlueprintIdentifier = "63E128F5A24ED29BF1833B53"
                BuildableName = "Conduit.app"
-               BlueprintName = "Conduit-macOS"
+               BlueprintName = "Conduit-tvOS"
                ReferencedContainer = "container:ConduitApps.xcodeproj">
             </BuildableReference>
          </BuildActionEntry>
@@ -30,9 +30,9 @@
       <MacroExpansion>
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "81AF205366A2831325D63C5D"
+            BlueprintIdentifier = "63E128F5A24ED29BF1833B53"
             BuildableName = "Conduit.app"
-            BlueprintName = "Conduit-macOS"
+            BlueprintName = "Conduit-tvOS"
             ReferencedContainer = "container:ConduitApps.xcodeproj">
          </BuildableReference>
       </MacroExpansion>
@@ -53,9 +53,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "81AF205366A2831325D63C5D"
+            BlueprintIdentifier = "63E128F5A24ED29BF1833B53"
             BuildableName = "Conduit.app"
-            BlueprintName = "Conduit-macOS"
+            BlueprintName = "Conduit-tvOS"
             ReferencedContainer = "container:ConduitApps.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
@@ -70,9 +70,9 @@
          runnableDebuggingMode = "0">
          <BuildableReference
             BuildableIdentifier = "primary"
-            BlueprintIdentifier = "81AF205366A2831325D63C5D"
+            BlueprintIdentifier = "63E128F5A24ED29BF1833B53"
             BuildableName = "Conduit.app"
-            BlueprintName = "Conduit-macOS"
+            BlueprintName = "Conduit-tvOS"
             ReferencedContainer = "container:ConduitApps.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>

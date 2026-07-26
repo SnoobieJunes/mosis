@@ -123,14 +123,40 @@ public actor InputControllerEngine {
 
         // The datagram lane is a BACKGROUND upgrade for loss-tolerant moves,
         // adopted only after the receiver echoes our INPUT_ATTACH back over it.
+        //
+        // It RETRIES rather than trying once. Getting this lane up is what keeps
+        // pointer motion off the TCP session link, and that matters most in
+        // exactly the situation where the first attempt is likeliest to fail:
+        // the screen share has fallen back to the session link, so every move
+        // now queues behind 2.5 Mbps of video on one connection. One failed dial
+        // at grant time used to condemn the whole session to that.
         datagramUpgradeTask?.cancel()
         datagramUpgradeTask = nil
         if let udpPort = status.udpPort, let token = status.datagramToken {
             let peerID = current.peerDeviceID
             datagramUpgradeTask = Task { [weak self] in
-                await self?.upgradeToDatagram(peerDeviceID: peerID, udpPort: udpPort, token: token)
+                for attempt in 0..<Self.datagramUpgradeAttempts {
+                    if attempt > 0 {
+                        try? await Task.sleep(for: .seconds(Self.datagramRetryDelay))
+                    }
+                    guard !Task.isCancelled else { return }
+                    guard await self?.stillNeedsDatagram(peerDeviceID: peerID) == true else { return }
+                    await self?.upgradeToDatagram(peerDeviceID: peerID, udpPort: udpPort, token: token)
+                }
             }
         }
+    }
+
+    /// How many times to try bringing the datagram lane up before settling for
+    /// the reliable lane, and how long to wait between attempts.
+    static let datagramUpgradeAttempts = 5
+    static let datagramRetryDelay: Double = 15
+
+    /// True while this peer is still being controlled with no datagram lane —
+    /// i.e. another attempt is worth making.
+    private func stillNeedsDatagram(peerDeviceID: String) -> Bool {
+        guard let current = active, current.peerDeviceID == peerDeviceID else { return false }
+        return current.datagram == nil
     }
 
     /// Background upgrade: dial the DTLS datagram lane and adopt it for moves ONLY
@@ -206,6 +232,17 @@ public actor InputControllerEngine {
         await coalescer?.enqueueMove(dx: dx, dy: dy)
     }
 
+    /// Point at a position on a screen this controller is watching. `dx`/`dy`
+    /// are the equivalent delta, kept so a receiver that predates absolute
+    /// coordinates still follows the pointer.
+    public func sendMoveAbsolute(
+        nx: Double, ny: Double, dx: Double, dy: Double, screenSessionID: String?
+    ) async {
+        await coalescer?.enqueueAbsoluteMove(
+            nx: nx, ny: ny, dx: dx, dy: dy, screenSessionID: screenSessionID
+        )
+    }
+
     public func sendScroll(dx: Double, dy: Double) async {
         await coalescer?.enqueueScroll(dx: dx, dy: dy)
     }
@@ -214,12 +251,16 @@ public actor InputControllerEngine {
         await coalescer?.enqueueDiscrete(.click(button, action: action, clickCount: clickCount))
     }
 
-    public func sendText(_ text: String, modifiers: [InputModifier] = []) async {
-        await coalescer?.enqueueDiscrete(.text(text, modifiers: modifiers))
+    public func sendText(
+        _ text: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) async {
+        await coalescer?.enqueueDiscrete(.text(text, action: action, modifiers: modifiers))
     }
 
-    public func sendSpecialKey(_ name: String, modifiers: [InputModifier] = []) async {
-        await coalescer?.enqueueDiscrete(.specialKey(name, modifiers: modifiers))
+    public func sendSpecialKey(
+        _ name: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) async {
+        await coalescer?.enqueueDiscrete(.specialKey(name, action: action, modifiers: modifiers))
     }
 
     public func sendMedia(_ action: MediaAction, value: Double? = nil) async {

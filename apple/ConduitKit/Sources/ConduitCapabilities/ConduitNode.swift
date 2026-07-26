@@ -55,6 +55,11 @@ public actor ConduitNode {
     private let identity: DeviceIdentity
     private let peerStore: PeerStore
     private let backend: LANBackend
+    /// Wi-Fi Aware accelerator (ADR 0003). Nil everywhere it can't run —
+    /// non-iOS, pre-iOS 26, unsupported hardware, or the service undeclared in
+    /// the host Info.plist — and the node is LAN-only exactly as before.
+    private let awareBackend: (any AwareTransporting)?
+    private var awareAcceptTask: Task<Void, Never>?
     private let pairingAcceptance: Locked<Bool>
     /// Device-seam counters for the debug HUD (M2). Snapshotted ~1 Hz in start().
     private let diagnostics: Diagnostics
@@ -131,13 +136,18 @@ public actor ConduitNode {
         let pairingAcceptance = Locked(false)
         self.pairingAcceptance = pairingAcceptance
 
+        let listenerPolicyProvider: @Sendable () -> TLSVerifyPolicy = {
+            pairingAcceptance.get()
+                ? .acceptAnyForPairing
+                : .pinned(peerStore.currentPinnedTLSKeyHashes())
+        }
         self.backend = try LANBackend(
             material: bundle.tlsMaterial,
-            listenerPolicyProvider: {
-                pairingAcceptance.get()
-                    ? .acceptAnyForPairing
-                    : .pinned(peerStore.currentPinnedTLSKeyHashes())
-            }
+            listenerPolicyProvider: listenerPolicyProvider
+        )
+        self.awareBackend = AwareBackendFactory.make(
+            material: bundle.tlsMaterial,
+            listenerPolicyProvider: listenerPolicyProvider
         )
 
         let (stream, continuation) = AsyncStream.makeStream(of: ConduitEvent.self, bufferingPolicy: .unbounded)
@@ -196,6 +206,12 @@ public actor ConduitNode {
                 diagnostics: diagnostics,
                 requestConsent: { peerID in
                     await selfBox.node?.awaitInputConsent(peerID: peerID) ?? false
+                },
+                // Absolute pointing needs to know which display the controller
+                // is watching; only the screen source knows that. Routed through
+                // the node because the screen engine is built after this one.
+                resolveRegion: { screenSessionID in
+                    await selfBox.node?.captureRegion(forScreenSessionID: screenSessionID) ?? nil
                 }
             )
         } else {
@@ -288,6 +304,21 @@ public actor ConduitNode {
                 Task { await self.routeInbound(connection) }
             }
         }
+        // Aware inbound connections join the exact same routing: sessions never
+        // care which backend carried them (the HUD badge reads backendKind).
+        if let aware = awareBackend {
+            do {
+                let awareInbound = try await aware.start()
+                awareAcceptTask = Task {
+                    for await connection in awareInbound {
+                        Task { await self.routeInbound(connection) }
+                    }
+                }
+                nodeLog.info("Wi-Fi Aware backend started")
+            } catch {
+                nodeLog.warning("Wi-Fi Aware backend failed to start (LAN-only): \(String(describing: error), privacy: .public)")
+            }
+        }
         // Bonjour browsing can die on its own (observed on device:
         // "browser failed: -65569: DefunctConnection" after a network change).
         // The stream then simply ends and nothing is ever discovered again
@@ -320,6 +351,8 @@ public actor ConduitNode {
 
     public func stop() async {
         acceptTask?.cancel()
+        awareAcceptTask?.cancel()
+        awareBackend?.shutdown()
         browseTask?.cancel()
         diagnosticsTask?.cancel()
         for loop in connectLoops.values { loop.cancel() }
@@ -586,8 +619,11 @@ public actor ConduitNode {
         guard let peer = await peerStore.peer(id: deviceID) else { return false }
         let discovered = lastDiscovered.first(where: { $0.deviceID == deviceID })
         let manual = manualEndpoints[deviceID]
+        // Aware endpoints are anonymous until TLS pins them, so "visible over
+        // Aware" is a property of the backend, not of this specific peer.
+        let awareVisible = (awareBackend?.visibleEndpointCount ?? 0) > 0
         emit(.sessionStateChanged(deviceID: deviceID, state: .connecting, backend: nil))
-        guard discovered != nil || manual != nil else {
+        guard discovered != nil || manual != nil || awareVisible else {
             return false // not visible yet; back off and retry
         }
         do {
@@ -604,7 +640,15 @@ public actor ConduitNode {
             // reachable peer.
             var connection: (any ByteStreamConnection)?
             var errors: [String] = []
-            if let discovered {
+            // Aware first when its endpoints are around (spec §3: opportunistic
+            // accelerator — it's the only path that works with no AP at all).
+            // A wrong-device endpoint fails the pinned handshake fast and the
+            // chain falls through to LAN.
+            if awareVisible, let aware = awareBackend {
+                do { connection = try await aware.connectFirstAvailable(policy: policy, perEndpointTimeout: 5) }
+                catch { errors.append("aware: \(error)") }
+            }
+            if connection == nil, let discovered {
                 do { connection = try await backend.connect(to: discovered.endpoint, policy: policy) }
                 catch { errors.append("bonjour: \(error)") }
             }
@@ -906,6 +950,17 @@ public actor ConduitNode {
         await inputControllerEngine.sendMove(dx: dx, dy: dy)
     }
 
+    /// Point at a position on a peer's screen this device is watching — the
+    /// click-where-you-point half of remote control. Carries the equivalent
+    /// delta too, so a receiver that only understands deltas still tracks.
+    public func sendPointerMoveAbsolute(
+        nx: Double, ny: Double, dx: Double, dy: Double, screenSessionID: String?
+    ) async {
+        await inputControllerEngine.sendMoveAbsolute(
+            nx: nx, ny: ny, dx: dx, dy: dy, screenSessionID: screenSessionID
+        )
+    }
+
     public func sendScroll(dx: Double, dy: Double) async {
         await inputControllerEngine.sendScroll(dx: dx, dy: dy)
     }
@@ -914,12 +969,23 @@ public actor ConduitNode {
         await inputControllerEngine.sendClick(button, action: action, clickCount: clickCount)
     }
 
-    public func sendText(_ text: String, modifiers: [InputModifier] = []) async {
-        await inputControllerEngine.sendText(text, modifiers: modifiers)
+    public func sendText(
+        _ text: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) async {
+        await inputControllerEngine.sendText(text, action: action, modifiers: modifiers)
     }
 
-    public func sendSpecialKey(_ name: String, modifiers: [InputModifier] = []) async {
-        await inputControllerEngine.sendSpecialKey(name, modifiers: modifiers)
+    public func sendSpecialKey(
+        _ name: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) async {
+        await inputControllerEngine.sendSpecialKey(name, action: action, modifiers: modifiers)
+    }
+
+    /// The area a viewer's normalized pointer position maps into on this
+    /// device, for the screen session it is watching. Bridges the input
+    /// receiver to the screen source (see `InputReceiveEngine.resolveRegion`).
+    fileprivate func captureRegion(forScreenSessionID id: String) async -> InjectionRegion? {
+        await screenSourceEngine?.captureRegion(forScreenSessionID: id)
     }
 
     public func sendMedia(_ action: MediaAction, value: Double? = nil) async {

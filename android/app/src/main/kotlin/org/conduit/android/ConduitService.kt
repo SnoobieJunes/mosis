@@ -3,6 +3,7 @@ package org.conduit.android
 import android.app.*
 import android.content.Context
 import android.content.Intent
+import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -17,7 +18,14 @@ class ConduitService : Service() {
         super.onCreate()
         val runtime = ConduitRuntime.ensure(this)
         runtime.node.start()
-        startForeground(NOTIF_ID, buildNotification())
+        // Name the type explicitly rather than inheriting whatever the manifest
+        // declares: this service is the always-on node, and it must never claim
+        // mediaProjection (see the manifest comment — Android 14 rejects that
+        // before consent exists). Screen capture is ScreenShareService's job.
+        startForeground(
+            NOTIF_ID, buildNotification(),
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_CONNECTED_DEVICE,
+        )
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int = START_STICKY
@@ -27,11 +35,11 @@ class ConduitService : Service() {
         val mgr = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             mgr.createNotificationChannel(
-                NotificationChannel(CHANNEL, "Conduit", NotificationManager.IMPORTANCE_LOW)
+                NotificationChannel(CHANNEL, "MOSIS", NotificationManager.IMPORTANCE_LOW)
             )
         }
         return NotificationCompat.Builder(this, CHANNEL)
-            .setContentTitle("Conduit is running")
+            .setContentTitle("MOSIS is running")
             .setContentText("Connected devices can exchange files, input, and screens")
             .setSmallIcon(android.R.drawable.stat_sys_data_bluetooth)
             .setOngoing(true)

@@ -12,13 +12,31 @@ public struct CaptureSourceDescriptor: Sendable, Identifiable, Equatable, Hashab
     public let name: String
     public let width: Int
     public let height: Int
+    /// Top-left corner of this source in the device's own global coordinate
+    /// space. Zero for a single-display machine and for capturers that have no
+    /// concept of one; on a multi-display Mac it is what turns "the middle of
+    /// the display you're watching" into a real cursor position instead of the
+    /// middle of the display union. Never on the wire — the controller only
+    /// ever sends normalized coordinates.
+    public let originX: Int
+    public let originY: Int
 
-    public init(id: String, kind: ScreenCaptureKind, name: String, width: Int, height: Int) {
+    public init(id: String, kind: ScreenCaptureKind, name: String, width: Int, height: Int,
+                originX: Int = 0, originY: Int = 0) {
         self.id = id
         self.kind = kind
         self.name = name
         self.width = width
         self.height = height
+        self.originX = originX
+        self.originY = originY
+    }
+
+    /// The area an absolute pointer position from a viewer of this source maps
+    /// into on the receiving device.
+    public var injectionRegion: InjectionRegion {
+        InjectionRegion(x: Double(originX), y: Double(originY),
+                        width: Double(width), height: Double(height))
     }
 }
 

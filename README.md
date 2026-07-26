@@ -38,10 +38,10 @@ Decisions: [`docs/adr/`](docs/adr).
 |---|---|
 | `ConduitKit` Swift package (Protocol · Transport · Session · Capabilities · UI) | ✅ builds, Swift 6 strict concurrency |
 | **Go `conduit-core`** (wire · identity · transport · session · capabilities) | ✅ passes the golden vectors byte-for-byte |
-| **Kotlin core** (`android/core`, pure JVM) — third implementation | ✅ 47/47 vectors byte-exact + JVM session smoke |
+| **Kotlin core** (`android/core`, pure JVM) — third implementation | ✅ 52/52 vectors byte-exact + 18 builder vectors pinned against Swift's bytes + JVM session smoke |
 | **Live Swift↔Go interop**: pair, file transfer, clipboard, notification | ✅ real Go node ↔ Swift node over loopback TLS |
 | **`conduitd` daemon** (Windows/Linux/macOS) + cross-compilation | ✅ builds for all three; runs on macOS |
-| **Android app** — discovery, pairing, TLS, file receive, input receive, notification source | ◐ **builds now** (`./gradlew :app:assembleDebug`, wrapper committed); no device session yet. Screen sharing in **either** direction, BT-HID, and Wi-Fi Aware are written-but-unwired — see [`android/README.md`](android/README.md) for the corrected per-capability table |
+| **Android app** — discovery, pairing, TLS, files + clipboard both ways, input send/receive, screen viewer + source, notification source, BT-HID | ◐ **builds** (`./gradlew :app:assembleDebug`, wrapper committed); **no device session, ever** — including pairing, which everything else waits behind. Screen sharing in both directions, the send-side UI and BT-HID were wired in plan 07; Wi-Fi Aware is fixed but still uninstantiated. Per-capability table with each cell's verification method: [`android/README.md`](android/README.md) |
 | **tvOS viewer** (Apple TV — screen viewer + on-TV pairing) | ✅ builds for tvOS |
 | **Show My Screen** (macOS): push this Mac's display/window to a paired device — the "Share" half of the verb pair | ✅ `PushShareE2ETests` over real sockets, incl. two destinations with the reverse-dial impossible; no device session yet |
 | **Cast this Mac to a TV or any browser** — own capturer + encoder + live HLS, no peer required, with a zero-install watch page + QR | ✅ `HLSPublisherTests` serves playlist, init segment, and watch page over real HTTP; final hop to a physical TV is device-gated |
@@ -60,6 +60,8 @@ Decisions: [`docs/adr/`](docs/adr).
 | File transfer: chunked, windowed, bulk lane, SHA-256, resume | ✅ two-node E2E over real sockets |
 | Clipboard: explicit send/receive both directions | ✅ |
 | **Remote input**: phone→Mac trackpad/keyboard/media, 120 Hz coalescing, DTLS datagram lane | ✅ full-path E2E with fake injector |
+| **Watch and drive at once**: one "Take control" surface — live video that forwards pointer, scroll, both buttons and a hardware keyboard | ✅ `SimultaneousControlE2ETests` runs screen + input in one session, on the direct lane **and** the degraded one; fake injector, no device session |
+| **Click where you point**: optional normalized absolute coordinates, aimed at the display you're watching (ADR 0015) | ✅ appended golden vectors byte-exact in Swift + Go + Kotlin; lands on the correct display in E2E |
 | **macOS CGEvent injector**: pointer/scroll/click/key, multi-monitor clamp, secure-input guard, media keys | ✅ non-sandboxed (ADR 0005) |
 | **Screen streaming**: VideoToolbox HEVC/H.264 encode+decode, wire framing, adaptive bitrate | ✅ headless encode→wire→decode round-trip test |
 | **macOS source** (ScreenCaptureKit, display/window), **Apple viewer** (AVSampleBufferDisplayLayer) | ✅ two-node source→viewer E2E with synthetic capturer |
@@ -76,7 +78,8 @@ Requires Xcode 26+ on macOS 26+.
 
 ```bash
 cd apple/ConduitKit
-swift test --disable-sandbox      # 109 tests: protocol, pairing, TLS, input, video, contexts, multi-viewer, E2E
+swift test --disable-sandbox      # 126 tests: protocol, pairing, TLS, input, video, contexts,
+                                  # multi-viewer, simultaneous watch-and-drive, E2E
                                   # --disable-sandbox is REQUIRED — the sandbox HANGS the
                                   # Network/PKCS#12/VideoToolbox paths (docs/TESTING_PLAN.md §1).
                                   # The broadcast E2E suite self-skips unless the screen is

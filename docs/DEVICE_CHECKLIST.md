@@ -206,7 +206,7 @@ Reproduces the exact "I select a screen and nothing happens" report.
 4. Expect: the picker **closes itself** with "…stopped waiting for you to pick a
    screen." Previously it stayed open and every click did nothing at all.
 
-## 7. Android (unproven — the app had never compiled before 2026-07-20)
+## 7. Android (unproven — nothing in this app has ever run on a device)
 
 ```bash
 cd android && echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties
@@ -214,21 +214,56 @@ export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 ./gradlew :app:assembleDebug && adb install -r app/build/outputs/apk/debug/app-debug.apk
 ```
 
-Needs Android **13+**. In order, stopping at the first failure:
+Needs Android **13+**. In order, **stopping at the first failure** — the first
+three are the gate, and nothing below them means anything until they pass:
 
 - [ ] The app launches without crashing. (If it dies at startup with an Ed25519
-      message, `Identity.assertConsistent()` did its job — report the text.)
+      message, `Identity.assertConsistent()` did its job — report the text. If
+      it dies with a `SecurityException` about foreground service types, the
+      `ConduitService` / `ScreenShareService` split is wrong — report that too.)
 - [ ] The Mac appears under **Nearby**; pair; codes and words match on both.
 - [ ] **Force-quit the app and reopen it.** The pairing must survive — the TLS
-      key and the pinned-peer list are now persisted. This is the fix most likely
-      to matter and least likely to have been exercised.
-- [ ] Send a file Mac → Android.
-- [ ] Enable Accessibility on the phone, then drive it from the Mac.
-- [ ] **To watch the Mac's screen on the tablet today, use the browser page**
-      (§6) — the Android app has no video decoder, and the corrected
-      `android/README.md` says so.
+      key and the pinned-peer list are persisted. This is the fix most likely to
+      matter and least likely to have been exercised.
+- [ ] Send a file Mac → Android, and Android → Mac (the send UI is new).
+- [ ] Clipboard both ways (receive had no UI at all before).
+- [ ] Enable Accessibility on the phone, then drive it from the Mac: pointer,
+      a tap, a long-press (right click), and typing into a focused text field.
+      Then press an arrow key — it must show a message saying Android can't do
+      that, **not** silently do nothing.
+- [ ] **Watch the Mac's screen in the Android app** (Watch screen on a paired
+      row). Video within a few seconds; if the surface stays black while the
+      spinner clears, the AVCC→Annex-B conversion is the first suspect.
+- [ ] Kill the Mac's reverse dial (or use an AP with client isolation) and
+      repeat — frames must arrive on the session link instead.
+- [ ] **Mac views the Android screen**: request it from the Mac, accept both
+      prompts (MOSIS's, then Android's own capture consent). On Android 14+ this
+      is where a foreground-service-type mistake would surface.
+- [ ] Phone-as-Bluetooth-keyboard into a device with MOSIS **not** installed.
+- [ ] The browser watch page (§6) still works as the zero-install fallback.
 
-## 8. Regression sweep (5 min)
+## 8. Watch and drive at once (new, loop 7 — unproven on hardware)
+
+The composition plan 07 built. From an iPad or a second Mac, on a paired Mac:
+
+- [ ] **Take control of \<Mac\>** from the peer row's Connect menu. Video AND
+      the control banner appear together on one surface.
+- [ ] Move the pointer over the video: the Mac's cursor tracks it. With
+      **Point** on, the cursor goes *where you point* rather than dragging
+      toward it.
+- [ ] Click, right-click, and scroll on the video.
+- [ ] Type: characters land on the Mac, ⌘-chords work, a held arrow repeats.
+      On a Mac controller, **⌘Q must not quit the controlling app** — the local
+      key monitor should swallow it and send it to the far end.
+- [ ] Navigate away from the video and back: control **must not** end (that
+      teardown-on-navigate was the bug).
+- [ ] With two displays on the target Mac: watch the second one and click
+      something on it. The click must land on **that** display, not the first.
+      Use **Change display…** to switch, and repeat.
+- [ ] Do all of the above while the HUD shows lane == "control" (kill the
+      reverse dial): input must stay responsive while video shares the link.
+
+## 9. Regression sweep (5 min)
 
 - [ ] File both directions (HUD shows lane == "bulk", not control-lane fallback).
 - [ ] Clipboard both ways.

@@ -49,6 +49,14 @@ class AndroidNode(
 
     private val discoveredMap = ConcurrentHashMap<String, DiscoveredPeer>()
 
+    /** Screen sharing, both directions (AND-1 + AND-2). */
+    val screens = org.conduit.android.capability.ScreenSessions(
+        scope = scope,
+        sendTo = { peerId, type, payload -> links[peerId]?.send(type, payload) },
+        sendFrameTo = { peerId, frame -> links[peerId]?.sendScreenFrame(frame) },
+        toast = { toast.value = it },
+    )
+
     fun start() {
         loadPeers()
         val server = transport.listen(::listenerPolicy) { stream -> scope.launch { routeInbound(FramedConnection(stream)) } }
@@ -67,14 +75,18 @@ class AndroidNode(
 
     private fun capabilities(): List<String> = buildList {
         add(Proto.CAP_FILE); add(Proto.CAP_CLIPBOARD); add(Proto.CAP_NOTIFY_SHOW)
-        // NOT screen-source. `ScreenProjectionSource` exists but nothing
-        // instantiates it, and the Kotlin wire layer has no SCREEN_* builders,
-        // so advertising it made the Mac show "View <phone>'s screen" and then
-        // hand the user a request that could never be answered. A capability
-        // string is a promise; don't make one the code can't keep (spec §5.4:
-        // no capability may be used before it appears in HELLO_ACK — the
-        // corollary is that advertising one you can't serve is a lie).
-        // Re-add here the moment the source path is wired.
+        // screen-view: there is a real MediaCodec decoder behind this now
+        // (ScreenDecoder + ScreenViewerScreen), so the promise can be kept.
+        add(Proto.CAP_SCREEN_VIEW)
+        // screen-source: the MediaProjection path is wired end to end
+        // (ScreenShareManager → ScreenProjectionSource → SCREEN_FRAME). It was
+        // withdrawn while `ScreenProjectionSource` existed but nothing
+        // instantiated it and the wire layer had no SCREEN_* builders — a
+        // capability string is a promise, and advertising one the code can't
+        // keep made the Mac offer "View this phone's screen" and then hand the
+        // user a request that could never be answered. Both halves exist now.
+        // Still device-unverified: see android/README.md.
+        add(Proto.CAP_SCREEN_SOURCE)
         if (canReceiveInput) add(Proto.CAP_INPUT_INJECT)
         if (canSourceNotifications) add(Proto.CAP_NOTIFY_SOURCE)
     }
@@ -86,6 +98,11 @@ class AndroidNode(
         val (env, msg) = MessageCodec.decode(first.payload)
         when (msg.type) {
             MessageType.HELLO -> adoptSession(conn, msg.payload, env.sessionId)
+            // A source dialling back to stream video on a dedicated connection.
+            // Without this branch the Mac's reverse-dial was answered with a
+            // closed socket and every screen share fell back to the session
+            // link — when it worked at all.
+            MessageType.SCREEN_ATTACH -> screens.attachInboundLane(conn, msg.payload)
             MessageType.PAIR_REQUEST -> {
                 if (!pairingEnabled) { conn.send(MessageType.PAIR_REJECT, Bodies.pairReject("pairing disabled")); conn.close(); return }
                 val outcome = PairingFlow.respond(conn, msg.payload, env.sessionId, local) { p ->
@@ -181,6 +198,34 @@ class AndroidNode(
         links[peerId]?.send(MessageType.INPUT_EVENT, Bodies.inputEventClick())
     }
 
+    fun sendInputClick(peerId: String, button: String, action: String = "tap") {
+        moveCoalescer.flush()
+        links[peerId]?.send(MessageType.INPUT_EVENT, Bodies.inputEventClick(button, action))
+    }
+
+    fun sendInputScroll(peerId: String, dx: Double, dy: Double) {
+        moveCoalescer.flush()
+        links[peerId]?.send(MessageType.INPUT_EVENT, Bodies.inputEventScroll(dx, dy))
+    }
+
+    /** Literal characters, or a named special key. Ordering matches motion. */
+    fun sendInputKey(
+        peerId: String, text: String? = null, key: String? = null,
+        action: String? = null, modifiers: List<String> = emptyList(),
+    ) {
+        moveCoalescer.flush()
+        links[peerId]?.send(MessageType.INPUT_EVENT, Bodies.inputEventKey(text, key, action, modifiers))
+    }
+
+    fun sendMediaControl(peerId: String, action: String, value: Double? = null) {
+        links[peerId]?.send(MessageType.MEDIA_CONTROL, Bodies.mediaControl(action, value))
+    }
+
+    /** Asks a peer for control of it (INPUT_REQUEST). */
+    fun requestInputControl(peerId: String) {
+        links[peerId]?.send(MessageType.INPUT_REQUEST, Bodies.empty())
+    }
+
     /** Mirror a notification to every peer advertising notify-show. */
     fun mirrorNotification(app: String, title: String, body: String, id: String) {
         val payload = Bodies.notification(app, title, body, id)
@@ -208,16 +253,28 @@ class AndroidNode(
                             }
                             MessageType.NOTIFICATION -> ConduitRuntime.instance?.onNotificationReceived(msg.payload)
                             MessageType.INPUT_EVENT -> if (canReceiveInput) org.conduit.android.capability.InputAccessibilityService.instance?.inject(msg.payload)
+                            // Phase 3 — screen sharing, both directions.
+                            MessageType.SCREEN_OFFER -> screens.handleOffer(peer.deviceId, msg.payload)
+                            MessageType.SCREEN_REQUEST -> screens.handleRequest(peer.deviceId)
+                            MessageType.SCREEN_ACK -> screens.handleAck(msg.payload)
+                            MessageType.SCREEN_END -> screens.handleEnd(peer.deviceId, msg.payload)
+                            MessageType.SCREEN_REJECT -> screens.handleReject(msg.payload)
                         }
                     }
                     is Frame.Chunk -> receiver.handleChunk(conn, frame.frame)
-                    else -> {}
+                    // A screen frame on the SESSION link: the source could not
+                    // dial a dedicated lane back to this phone and is streaming
+                    // over the connection that already works. These used to be
+                    // dropped on the floor, which is a large part of why the app
+                    // could not view a Mac at all.
+                    is Frame.Screen -> screens.handleControlLaneFrame(peer.deviceId, frame.frame)
                 }
             }
         } catch (_: Exception) {
         } finally {
             links.remove(peer.deviceId)
             connected.value = links.keys.toSet()
+            screens.handleSessionClosed(peer.deviceId)
         }
     }
 

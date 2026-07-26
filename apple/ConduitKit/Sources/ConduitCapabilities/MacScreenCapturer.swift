@@ -1,5 +1,6 @@
 #if os(macOS)
 import Foundation
+import AppKit
 import ScreenCaptureKit
 import CoreMedia
 import CoreVideo
@@ -50,10 +51,15 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
         }
         var sources: [CaptureSourceDescriptor] = []
         for display in content.displays {
+            // CGDisplayBounds is already the global, top-left-origin space
+            // CGEvent posts into, so it needs no flipping — which is exactly
+            // why absolute injection uses it rather than NSScreen.frame.
+            let bounds = CGDisplayBounds(display.displayID)
             sources.append(CaptureSourceDescriptor(
                 id: "display:\(display.displayID)", kind: .display,
-                name: "Display \(display.displayID) (\(display.width)×\(display.height))",
-                width: display.width, height: display.height
+                name: displayName(display),
+                width: display.width, height: display.height,
+                originX: Int(bounds.origin.x.rounded()), originY: Int(bounds.origin.y.rounded())
             ))
         }
         // Only windows with a title and reasonable size are worth offering.
@@ -64,10 +70,26 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
             sources.append(CaptureSourceDescriptor(
                 id: "window:\(window.windowID)", kind: .window,
                 name: app.isEmpty ? (window.title ?? "Window") : "\(app) — \(window.title ?? "")",
-                width: width, height: height
+                width: width, height: height,
+                // SCWindow.frame is already in the same top-left global space.
+                originX: Int(window.frame.origin.x.rounded()),
+                originY: Int(window.frame.origin.y.rounded())
             ))
         }
         return sources
+    }
+
+    /// "Display 1 (3456×2234)" told the user nothing about *which* screen —
+    /// on a two-monitor Mac both rows look alike. Name it the way macOS does.
+    private func displayName(_ display: SCDisplay) -> String {
+        let size = "\(display.width)×\(display.height)"
+        guard let screen = NSScreen.screens.first(where: {
+            ($0.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? CGDirectDisplayID) == display.displayID
+        }) else {
+            return "Display \(display.displayID) (\(size))"
+        }
+        let isMain = screen == NSScreen.screens.first
+        return "\(screen.localizedName) (\(size))" + (isMain ? " — main" : "")
     }
 
     public func start(

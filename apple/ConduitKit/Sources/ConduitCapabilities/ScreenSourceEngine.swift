@@ -65,6 +65,10 @@ public actor ScreenSourceEngine {
         let screenSessionID: String
         let wireSessionID: UInt16
         let peerDeviceID: String
+        /// What is being captured. Kept so a controller's normalized pointer
+        /// position can be mapped back onto exactly this display or window
+        /// rather than the whole desktop (`captureRegion(forScreenSessionID:)`).
+        let source: CaptureSourceDescriptor
         /// The reliable session link. `stopSharing` signals SCREEN_END over this
         /// even when `bulk` is nil — the reverse-dial-failed path where the
         /// viewer would otherwise wait on a blank screen forever.
@@ -132,15 +136,41 @@ public actor ScreenSourceEngine {
     public var canSource: Bool { capturer != nil }
     public var isSharing: Bool { sharing != nil }
 
+    /// Where a viewer's normalized pointer position maps to on this device.
+    ///
+    /// The receiver needs this to honour absolute pointing: a controller
+    /// watching the second of three displays says "0.5, 0.5" meaning the middle
+    /// of *that* display, and only the source knows which display that is.
+    /// Returns nil for an unknown session, which makes the injector fall back to
+    /// the display union — the same place a delta would have landed.
+    public func captureRegion(forScreenSessionID id: String) -> InjectionRegion? {
+        guard let sharing else { return nil }
+        if sharing.screenSessionID == id { return sharing.source.injectionRegion }
+        // Extra viewers watch the same capture under their own session ids.
+        if sharing.secondaries.values.contains(where: { $0.screenSessionID == id }) {
+            return sharing.source.injectionRegion
+        }
+        return nil
+    }
+
     // MARK: Request handling
 
     public func handleRequest(_ request: ScreenRequestBody, from link: PeerLink) async {
         guard let capturer else { return }
+        // The peer we are ALREADY streaming to asking again means "show me
+        // something else" — the viewer's Change display button. Re-open the
+        // picker and switch the live capture rather than ignoring it, which is
+        // the only way a viewer can pick among a Mac's displays without a new
+        // message type. Extra viewers can't re-aim someone else's share.
+        if let live = sharing, live.peerDeviceID == link.peer.deviceID {
+            await switchSource(for: link, request: request)
+            return
+        }
         // Already sharing → this is a request to JOIN the live screen. Prompt the
         // source user to grant a scope (multi-viewer social permission), rather
         // than rejecting outright.
         if sharing != nil {
-            if sharing?.peerDeviceID == link.peer.deviceID || sharing?.secondaries[link.peer.deviceID] != nil {
+            if sharing?.secondaries[link.peer.deviceID] != nil {
                 return   // already a viewer
             }
             if let scope = await grantViewer(link.peer.deviceID, CapabilityID.screenView) {
@@ -202,6 +232,28 @@ public actor ScreenSourceEngine {
             try? await link.send(.screenReject(ScreenRejectBody(reason: "declined")))
             return
         }
+        await beginSharing(source: chosen, to: link, request: request)
+    }
+
+    /// The current viewer asked again: offer the picker, and if a *different*
+    /// source is chosen, restart the share on it. Ends the old screen session
+    /// cleanly first so the viewer sees one stream stop and another start rather
+    /// than two live sessions fighting over its render target.
+    private func switchSource(for link: PeerLink, request: ScreenRequestBody) async {
+        guard let capturer, let live = sharing else { return }
+        guard pendingShareFor == nil else { return }   // a picker is already up
+        pendingShareFor = link.peer.deviceID
+        let sources = (try? await capturer.availableSources()) ?? []
+        guard !sources.isEmpty else {
+            pendingShareFor = nil
+            return
+        }
+        let chosen = await pickSource(link.peer.deviceID, sources)
+        pendingShareFor = nil
+        guard let chosen, chosen.id != live.source.id else { return }   // cancelled, or the same one
+        // Clean end (nil reason): the viewer must not treat a deliberate switch
+        // as a failure with a Retry.
+        await stopSharing(reason: nil)
         await beginSharing(source: chosen, to: link, request: request)
     }
 
@@ -308,7 +360,7 @@ public actor ScreenSourceEngine {
 
         var session = Sharing(
             screenSessionID: screenSessionID, wireSessionID: wireSessionID,
-            peerDeviceID: link.peer.deviceID, controlLink: link, offer: offer,
+            peerDeviceID: link.peer.deviceID, source: source, controlLink: link, offer: offer,
             width: width, height: height, fps: fps, codec: codec
         )
         session.frameFeed = continuation

@@ -26,6 +26,7 @@ object Conformance {
         val dir = args[0]
         val results = buildList {
             addAll(checkMessages(File(dir, "messages.json")))
+            addAll(checkBuilders(File(dir, "messages.json")))
             addAll(checkChunkFrames(File(dir, "chunk_frames.json")))
             addAll(checkScreenFrames(File(dir, "screen_frames.json")))
             addAll(checkPairing(File(dir, "pairing.json")))
@@ -65,6 +66,73 @@ object Conformance {
             Result(name, true)
         } catch (e: Exception) {
             Result(name, false, e.message ?: e.toString())
+        }
+    }
+
+    /**
+     * Proves the `Bodies.*` BUILDERS emit the golden bytes, not just that the
+     * parser survives a round trip.
+     *
+     * checkMessages re-encodes a payload it parsed from the vector, so it would
+     * pass with builders that were wrong, missing, or absent entirely — which is
+     * exactly the state the Kotlin `SCREEN_*` builders were in while the Android
+     * app "passed conformance". Anything the app constructs from scratch has to
+     * be pinned against Swift here or interop is an assumption.
+     */
+    private fun checkBuilders(file: File): List<Result> {
+        val root = JsonParser.parse(file.readBytes()).asObj()
+        val env = root.getValue("envelope").asObj()
+        val sessionId = env.getValue("session_id").str()
+        val seq = env.getValue("seq").long()
+        val golden = root.getValue("vectors").arr()
+            .map { it.asObj() }
+            .associate { it.getValue("name").str() to it.getValue("canonical_json").str() }
+
+        val built = listOf(
+            Triple("screen_request", MessageType.SCREEN_REQUEST,
+                Bodies.screenRequest(maxWidth = 1920, maxHeight = 1200, maxFps = 30)),
+            Triple("screen_offer", MessageType.SCREEN_OFFER, Bodies.screenOffer(
+                screenSessionId = "7C3E5A90-1234-4bcd-9876-0123456789AB", wireSessionId = 1,
+                codec = "hevc", width = 1920, height = 1080, fps = 30, captureKind = "window",
+                sourceName = "Safari — Conduit", bulkToken = "746f6b656e")),
+            Triple("screen_reject", MessageType.SCREEN_REJECT, Bodies.screenReject("declined")),
+            Triple("screen_attach", MessageType.SCREEN_ATTACH,
+                Bodies.screenAttach("7C3E5A90-1234-4bcd-9876-0123456789AB", "746f6b656e")),
+            Triple("screen_ack", MessageType.SCREEN_ACK,
+                Bodies.screenAck("7C3E5A90-1234-4bcd-9876-0123456789AB", 128, false)),
+            Triple("screen_ack_keyframe", MessageType.SCREEN_ACK,
+                Bodies.screenAck("7C3E5A90-1234-4bcd-9876-0123456789AB", 0, true)),
+            Triple("screen_end", MessageType.SCREEN_END,
+                Bodies.screenEnd("7C3E5A90-1234-4bcd-9876-0123456789AB", "stopped")),
+            Triple("input_move", MessageType.INPUT_EVENT, Bodies.inputEventMove(12.5, -3.25)),
+            Triple("input_scroll", MessageType.INPUT_EVENT, Bodies.inputEventScroll(0.0, -40.0)),
+            Triple("input_click", MessageType.INPUT_EVENT, Bodies.inputEventClick("right", "tap", 1)),
+            Triple("input_click_down", MessageType.INPUT_EVENT, Bodies.inputEventClick("left", "down", 1)),
+            Triple("input_click_up", MessageType.INPUT_EVENT, Bodies.inputEventClick("left", "up", 1)),
+            Triple("input_key_text", MessageType.INPUT_EVENT,
+                Bodies.inputEventKey(text = "Hi", modifiers = listOf("command"))),
+            Triple("input_key_special", MessageType.INPUT_EVENT, Bodies.inputEventKey(key = "return")),
+            Triple("input_key_down", MessageType.INPUT_EVENT,
+                Bodies.inputEventKey(key = "left", action = "down", modifiers = listOf("shift"))),
+            Triple("input_key_up", MessageType.INPUT_EVENT,
+                Bodies.inputEventKey(key = "left", action = "up", modifiers = listOf("shift"))),
+            Triple("input_move_absolute", MessageType.INPUT_EVENT, Bodies.inputEventMoveAbsolute(
+                nx = 0.25, ny = 0.75, dx = 8.0, dy = -6.0,
+                screenSessionId = "7C3E5A90-1234-4bcd-9876-0123456789AB")),
+            Triple("notification", MessageType.NOTIFICATION, Bodies.notification(
+                "Messages", "Leroy", "on my way — καλημέρα 🦊", "msg-42",
+                listOf("Reply", "Mark as Read"))),
+        )
+
+        return built.map { (name, type, payload) ->
+            val want = golden[name]
+            if (want == null) {
+                Result("builder:$name", false, "no golden vector named $name")
+            } else {
+                val got = String(MessageCodec.encode(sessionId, seq, type, payload), Charsets.UTF_8)
+                Result("builder:$name", got == want,
+                    if (got == want) "" else "built bytes differ\n   want: $want\n   got:  $got")
+            }
         }
     }
 

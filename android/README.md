@@ -25,7 +25,9 @@ android/
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 cd android/core
 kotlinc $(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/conduit-core.jar
-java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 42/42 byte-exact
+java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 70/70 byte-exact
+                                                                                 # (52 shared vectors + 18 that pin
+                                                                                 #  the Kotlin builders' own output)
 java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke                     # pair + file + clipboard
 ```
 
@@ -35,25 +37,72 @@ java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke                    
   pairing-code cross-check), run HELLO, transfer a 2 MiB file (hash-verified),
   and exchange clipboard — the same session code the app uses over TLS sockets.
 
-## What the `app` module actually does — corrected 2026-07-20
+## What the `app` module actually does — updated 2026-07-26 (plan 07 Track B)
 
 An earlier version of this file listed screen source, Bluetooth HID, and Wi-Fi
-Aware as "device-gated". They are not device-gated; they are **written but
-unreachable** — nothing constructs them. The honest table:
+Aware as "device-gated". They were not device-gated; they were **written but
+unreachable** — nothing constructed them. Plan 07 wired them.
 
-| Capability | State |
-|---|---|
-| Discovery (NSD) + pairing with a Mac | ✅ implemented and wired |
-| Pinned mutual TLS + identity | ✅ implemented |
-| **Notification source** (`NotificationListenerService`) | ✅ works once enabled in Settings |
-| **Input receiver** (`AccessibilityService#dispatchGesture`) | ✅ works once enabled in Settings |
-| File **receive** | ✅ works (auto-accepts, no prompt yet) |
-| File **send**, clipboard send/receive | ⚠️ `AndroidNode` has the methods; no UI calls them |
-| Input **send** (Android as controller) | ⚠️ `RemoteControlScreen.kt` exists but nothing navigates to it |
-| **Screen viewer** (view a Mac's screen) | ❌ **not built** — no decoder, no `SurfaceView`; inbound screen frames are dropped |
-| **Screen source** (a Mac views Android) | ❌ **not wired** — `ScreenProjectionSource` is never instantiated and the Kotlin wire layer has no `SCREEN_*` builders. (`AndroidNode.capabilities()` **no longer** advertises `screen-source` — this file previously said it did; corrected 2026-07-22 after verifying `AndroidNode.kt:66-78`. Re-add the capability only once the source path actually serves frames.) |
-| **Bluetooth HID** | ❌ **not wired** — `BluetoothHidMode.kt` is complete-looking and never instantiated |
-| **Wi-Fi Aware** | ❌ **not implemented** — never instantiated, and the data path was never written |
+**Read the ✅s below as "written and cross-checked", not "working".** Not one
+line of this module has run on an Android device — including pairing. The
+verification behind every row is the same three things: the Kotlin builders are
+byte-identical to Swift's golden vectors, the JVM conformance + session smoke
+pass, and `./gradlew :app:assembleDebug` produces an APK. That is enough to know
+the wire is right and the code compiles. It is not enough to know anything
+works.
+
+| Capability | State | Verified by |
+|---|---|---|
+| Discovery (NSD) + pairing with a Mac | ✅ implemented and wired | JVM session smoke (in-process); **never on a device** |
+| Pinned mutual TLS + identity | ✅ implemented | JVM smoke + conformance |
+| **Notification source** (`NotificationListenerService`) | ✅ wired; needs enabling in Settings | compiles |
+| **Input receiver** (`AccessibilityService#dispatchGesture`) | ✅ pointer, scroll, click, right-click (long press), absolute `nx`/`ny`, and the slice of keys Android permits | compiles; wire pinned by vectors |
+| File **receive** | ✅ works (auto-accepts, no prompt yet) | JVM smoke |
+| File **send** | ✅ wired to the system picker | compiles |
+| Clipboard send **and** receive | ✅ both wired to the UI | JVM smoke (send path) |
+| Input **send** (Android as controller) | ✅ reachable, with scroll / right-click / modifiers / keys, and `INPUT_REQUEST` on entry | compiles |
+| **Screen viewer** (view a Mac's screen) | ✅ `MediaCodec` decoder + `SurfaceView`; frames accepted on a dedicated lane **and** the session link | builder vectors + compiles; **no frame ever decoded on a device** |
+| **Screen source** (a Mac views Android) | ✅ `ScreenProjectionSource` instantiated behind MediaProjection consent, in its own `mediaProjection` foreground service; `CAP_SCREEN_SOURCE` re-advertised | compiles; MediaProjection cannot be exercised off-device |
+| **Bluetooth HID** | ✅ wired via `BluetoothHidController` + the control surface's mode switch | compiles; needs two physical devices |
+| **Wi-Fi Aware** | ⚠️ the impossible cast and the missing data path are fixed, but **nothing instantiates it** and no hardware has run it | compiles only |
+
+### Keyboard injection: what Android actually allows
+
+There is **no general key-injection API** for a third-party accessibility
+service, so "Android keyboard support" is a short list that works and a clear
+statement of what doesn't:
+
+- **Text** → appended to the focused editable node. `ACTION_SET_TEXT` replaces
+  the whole field, so the current contents are read and re-sent with the new
+  characters; without that, typing "hello" one character at a time leaves "o".
+- **Back / Home / Enter** → global actions (Enter clicks the focused field if
+  there is one).
+- **Everything else** — arrows, function keys, modifier chords — has no route at
+  all, and is **refused with a message saying so** rather than dropped silently.
+
+That is a platform wall, not a missing feature.
+
+### Screen sharing lanes
+
+As a **viewer**, Android accepts frames on either lane: a dedicated connection
+the source dials back (`SCREEN_ATTACH` is now answered in `routeInbound`, which
+previously just closed the socket) or the session link (`Frame.Screen` in the
+read loop, previously dropped on the floor — a large part of why viewing a Mac
+never worked).
+
+As a **source**, it always uses the session link. The reverse dial is the seam
+that fails on real devices (a Local Network prompt on macOS, client isolation on
+the AP), the Apple side already proved the session link carries video acceptably
+at a lower bitrate, and a phone gains nothing by reintroducing the one step most
+likely to fail.
+
+### Android 14 and the foreground service split
+
+A service may not claim `mediaProjection` type before the user has granted a
+projection. `ConduitService` starts at launch and used to declare it — a
+`SecurityException` on every modern phone whose only symptom would be "nothing
+works". Capture now lives in `ScreenShareService`, started after consent, and
+`ConduitService` names `connectedDevice` explicitly.
 
 ## Build the app
 
@@ -102,22 +151,36 @@ Both were invisible to the JVM conformance suite, which runs on OpenJDK:
 
 ## Acceptance (spec §9 Phase 5, on hardware)
 
-Ordered by what has to happen first. Nothing below has ever run on a device.
+Ordered by what has to happen first. **Nothing below has ever run on a device.**
+The code for every item now exists; that is precisely why this list is the only
+thing separating "written" from "works".
 
 - [ ] Install the debug APK on an Android 13+ phone and pair it with the Mac.
       **This is the gate** — the two identity fixes above are what make it
-      possible at all, and they are unproven on hardware.
+      possible at all, and they are unproven on Conscrypt hardware. No result
+      below means anything until this passes.
 - [ ] Pairing survives an app kill and a relaunch (the persistence fix).
 - [ ] Android receives a file from the Mac; Android receives input via
       Accessibility; Android mirrors a notification to the Mac.
-- [ ] **Android views the Mac's screen.** Needs a `MediaCodec` decoder +
-      `SurfaceView` and `SCREEN_REQUEST`/`SCREEN_ATTACH` handling — genuinely
-      unwritten. This is the one that matters for "cast my Mac to a tablet".
-- [ ] Mac views the Android screen (wire `ScreenProjectionSource` + add
-      `SCREEN_*` builders; also stop advertising `screen-source` until then).
-- [ ] Android sends files / clipboard / input (wire the existing methods to UI).
+- [ ] **Android views the Mac's screen.** The decoder + `SurfaceView` +
+      `SCREEN_*` handling exist now; what is unproven is whether MediaCodec
+      accepts the converted Annex-B stream on a real device. This is the one
+      that matters for "cast my Mac to a tablet".
+- [ ] Android views the Mac's screen on the **control-lane fallback** too (kill
+      the reverse dial, or test across an AP with client isolation).
+- [ ] Mac views the Android screen: the MediaProjection consent flow completes,
+      `ScreenShareService` reaches foreground with `mediaProjection` type on
+      Android 14+, and frames arrive.
+- [ ] Android sends a file and clipboard to the Mac from the new UI.
+- [ ] Android drives the Mac: pointer, scroll, right-click, typing.
+- [ ] Android is driven by the Mac including the key subset (text into a focused
+      field, Back/Home) — and the *unsupported* keys surface a message rather
+      than doing nothing.
+- [ ] Absolute pointing lands where you point on a multi-display Mac
+      (`nx`/`ny` + `screen_session_id`, ADR 0015).
 - [ ] Phone-as-BT-keyboard types into an iPad with MOSIS **not** installed.
-- [ ] Android ↔ Android over Wi-Fi Aware (needs the data path written).
+- [ ] Android ↔ Android over Wi-Fi Aware (the data path is written; nothing
+      instantiates it yet, and it needs `FEATURE_WIFI_AWARE` hardware).
 - [ ] Written interop status for Android↔iPhone Aware (`docs/android-devices.md`).
 
 Interim shortcut worth knowing: an Android tablet can watch a Mac's screen

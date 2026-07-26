@@ -33,14 +33,26 @@
 >   buffering from per-frame `Task` fan-out, plus a resolution "cap" that was the
 >   identity function; and the Android `app` module **had never compiled**. All
 >   fixed — see `loop-state.md` "Loop 6". Suite: **109 tests green**.
+> - **Loop 7 (2026-07-26), plan 07 Track A:** watching and driving a peer are no
+>   longer mutually exclusive screens — the viewer forwards pointer, scroll,
+>   both buttons and a real hardware keyboard, and navigating to the video no
+>   longer ends the input session (`onDisappear → stopControlling`, the single
+>   line that made the two halves exclusive by construction). Absolute pointing
+>   added to the wire as an **additive** change (ADR 0015). The input datagram
+>   lane now retries instead of giving up after one dial, and control frames no
+>   longer queue behind video on the shared session link. Suite: **126 tests
+>   green** (was 109) — including the first tests that run screen and input
+>   *together*, on both the bulk lane and the degraded one.
 > - **Still only backed by hope (no automated coverage, needs device sessions
 >   S1–S4):** `MacInputInjector`, `MacScreenCapturer` (fake emits BGRA, prod
 >   NV12), the ReplayKit `SampleHandler`, the datagram black-hole case, the
 >   reverse-dial off-loopback, both loop-4 root causes (iOS-on-Mac "(iPad app)"
->   disambiguation, Bonjour browser restart), and **everything in loop 6**: the
->   push-share path, `LocalScreenCast`, the browser watch page, and every
->   broadcast fix are proven by tests with a synthetic capturer, and by no phone
->   and no TV. `docs/DEVICE_CHECKLIST.md` §§5–7 is the script.
+>   disambiguation, Bonjour browser restart), **everything in loop 6** (the
+>   push-share path, `LocalScreenCast`, the browser watch page, every broadcast
+>   fix) and **everything in loop 7** — the input overlay, the keyboard monitors,
+>   and absolute injection are all proven against a *fake* injector and a
+>   synthetic capturer, by no phone and no second display.
+>   `docs/DEVICE_CHECKLIST.md` §§5–8 is the script.
 
 ## Context
 

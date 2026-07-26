@@ -31,6 +31,7 @@ settings:
 
 targets:
   Conduit-macOS:
+    scheme: {}
     type: application
     platform: macOS
     sources: [ConduitMac]
@@ -66,6 +67,7 @@ targets:
         NSHumanReadableCopyright: ""
 
   Conduit-iOS:
+    scheme: {}
     type: application
     platform: iOS
     sources: [ConduitIOS]
@@ -107,6 +109,13 @@ targets:
           to them directly to move files, clipboard, and screen content between
           them. Nothing leaves your network.
         NSBonjourServices: ["_cndt-app._tcp"]
+        # Wi-Fi Aware services (ADR 0003 step 4). iOS refuses to publish or
+        # subscribe a service not declared here (WAError.serviceNotDeclared).
+        # Must match ProtocolServiceType.awareService in ConduitTransport.
+        WiFiAwareServices:
+          _mosis-aware._tcp:
+            Publishable: {}
+            Subscribable: {}
         UIFileSharingEnabled: true
         LSSupportsOpeningDocumentsInPlace: true
         UILaunchScreen: {}
@@ -120,6 +129,7 @@ targets:
   # tvOS viewer app (spec §9 Phase 6 step 1): Apple TV as a Conduit screen
   # viewer + media target + notification display. LAN only (no Aware on tvOS).
   Conduit-tvOS:
+    scheme: {}
     type: application
     platform: tvOS
     sources: [ConduitTV]
@@ -143,6 +153,7 @@ targets:
   # ReplayKit broadcast upload extension: streams the iPhone screen to a paired
   # viewer (spec §9 Phase 3 step 4). Device-only; see docs/adr/0006.
   ConduitBroadcast:
+    scheme: {}
     type: app-extension
     platform: iOS
     sources: [ConduitBroadcast]

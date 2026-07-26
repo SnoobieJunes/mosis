@@ -62,14 +62,7 @@ public final class LANConnection: ByteStreamConnection, @unchecked Sendable {
         guard let tlsMetadata = connection.metadata(definition: NWProtocolTLS.definition) as? NWProtocolTLS.Metadata else {
             return nil
         }
-        var leaf: SecCertificate?
-        _ = sec_protocol_metadata_access_peer_certificate_chain(tlsMetadata.securityProtocolMetadata) { cert in
-            if leaf == nil {
-                leaf = sec_certificate_copy_ref(cert).takeRetainedValue()
-            }
-        }
-        guard let leaf else { return nil }
-        return TLSVerifier.publicKeyHash(of: leaf)
+        return TLSVerifier.peerLeafKeyHash(securityMetadata: tlsMetadata.securityProtocolMetadata)
     }
 
     /// The peer's IP address (used to reach its listener for the bulk lane).
@@ -478,4 +471,16 @@ public enum ProtocolServiceType {
     /// directory holding peers.json — all move together, once, with a planned
     /// reinstall + re-pair. See plans/01-rename-to-mosis.md.
     public static let appService = "_cndt-app._tcp"
+
+    /// Wi-Fi Aware service name for the app-to-app channel (ADR 0003 step 4).
+    ///
+    /// This is a **separate namespace from Bonjour** (Aware services are matched
+    /// by Aware publish/subscribe, not mDNS), and no shipped build has ever used
+    /// Aware — so unlike `appService` there is no legacy fleet to break, and it
+    /// uses the MOSIS name from day one. It is mirrored by the
+    /// `WiFiAwareServices` dictionary in the iOS Info.plist (via `project.yml`);
+    /// iOS refuses to publish/subscribe a service missing from that plist
+    /// (`WAError.serviceNotDeclared`), so the two must move together.
+    /// Aware service names allow letters/digits/dashes, ≤15 chars + `._tcp`.
+    public static let awareService = "_mosis-aware._tcp"
 }

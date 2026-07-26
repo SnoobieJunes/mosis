@@ -1,6 +1,7 @@
 # ADR 0003 — Wi-Fi Aware slice ships as a flagged stub in Phase 1
 
-Date: 2026-07-06 · Status: accepted · Phase: 1 (step 9)
+Date: 2026-07-06 · Status: accepted; **largely executed 2026-07-26** (see
+"Unblock checklist status" below) · Phase: 1 (step 9)
 
 ## Context
 
@@ -35,3 +36,28 @@ fallback anyway (§3: "Aware is an accelerator, never a dependency").
 4. Implement `AwareBackend` on the new Network API; the stats overlay's
    backend badge (already rendered from `TransportBackendKind`) verifies the
    acceptance criterion "Aware path used automatically when available".
+
+## Unblock checklist status (2026-07-26)
+
+Steps 1, 2 and 4 are **done**; step 3 is the remainder and is hardware-blocked.
+
+- ✅ 1–2: name decided (MOSIS), bundle IDs final, `com.apple.developer.wifi-aware`
+  granted for org.auston.mosis and mirrored in `project.yml` (the xcodegen trap).
+- ✅ 4: `AwareBackend` is real code on the iOS 26 `WiFiAware` framework +
+  structured-concurrency Network API (`NetworkListener`/`NetworkBrowser`/
+  `NetworkConnection`), exactly the API split ADR 0001 anticipated. Conduit's
+  pinned mutual TLS is preserved via the new API's `certificateValidator`
+  (verify-block equivalent); `_mosis-aware._tcp` is declared in the iOS
+  Info.plist `WiFiAwareServices`; `ConduitFeatureFlags.wifiAwareEnabled` is now
+  **true on iOS** with runtime self-gating (`AwareBackendStatus.availability()`),
+  so every other platform and every test host degrades to LAN-only unchanged.
+  Aware endpoints are dial candidates for pinned peers (tried before LAN when
+  visible) and inbound Aware connections join the normal session routing.
+- ⏳ 3: **no Aware session has ever run.** Platform reality discovered during
+  implementation and encoded in the design: Aware peers must first be
+  **OS-paired** (`WAPairedDevice`, via `DevicePairingView`/`DevicePicker` — a
+  "Wi-Fi Aware" section on the devices screen), a trust gate Apple imposes on
+  top of Conduit pairing; and Aware is iPhone/iPad-only (macOS SDK marks every
+  symbol unavailable), so the accelerator applies to iPhone↔iPad, never Mac
+  flows. v1 ceiling, stated: bulk/datagram lanes still dial LAN addresses, so
+  an Aware-only session carries video on the control-lane fallback (~2.5 Mbps).

@@ -104,7 +104,7 @@ Every control message:
 | `BULK_ATTACH` | `file_id`, `bulk_token` — first and only control frame on a bulk connection |
 | `INPUT_REQUEST` | `{}` — controller asks to drive the receiver |
 | `INPUT_STATUS` | `active`, `reason?`, `udp_port?`, `datagram_token?`, `secure_input?` — receiver → controller grant lifecycle + datagram invite |
-| `INPUT_EVENT` | `kind` (`move·scroll·click·key`), `dx?`, `dy?`, `button?` (`left·right·middle`), `action?` (`down·up·tap`), `click_count?`, `key?`, `text?`, `modifiers?` (`shift·control·option·command·function`) |
+| `INPUT_EVENT` | `kind` (`move·scroll·click·key`), `dx?`, `dy?`, `button?` (`left·right·middle`), `action?` (`down·up·tap`, on clicks **and** keys), `click_count?`, `key?`, `text?`, `modifiers?` (`shift·control·option·command·function`), `nx?`, `ny?` (absolute position, 0…1 of the captured source), `screen_session_id?` (which source `nx`/`ny` refer to) |
 | `INPUT_ATTACH` | `token` — first frame on a DTLS datagram lane, binds it to a grant |
 | `MEDIA_CONTROL` | `action` (`play·pause·toggle·next·prev·seek·volume·mute`), `value?` (seek seconds / volume steps) |
 | `SCREEN_REQUEST` | `max_width?`, `max_height?`, `max_fps?`, `codecs[]` (`hevc·h264`) — viewer asks to view |
@@ -178,8 +178,25 @@ on the reliable control lane.
 Invariants:
 - **Modifiers are stateless.** Every key event carries its complete modifier
   set; a dropped message can never wedge a modifier on the receiver.
-- **Deltas only.** Pointer moves are relative; absolute coordinates are never
-  sent (multi-monitor origins are the receiver's problem to clamp).
+- **Deltas always; positions additionally.** Pointer moves are relative by
+  default, and a trackpad controller sends nothing else — it cannot see the
+  remote cursor, so relative is all it honestly has. A controller *watching* a
+  live view of the source may additionally carry `nx`/`ny`: a position
+  normalized to `0…1` of that source, top-left origin, with
+  `screen_session_id` naming which `SCREEN_OFFER` it belongs to. The receiver
+  maps it into the bounds of the display or window it is sharing, so on a
+  multi-display machine the click lands on the screen being watched rather than
+  somewhere in the union of all of them.
+
+  **A sender that includes `nx`/`ny` MUST also include the equivalent
+  `dx`/`dy`.** A receiver that predates the fields ignores them and applies the
+  delta, so it still tracks the pointer; without the rule it would read a
+  missing delta as zero and never move at all. See `docs/adr/0015`.
+- **Key events may be held.** `action` applies to `kind:"key"` as well as
+  `kind:"click"`. Absent or `tap` is a complete press-and-release — what every
+  peer sent before the field applied to keys — while `down`/`up` carry a real
+  hardware keypress, and a repeat is a further `down`. A receiver that holds a
+  key down must release it when the grant ends, alongside held buttons.
 - **Coalescing.** Controllers batch motion at ≤120 Hz, summing deltas; a click
   or key flushes pending motion first so it never overtakes the cursor.
 - **Consent + indicator + kill switch.** Injection requires per-session accept

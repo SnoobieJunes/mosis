@@ -99,6 +99,30 @@ public actor FramedConnection {
     private var nextSeq: UInt64 = 0
     private var readInFlight = false
 
+    // MARK: Control-over-video priority (plan 07 RC-10)
+    //
+    // When the screen share falls back to this session link — the common
+    // real-device path, because the source's reverse-dial can't land — 2.5 Mbps
+    // of video shares one TCP connection with input events, keepalives and
+    // acks. Video frames are large and input events are ~60 bytes, so a click
+    // handed to the socket behind a queue of frames waits out all of them:
+    // head-of-line blocking, on the one lane that is supposed to keep remote
+    // control usable when everything else has degraded.
+    //
+    // Control frames therefore never wait for video: a screen frame yields
+    // until no control send is outstanding. This does not preempt a frame
+    // already handed to the transport, so the residual worst case is one
+    // frame's transmission time (~10 KB at the fallback bitrate) instead of the
+    // whole backlog. Bounded by `screenGateMaxWait` so a wedged control send can
+    // never strand the video lane.
+    static let screenGateMaxWait: Duration = .milliseconds(250)
+    private var controlSendsInFlight = 0
+    private var screenGateWaiters: [UInt64: CheckedContinuation<Void, Never>] = [:]
+    private var nextGateID: UInt64 = 0
+    /// How many screen frames yielded to input. Surfaced in tests; a climbing
+    /// count on the fallback lane is the fix doing its job.
+    public private(set) var screenFramesYielded = 0
+
     public init(_ raw: any ByteStreamConnection) {
         self.raw = raw
         self.iterator = IteratorBox(raw.incoming.makeAsyncIterator())
@@ -140,6 +164,8 @@ public actor FramedConnection {
         let meta = EnvelopeMeta(sessionID: sessionID, seq: nextSeq)
         nextSeq += 1
         let payload = try MessageCodec.encode(meta: meta, message: message)
+        controlSendsInFlight += 1
+        defer { controlSendFinished() }
         try await raw.send(FrameCodec.encodeControl(payload))
     }
 
@@ -148,6 +174,37 @@ public actor FramedConnection {
     }
 
     public func sendScreenFrame(_ frame: ScreenFrame) async throws {
+        if controlSendsInFlight > 0 {
+            screenFramesYielded += 1
+            await waitForControlSends()
+        }
         try await raw.send(FrameCodec.encode(frame))
+    }
+
+    private func controlSendFinished() {
+        controlSendsInFlight -= 1
+        guard controlSendsInFlight <= 0 else { return }
+        controlSendsInFlight = 0
+        let waiters = screenGateWaiters
+        screenGateWaiters.removeAll()
+        for waiter in waiters.values { waiter.resume() }
+    }
+
+    private func waitForControlSends() async {
+        let id = nextGateID
+        nextGateID &+= 1
+        await withCheckedContinuation { (continuation: CheckedContinuation<Void, Never>) in
+            screenGateWaiters[id] = continuation
+            Task { [weak self] in
+                try? await Task.sleep(for: Self.screenGateMaxWait)
+                await self?.releaseGateWaiter(id)
+            }
+        }
+    }
+
+    /// Safety valve: a control send that never returns (wedged socket) must not
+    /// hold video hostage forever.
+    private func releaseGateWaiter(_ id: UInt64) {
+        screenGateWaiters.removeValue(forKey: id)?.resume()
     }
 }

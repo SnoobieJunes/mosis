@@ -12,6 +12,10 @@ final class FakeInjector: InputInjector, @unchecked Sendable {
     private(set) var events: [InputEventBody] = []
     private(set) var media: [MediaControlBody] = []
     private(set) var releaseAllCount = 0
+    /// The area absolute coordinates were last aimed at. Lets a test assert the
+    /// receiver resolved "the display you're watching" to the right bounds
+    /// without a second monitor plugged into the CI machine.
+    private(set) var absoluteRegion: InjectionRegion?
     var permitted = true
     var secureInput = false
 
@@ -34,8 +38,15 @@ final class FakeInjector: InputInjector, @unchecked Sendable {
         lock.lock(); releaseAllCount += 1; lock.unlock()
     }
 
+    func setAbsoluteRegion(_ region: InjectionRegion?) {
+        lock.lock(); absoluteRegion = region; lock.unlock()
+    }
+
     func snapshot() -> [InputEventBody] {
         lock.lock(); defer { lock.unlock() }; return events
+    }
+    func regionSnapshot() -> InjectionRegion? {
+        lock.lock(); defer { lock.unlock() }; return absoluteRegion
     }
     func mediaSnapshot() -> [MediaControlBody] {
         lock.lock(); defer { lock.unlock() }; return media

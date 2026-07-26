@@ -74,7 +74,16 @@ public struct RemoteControlView: View {
             }
         }
         .onDisappear {
-            model.stopControlling()
+            // Leaving this screen does NOT end the control session.
+            //
+            // It used to: `onDisappear → stopControlling()`. Combined with the
+            // video living on a different navigation destination, that made
+            // "watch the screen you are driving" impossible — opening the video
+            // was itself the thing that stopped the input session, and the two
+            // headline halves of remote control were mutually exclusive by
+            // construction. Control now ends when the user says so (the Stop
+            // button here or on the viewer), when the peer revokes it, or when
+            // the session drops.
             model.controlFailedReason = nil
         }
     }
@@ -86,6 +95,26 @@ public struct RemoteControlView: View {
             if isControlling {
                 statusDot(.green)
                 statusText("Controlling")
+                // Watch what you're driving. Since onDisappear no longer ends
+                // the session, this genuinely opens the video *alongside* the
+                // live control rather than replacing it.
+                if model.canViewScreen(of: peer), model.activeScreenPeerID != peer.deviceID {
+                    Button {
+                        model.viewScreen(of: peer)
+                    } label: {
+                        Label("See their screen", systemImage: "rectangle.on.rectangle")
+                    }
+                    .buttonStyle(.bordered)
+                    .controlSize(.small)
+                }
+                // Control outlives this screen now, so it needs a way to end
+                // that isn't "navigate away".
+                Button("Stop", role: .destructive) {
+                    model.stopControlling()
+                    dismiss()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             } else if model.controlPending {
                 ProgressView()
                     .controlSize(.small)

@@ -15,10 +15,17 @@ final class FakeScreenCapturer: ScreenCapturer, @unchecked Sendable {
     private var timer: Task<Void, Never>?
     let width: Int
     let height: Int
+    /// Where this "display" sits in the device's global coordinate space. Only
+    /// non-zero in the multi-display tests, where the whole point is that a
+    /// normalized position must land on the SECOND screen, not the first.
+    let originX: Int
+    let originY: Int
 
-    init(width: Int = 640, height: Int = 480) {
+    init(width: Int = 640, height: Int = 480, originX: Int = 0, originY: Int = 0) {
         self.width = width
         self.height = height
+        self.originX = originX
+        self.originY = originY
     }
 
     func isPermitted() async -> Bool { true }
@@ -26,7 +33,8 @@ final class FakeScreenCapturer: ScreenCapturer, @unchecked Sendable {
 
     func availableSources() async throws -> [CaptureSourceDescriptor] {
         [CaptureSourceDescriptor(id: "display:fake", kind: .display,
-                                 name: "Fake Display", width: width, height: height)]
+                                 name: "Fake Display", width: width, height: height,
+                                 originX: originX, originY: originY)]
     }
 
     func start(

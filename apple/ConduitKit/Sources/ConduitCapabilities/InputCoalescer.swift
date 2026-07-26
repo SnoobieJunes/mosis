@@ -12,6 +12,14 @@ public actor InputCoalescer {
     private var pendingMoveDX = 0.0
     private var pendingMoveDY = 0.0
     private var hasPendingMove = false
+    /// Absolute moves coalesce by keeping the LATEST position, not by summing:
+    /// two positions in one tick mean the pointer passed through the first, and
+    /// adding them would aim at neither. The accumulated delta is still carried
+    /// alongside so a receiver that ignores absolute coordinates gets the full
+    /// motion (see `InputEventBody.nx`).
+    private var pendingNX: Double?
+    private var pendingNY: Double?
+    private var pendingScreenSessionID: String?
     private var pendingScrollDX = 0.0
     private var pendingScrollDY = 0.0
     private var hasPendingScroll = false
@@ -38,6 +46,7 @@ public actor InputCoalescer {
         tickTask?.cancel()
         tickTask = nil
         pendingMoveDX = 0; pendingMoveDY = 0; hasPendingMove = false
+        pendingNX = nil; pendingNY = nil; pendingScreenSessionID = nil
         pendingScrollDX = 0; pendingScrollDY = 0; hasPendingScroll = false
     }
 
@@ -45,6 +54,21 @@ public actor InputCoalescer {
         pendingMoveDX += dx
         pendingMoveDY += dy
         hasPendingMove = true
+        // A relative move after an absolute one supersedes the aim point.
+        pendingNX = nil; pendingNY = nil; pendingScreenSessionID = nil
+    }
+
+    /// A pointer position on a live view of `screenSessionID`, plus the delta
+    /// that got there for receivers that only understand deltas.
+    public func enqueueAbsoluteMove(
+        nx: Double, ny: Double, dx: Double, dy: Double, screenSessionID: String?
+    ) {
+        pendingMoveDX += dx
+        pendingMoveDY += dy
+        hasPendingMove = true
+        pendingNX = nx
+        pendingNY = ny
+        pendingScreenSessionID = screenSessionID
     }
 
     public func enqueueScroll(dx: Double, dy: Double) {
@@ -63,8 +87,14 @@ public actor InputCoalescer {
     private func flushMotion() async {
         if hasPendingMove {
             let dx = pendingMoveDX, dy = pendingMoveDY
+            let nx = pendingNX, ny = pendingNY, session = pendingScreenSessionID
             pendingMoveDX = 0; pendingMoveDY = 0; hasPendingMove = false
-            if dx != 0 || dy != 0 {
+            pendingNX = nil; pendingNY = nil; pendingScreenSessionID = nil
+            if let nx, let ny {
+                // Sent even when the delta is zero: a tap-to-position with no
+                // motion still has somewhere to go.
+                await sink(.moveAbsolute(nx: nx, ny: ny, dx: dx, dy: dy, screenSessionID: session))
+            } else if dx != 0 || dy != 0 {
                 await sink(.move(dx: dx, dy: dy))
             }
         }
