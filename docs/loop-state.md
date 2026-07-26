@@ -327,13 +327,134 @@ and remote mouse control were confirmed working.
 **Verification.** Swift `swift test --disable-sandbox`: **109 green** (105 + 4 new
 `PushShareE2ETests` over real sockets, including "cast to the TV *and* the tablet
 with the reverse-dial impossible"). Go `go test ./...` + 47-vector conformance:
-PASS. Kotlin 47-vector conformance + session smoke: PASS. All four Apple targets
-build (macOS, iOS, tvOS, broadcast extension). Android debug APK built.
+PASS. Kotlin 47-vector conformance + session smoke: PASS. Android debug APK built.
+
+> **Correction (2026-07-26).** This paragraph originally ended "All four Apple
+> targets build (macOS, iOS, tvOS, broadcast extension)." That is **not true
+> today**: `xcodebuild` fails on every one of them with a swift-crypto
+> explicit-modules error (`CryptoExtras` → `SwiftASN1`), and a full DerivedData
+> wipe does not fix it. The package itself compiles fine under SwiftPM for all
+> three platforms, which is presumably what was actually checked. See
+> `docs/TESTING_PLAN.md` §0 — it is now the top blocker, because every remaining
+> device session needs an app that Xcode can build.
 
 **Still only backed by hope — no device session has been run for any of this.**
 The push path, the local cast, the browser page, and every broadcast fix are
 proven by automated tests and a synthetic capturer, not by a phone or a TV. See
 `docs/DEVICE_CHECKLIST.md` §§6–8.
+
+## Loop 7 — watch and drive at once, and Android reaches parity (2026-07-26)
+
+Executing `docs/plans/07-full-interoperability.md` end to end. Both tracks are
+code-complete; **not one line of it has run on a device.**
+
+**Track A — the two halves of remote control were mutually exclusive.**
+
+The transport was never the problem: one `PeerLink` interleaves control messages
+and screen frames, input rides its own datagram lane, video its own bulk lane,
+and teardown is peer-scoped. The gap was above it.
+
+- `RemoteControlView` was a trackpad with **no video**; `ScreenViewerScreen` was
+  video with **no input**, despite a header comment claiming since Phase 3 that
+  it forwarded touches. There was no gesture code in that file at all — a
+  comment describing a feature that was never built, which reads as finished to
+  anyone who greps instead of running.
+- They were separate navigation destinations, and `RemoteControlView.onDisappear
+  → stopControlling()` meant **opening the video ended the input session**. One
+  line made watching-and-driving impossible by construction.
+
+Built: `AppModel.takeControl(of:)` fires both requests at once and the peer menu
+leads with it; `onDisappear` no longer ends control (it ends when the user says
+so, when the peer revokes, or when the session drops, and both surfaces have a
+Stop); `ScreenControlSurface` forwards pointing, dragging, scrolling, left/right
+click and typing from the live video.
+
+**Keyboards, properly.** macOS uses an `NSEvent` **local monitor** rather than
+`keyDown(with:)` so it sees keys before menu-key equivalents — otherwise ⌘Q
+quits the app you are driving *from* instead of reaching the machine you are
+driving. iPadOS uses `pressesBegan/Ended` for real down/up. No new wire field
+was needed: `action` already existed on `INPUT_EVENT` and now applies to keys as
+well as clicks, so a held arrow repeats and chords work. `MacInputInjector`
+tracks held keycodes and releases them on the kill switch, so a controller that
+quits mid-keystroke can't leave a key stuck down on the Mac.
+
+**The one wire change (ADR 0015).** Optional `nx`/`ny` (normalized 0…1 of the
+captured source) plus `screen_session_id`. What makes it safe rather than a
+break: a sender including them **must** also send the equivalent `dx`/`dy`, so a
+peer that predates the fields still tracks the pointer instead of reading a
+missing delta as zero and never moving at all. The spec's "send deltas, not
+absolute" pitfall is **amended in place, not deleted** — it is still exactly
+right about a trackpad, whose operator cannot see the remote cursor. Swift, Go
+and Kotlin moved in lockstep; 5 vectors appended, none edited.
+
+Absolute lands on the display you are *watching*, not the desktop union:
+`CaptureSourceDescriptor` now carries the source's global origin (from
+`CGDisplayBounds`, already the top-left space CGEvent posts into), the source
+engine resolves `screen_session_id` to that region, and the injector aims there.
+The viewer's `ScreenGeometry` un-letterboxes the aspect-fit and **rejects**
+points in the black bars rather than clamping them — a clamped edge click is a
+real click somewhere the user did not aim.
+
+**Head-of-line blocking on the degraded lane**, with an honest split:
+1. The input **datagram lane now retries** (5×, 15 s apart, only while control
+   is live and the lane is down). One failed dial used to condemn the whole
+   session to sharing TCP with 2.5 Mbps of video. *This* is the fix that
+   removes input from behind video.
+2. Control frames no longer queue behind video at the app layer, bounded by a
+   250 ms valve so a wedged control send can't strand the video lane.
+
+The residual is stated rather than glossed: a frame already inside the transport
+can't be preempted, so input still waits out at most one frame.
+
+**Track B — Android went from "pairs and receives" to parity, in code.**
+
+- **Screen viewer**: a `MediaCodec` decoder + `SurfaceView`. Two things had to
+  be true and neither was: `routeInbound` now answers `SCREEN_ATTACH` (it closed
+  the socket, so the Mac's reverse dial was always refused) and the read loop
+  now routes `Frame.Screen` (it was dropped on the floor). The wire carries AVCC
+  with parameter sets on every keyframe; MediaCodec wants Annex-B plus
+  `csd-0`/`csd-1`, and that conversion is the entire difference between video
+  and a permanently black surface with no error anywhere.
+- **Screen source**: `ScreenProjectionSource` is finally instantiated, behind
+  MediaProjection consent, and `CAP_SCREEN_SOURCE` is advertised again now the
+  path can serve frames. Android 14 forbids a service claiming `mediaProjection`
+  type before consent exists — and `ConduitService` declared it and started at
+  launch, which is a `SecurityException` on every modern phone whose only
+  symptom would be "nothing works". Capture moved to its own
+  `ScreenShareService`.
+- **Send-side UI**: file send, clipboard send *and* receive, and a control
+  surface with scroll, right-click, modifiers and keys. Every one of these
+  called an `AndroidNode` method that already existed and that no UI reached.
+- **Keyboard injection**, with the wall stated: Android has no general
+  key-injection API for an accessibility service. Text goes into the focused
+  editable node (reading the existing contents first — `ACTION_SET_TEXT`
+  replaces the field, so typing "hello" a character at a time would otherwise
+  leave "o"); Back/Home/Enter map to global actions; **everything else is
+  refused with a message** rather than silently dropped.
+- **Bluetooth HID** is reachable for the first time (`BluetoothHidController`).
+- **Wi-Fi Aware**: its subscribe callback cast `this` — a
+  `DiscoverySessionCallback` — to `SubscribeDiscoverySession`. Unrelated types,
+  so the cast was always null and **no peer was ever reported**. Fixed, and the
+  `ConnectivityManager` data path (with the IPv6 link-local re-scoped to the
+  Aware interface, without which `connect()` fails "network is unreachable" for
+  no visible reason) is written where it did not exist. Still uninstantiated and
+  hardware-blocked.
+
+**Verification.** Swift `swift test --disable-sandbox`: **126 green** (was 109).
+Go `go vet` + `go test ./...` + conformance: PASS. Kotlin conformance **70
+vectors** — 52 shared plus **18 new builder vectors that pin the Kotlin
+`Bodies.*` output against Swift's bytes**, which the old suite could not do: it
+re-encoded a payload it had just parsed, so it would have passed with builders
+that were wrong, or missing entirely. That is exactly the state the `SCREEN_*`
+builders were in while Android "passed conformance". Kotlin session smoke: PASS.
+`./gradlew :app:assembleDebug`: APK built.
+
+**Still only backed by hope.** No device session has run any of this. The real
+`MacInputInjector` has still never injected a real event; MediaProjection has
+never been granted; no frame has ever been decoded on a phone; the Android
+pairing gate — the thing everything else waits behind — is still unproven on
+Conscrypt hardware. `docs/plans/07-full-interoperability.md` lists what is left
+and `docs/DEVICE_CHECKLIST.md` is the script.
 
 ## Known limitations (deliberate, not oversights)
 - ~~**Secondary (multi-viewer) sessions** still use the blocking dial with no
@@ -352,11 +473,16 @@ proven by automated tests and a synthetic capturer, not by a phone or a TV. See
   virtual display**, which macOS has no public API for. See
   `docs/extending-your-screen.md` for what works today and what the
   private-API route would cost.
-- **The Android app builds and pairs, and that is roughly where it stops.** It
-  cannot view a Mac's screen (no decoder exists) and cannot source its own
-  (`ScreenProjectionSource` is written but never instantiated, and there are no
-  `SCREEN_*` message builders in the Kotlin wire layer). See `android/README.md`,
-  which has been corrected — it previously described both as "device-gated".
+- ~~**The Android app builds and pairs, and that is roughly where it stops.**~~
+  **Closed in code in loop 7**: decoder, source, send-side UI, keyboard and
+  BT-HID all exist now. The limitation that replaces it is sharper and worse:
+  **the Android app has never run on an Android device at all**, so "parity" is
+  a statement about source files. `android/README.md` gives the verification
+  method for every capability, and none of them is hardware.
+- **Android keyboard injection is a short list, not a keyboard.** Text into a
+  focused field, Back, Home, Enter. There is no general key-injection API for a
+  third-party accessibility service, so arrows, function keys and modifier
+  chords have no route — they are refused with a message rather than dropped.
 - **iPhone→Mac broadcast cannot use this fallback.** The ReplayKit extension is a
   separate process with no session link of its own, so it must dial the Mac
   directly. That direction is the *easy* one (phone dialing out, same as

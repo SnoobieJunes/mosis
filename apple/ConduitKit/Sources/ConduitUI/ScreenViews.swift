@@ -74,10 +74,15 @@ final class LayerHostView: NSView {
 
 // MARK: - Viewer screen
 
-/// Full-screen viewer for a received stream. If a control session to the same
-/// peer is active, the surface also forwards touches as INPUT_EVENTs — the
-/// 2011 "mobile remote desktop", complete in the direction platforms allow
-/// (spec §9 Phase 3 step 5).
+/// Full-screen viewer for a received stream. When a control session to the same
+/// peer is active the surface also forwards pointing, clicking, scrolling and
+/// typing as INPUT_EVENTs — the 2011 "mobile remote desktop", complete in the
+/// direction platforms allow (spec §9 Phase 3 step 5).
+///
+/// That forwarding is real as of plan 07 RC-5. This comment claimed it from
+/// Phase 3 onward while `ScreenViews.swift` contained no gesture code at all,
+/// which is worse than claiming nothing: it made a missing feature look
+/// finished to anyone reading the source instead of running it.
 public struct ScreenViewerScreen: View {
     @Bindable var model: AppModel
     let render: ScreenRenderTarget
@@ -94,6 +99,16 @@ public struct ScreenViewerScreen: View {
             Color.black.ignoresSafeArea()
             ScreenLayerView(render: render)
                 .aspectRatio(CGFloat(offer.width) / CGFloat(max(1, offer.height)), contentMode: .fit)
+                // The overlay shares the aspect-fitted frame, so a point in it
+                // is a point on the picture. ScreenGeometry still un-letterboxes
+                // rather than assuming that, because the layer's own
+                // resizeAspect can leave a rounding band and a wrong assumption
+                // here silently mis-aims every click.
+                .overlay {
+                    if model.viewerForwardsInput {
+                        ScreenControlSurface(model: model)
+                    }
+                }
 
             if model.screenViewerConnecting {
                 VStack(spacing: 12) {
@@ -113,8 +128,23 @@ public struct ScreenViewerScreen: View {
                     .padding(.top, 8)
             }
         }
+        .overlay(alignment: .topTrailing) {
+            controlBar
+                .padding()
+        }
         .overlay(alignment: .bottomTrailing) {
             HStack(spacing: 10) {
+                // Multi-monitor (RC-11): ask the source to offer its picker
+                // again. Without this a viewer watching the wrong display of a
+                // three-display Mac had to stop and start over from the source.
+                if model.canRequestDifferentScreen {
+                    Button {
+                        model.requestDifferentScreen()
+                    } label: {
+                        Label("Change display…", systemImage: "display.2")
+                    }
+                    .buttonStyle(.bordered)
+                }
                 // Convenience senders (Phase 6): re-broadcast this screen to a TV.
                 Button {
                     model.openCastSheet()
@@ -123,7 +153,7 @@ public struct ScreenViewerScreen: View {
                 }
                 .buttonStyle(.bordered)
                 Button(role: .destructive) {
-                    model.stopViewingScreen()
+                    model.endControlSession()
                 } label: {
                     Label("Stop", systemImage: "xmark.circle.fill")
                 }
@@ -138,6 +168,53 @@ public struct ScreenViewerScreen: View {
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .navigationTitle(offer.sourceName)
+    }
+
+    /// Says, at a glance, whether this surface is driving the far end — and if
+    /// it isn't, why not. A remote-control window that silently doesn't control
+    /// anything is the failure this whole plan exists to remove.
+    @ViewBuilder private var controlBar: some View {
+        if let peerID = model.activeScreenPeerID {
+            HStack(spacing: 10) {
+                if model.controllingPeerID == peerID {
+                    Toggle(isOn: $model.viewerInputEnabled) {
+                        Label(
+                            model.viewerInputEnabled ? "Controlling" : "Watching",
+                            systemImage: model.viewerInputEnabled ? "cursorarrow.rays" : "eye"
+                        )
+                    }
+                    .toggleStyle(.button)
+                    .help("Forward pointer and keyboard to \(model.peerName(peerID))")
+                    if model.viewerInputEnabled {
+                        Toggle(isOn: $model.absolutePointing) {
+                            Label("Point", systemImage: "scope")
+                        }
+                        .toggleStyle(.button)
+                        .help("Aim where you point. Off: drag the pointer like a trackpad.")
+                    }
+                    if model.remoteSecureInput {
+                        Label("Password field — keys blocked", systemImage: "lock.fill")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+                } else if model.controlPending {
+                    ProgressView().controlSize(.small)
+                    Text("Asking to control…").font(.caption)
+                } else if model.canControlPeerID(peerID) {
+                    Button {
+                        model.startControllingPeer(peerID)
+                    } label: {
+                        Label("Take control", systemImage: "cursorarrow.rays")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                }
+            }
+            .font(.callout)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 7)
+            .background(.ultraThinMaterial, in: Capsule())
+        }
     }
 
     private var statsBar: some View {

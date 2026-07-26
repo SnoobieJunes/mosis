@@ -13,7 +13,7 @@ and is genuinely useful to others.
 | 3 | `03-open-source-readiness.md` | License, community files, hygiene sweep, CI, publish checklist. |
 | 4 | `04-industry-standard-path.md` | Ongoing after publication. |
 | 5 | `05-matter-support.md` | Validation of existing Matter code; hardware-gated; anytime. |
-| 6 | `07-full-interoperability.md` | The next capability phase: converts "wire is cross-OS" into "the *apps* interoperate" — device-proving the Apple side, Android app parity, and true simultaneous remote control. Gated behind plan 02's device sessions; Android track runs in parallel. |
+| 6 | `07-full-interoperability.md` | **Code complete 2026-07-26; device-unverified.** Converted "wire is cross-OS" into "the *apps* interoperate" in code: simultaneous watch-and-drive, absolute pointing (the one wire change — ADR 0015), and Android parity (screen both ways, send-side UI, keyboard, BT-HID). Everything remaining in it is device work, which folds into plan 02's sessions plus one Android gate. |
 
 `06-appture-2013-gap-analysis.md` is reference, not work: what the 2013 pitch
 promised vs. what exists, feeding `../BRIEF.md` and the README story.

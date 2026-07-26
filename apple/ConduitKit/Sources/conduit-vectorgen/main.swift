@@ -133,6 +133,20 @@ let messages: [(String, Message)] = [
     ("permission_revoke", .permissionRevoke(PermissionRevokeBody(
         capability: "screen-view",
         peer: "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"))),
+    // Simultaneous remote control (plan 07 Track A, ADR 0015). All three are
+    // ADDITIVE: every field below is optional, and an implementation that
+    // ignores them decodes the same message it always did.
+    //
+    // Absolute pointing carries dx/dy as well as nx/ny on purpose — a receiver
+    // that doesn't know the normalized fields must still see a delta, or its
+    // cursor would never move at all.
+    ("input_move_absolute", .inputEvent(.moveAbsolute(
+        nx: 0.25, ny: 0.75, dx: 8, dy: -6,
+        screenSessionID: "7C3E5A90-1234-4bcd-9876-0123456789AB"))),
+    ("input_key_down", .inputEvent(.specialKey("left", action: .down, modifiers: [.shift]))),
+    ("input_key_up", .inputEvent(.specialKey("left", action: .up, modifiers: [.shift]))),
+    ("input_click_down", .inputEvent(.click(.left, action: .down, clickCount: 1))),
+    ("input_click_up", .inputEvent(.click(.left, action: .up, clickCount: 1))),
 ]
 
 var messageVectors: [[String: Any]] = []

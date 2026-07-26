@@ -79,7 +79,9 @@ Needs a JDK + `kotlinc` (Android Studio bundles JDK 21; `brew install kotlin`):
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 cd android/core
 kotlinc $(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/conduit-core.jar
-java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 42/42 byte-exact
+java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 70/70 byte-exact
+                                                                                 # (52 shared vectors + 18 that pin
+                                                                                 #  the Kotlin builders' own output)
 java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke                     # pair + file + clipboard
 ```
 

@@ -381,16 +381,27 @@ struct PairedPeerRow: View {
                 if isConnected {
                     // Connect = pull (spec §8): control and/or view their screen.
                     Menu("Connect") {
+                        // The headline action: watch AND drive, one tap, one
+                        // surface. The two rows below it are the halves, kept
+                        // because a peer that can only do one still needs it.
+                        if model.canControl(peer), model.canViewScreen(of: peer) {
+                            Button {
+                                model.takeControl(of: peer)
+                            } label: {
+                                Label("Take control of \(peer.name)", systemImage: "macwindow.on.rectangle")
+                            }
+                            Divider()
+                        }
                         if model.canControl(peer) {
                             NavigationLink(value: peer) {
-                                Label("Control (trackpad/keyboard)", systemImage: "cursorarrow.rays")
+                                Label("Trackpad & keyboard only", systemImage: "cursorarrow.rays")
                             }
                         }
                         if model.canViewScreen(of: peer) {
                             Button {
                                 model.viewScreen(of: peer)
                             } label: {
-                                Label("View Screen", systemImage: "rectangle.on.rectangle")
+                                Label("Watch screen only", systemImage: "rectangle.on.rectangle")
                             }
                         } else {
                             // Say why it's unavailable. Silently omitting it is

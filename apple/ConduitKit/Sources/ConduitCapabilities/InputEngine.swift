@@ -23,6 +23,13 @@ public actor InputReceiveEngine {
     private let diagnostics: Diagnostics
     /// Asks the user to allow control from this peer; returns their decision.
     private let requestConsent: @Sendable (String) async -> Bool
+    /// Resolves a screen session id a controller names in an absolute pointer
+    /// event to the area of this device it maps into. Absent (or nil result)
+    /// means the injector falls back to the whole display union.
+    private let resolveRegion: @Sendable (String) async -> InjectionRegion?
+    /// The screen session the injector's absolute region is currently set from,
+    /// so a 240 Hz stream of moves doesn't re-resolve it on every event.
+    private var regionSessionID: String?
 
     struct Grant {
         let peerDeviceID: String
@@ -50,13 +57,15 @@ public actor InputReceiveEngine {
         backend: LANBackend,
         emit: @escaping @Sendable (ConduitEvent) -> Void,
         diagnostics: Diagnostics,
-        requestConsent: @escaping @Sendable (String) async -> Bool
+        requestConsent: @escaping @Sendable (String) async -> Bool,
+        resolveRegion: @escaping @Sendable (String) async -> InjectionRegion? = { _ in nil }
     ) {
         self.injector = injector
         self.backend = backend
         self.emit = emit
         self.diagnostics = diagnostics
         self.requestConsent = requestConsent
+        self.resolveRegion = resolveRegion
     }
 
     public var isActive: Bool { grant != nil }
@@ -150,6 +159,10 @@ public actor InputReceiveEngine {
         grant = nil
         current.datagramListenTask?.cancel()
         current.expiryTask?.cancel()
+        // Drop the aimed region with the grant: the next controller may be
+        // watching a different display, or nothing at all.
+        regionSessionID = nil
+        injector.setAbsoluteRegion(nil)
         injector.releaseAll()
         try? await current.link.send(.inputStatus(InputStatusBody(active: false, reason: reason)))
         emit(.inputActiveChanged(peerDeviceID: current.peerDeviceID, active: false))
@@ -190,8 +203,29 @@ public actor InputReceiveEngine {
     /// INPUT_EVENT arriving on the reliable control lane.
     public func handleControlEvent(_ event: InputEventBody, from peerDeviceID: String) async {
         guard let grant, grant.peerDeviceID == peerDeviceID else { return }
+        await aimAbsoluteRegion(for: event)
         deliver(event, link: grant.link)
         touchGrant()
+    }
+
+    /// Points the injector's absolute region at whatever the controller is
+    /// watching, before an absolute event is injected against it. Cached by
+    /// session id: moves arrive at up to 240 Hz and the answer only changes when
+    /// the viewer switches display.
+    private func aimAbsoluteRegion(for event: InputEventBody) async {
+        guard event.nx != nil, event.ny != nil else { return }
+        guard let sessionID = event.screenSessionID else {
+            // Absolute with no session named: fall back to the display union
+            // rather than silently reusing a stale display's bounds.
+            if regionSessionID != nil {
+                regionSessionID = nil
+                injector.setAbsoluteRegion(nil)
+            }
+            return
+        }
+        guard sessionID != regionSessionID else { return }
+        regionSessionID = sessionID
+        injector.setAbsoluteRegion(await resolveRegion(sessionID))
     }
 
     public func handleMedia(_ control: MediaControlBody, from peerDeviceID: String) async {
@@ -232,6 +266,7 @@ public actor InputReceiveEngine {
                         guard let grant, grant.datagramToken == expectedToken else {
                             datagram.close(); return
                         }
+                        await aimAbsoluteRegion(for: event)
                         deliver(event, link: grant.link)
                         touchGrant()
                     default:

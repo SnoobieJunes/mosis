@@ -71,6 +71,31 @@ public final class AppModel {
     public var controlFailedReason: String?
     /// Controller: the remote reported a secure-input (password) field.
     public var remoteSecureInput = false
+    /// Controller: the peer whose screen we asked to watch *and* drive in one
+    /// action ("Take control"). Non-nil means the viewer surface should forward
+    /// touches and keystrokes as input, not just display pixels.
+    public var takingControlOfPeerID: String?
+    /// Viewer: forward pointer/keys from the video surface. On by default while
+    /// taking control; the toggle exists because a viewer sometimes just wants
+    /// to watch a screen it also happens to have control of.
+    public var viewerInputEnabled = true
+    /// Viewer: aim the pointer where you point rather than dragging it there.
+    /// Absolute needs a peer that understands `nx`/`ny`; older peers apply the
+    /// delta that every absolute move also carries, so this is safe either way.
+    public var absolutePointing = true
+    /// Viewer: last normalized position sent, so the next one can carry the
+    /// delta between them for delta-only receivers.
+    var lastPointerNX: Double?
+    var lastPointerNY: Double?
+
+    /// True when the viewer surface should be forwarding input to the peer
+    /// whose screen it is showing.
+    public var viewerForwardsInput: Bool {
+        guard viewerInputEnabled, let offerPeer = activeScreenPeerID else { return false }
+        return controllingPeerID == offerPeer
+    }
+    /// Which peer is sourcing the stream on screen right now.
+    public var activeScreenPeerID: String?
 
     // Phase 3 — screen sharing state.
     /// Remote screen-source capability learned at session-ready.
@@ -367,9 +392,12 @@ public final class AppModel {
             screenSourcingName = nil
         case .screenPermissionNeeded:
             lastError = "Screen Recording permission is off. Enable MOSIS in System Settings → Privacy & Security → Screen Recording."
-        case .screenViewerStarted(_, let offer, let render):
+        case .screenViewerStarted(let peerID, let offer, let render):
             activeScreenView = render
             activeScreenOffer = offer
+            activeScreenPeerID = peerID
+            lastPointerNX = nil
+            lastPointerNY = nil
             screenViewerError = nil        // a fresh attempt is underway
             screenViewerConnecting = true  // waiting on the bulk lane + first frame
             screenRequestTimeout?.cancel()
@@ -383,6 +411,7 @@ public final class AppModel {
         case .screenViewerEnded:
             activeScreenView = nil
             activeScreenOffer = nil
+            activeScreenPeerID = nil
             screenFps = 0
             screenKbps = 0
             screenViewerConnecting = false
@@ -392,6 +421,7 @@ public final class AppModel {
             // persistent, actionable error rather than a toast that vanishes.
             activeScreenView = nil
             activeScreenOffer = nil
+            activeScreenPeerID = nil
             screenFps = 0
             screenKbps = 0
             screenLagMillis = 0
@@ -610,14 +640,77 @@ public final class AppModel {
     }
 
     public func stopControlling() {
+        takingControlOfPeerID = nil
         let node = node
         Task { await node?.stopInputControl() }
+    }
+
+    /// The one action the app was missing: watch a peer's screen AND drive it,
+    /// in one place. Previously these were two menu items leading to two
+    /// mutually exclusive screens — and navigating from the trackpad to the
+    /// video *stopped* the input session, so watching and driving at once was
+    /// not possible at all.
+    ///
+    /// Fires both requests together. Each is independently useful: a peer that
+    /// can be driven but can't share a screen still gets the trackpad, and a
+    /// peer that can only be watched still shows video.
+    public func takeControl(of peer: PinnedPeer) {
+        takingControlOfPeerID = peer.deviceID
+        viewerInputEnabled = true
+        if canControl(peer) {
+            startControlling(peer)
+        }
+        if canViewScreen(of: peer) {
+            viewScreen(of: peer)
+        }
+    }
+
+    /// Stop both halves at once (the combined surface's Stop).
+    public func endControlSession() {
+        takingControlOfPeerID = nil
+        stopViewingScreen()
+        stopControlling()
+    }
+
+    /// Ask the source to offer its picker again so the *viewer* can choose a
+    /// different display or window. No new message type: a repeat
+    /// SCREEN_REQUEST from the peer already being served means "show me
+    /// something else" (`ScreenSourceEngine.switchSource`).
+    public func requestDifferentScreen() {
+        guard let peerID = activeScreenPeerID else { return }
+        let node = node
+        toast = "Asking \(peerName(peerID)) to pick a screen…"
+        Task { await node?.requestScreen(from: peerID) }
     }
 
     public func canControl(_ peer: PinnedPeer) -> Bool {
         // Advertised in the peer's HELLO; mirrored onto the pinned record's
         // class as a heuristic when we haven't connected yet (desktops/laptops).
         remoteInputCapable[peer.deviceID] ?? (peer.deviceClass == .desktop || peer.deviceClass == .laptop)
+    }
+
+    /// Same question by device id, for surfaces that only have the id (the
+    /// viewer knows which peer is sourcing but not the pinned record).
+    public func canControlPeerID(_ deviceID: String) -> Bool {
+        remoteInputCapable[deviceID] ?? false
+    }
+
+    /// Ask for control of the peer whose screen is already on screen — the
+    /// viewer's "Take control" button.
+    public func startControllingPeer(_ deviceID: String) {
+        guard let peer = pinned.first(where: { $0.deviceID == deviceID }) else { return }
+        takingControlOfPeerID = deviceID
+        viewerInputEnabled = true
+        startControlling(peer)
+    }
+
+    /// Whether the source of the current stream could offer a different display
+    /// or window. Only meaningful when it is us pulling its screen: an iPhone
+    /// broadcast has exactly one screen, and a pushed share is the source's
+    /// choice to change.
+    public var canRequestDifferentScreen: Bool {
+        guard let peerID = activeScreenPeerID else { return false }
+        return remoteScreenCapable[peerID] ?? false
     }
 
     // Pointer/scroll/click/key/media forwarding used by the controller surface.
@@ -636,14 +729,55 @@ public final class AppModel {
         Task { await node?.sendClick(button, action: action, clickCount: clickCount) }
     }
 
-    public func typeText(_ text: String, modifiers: [InputModifier] = []) {
+    public func typeText(_ text: String, action: InputAction? = nil, modifiers: [InputModifier] = []) {
         let node = node
-        Task { await node?.sendText(text, modifiers: modifiers) }
+        Task { await node?.sendText(text, action: action, modifiers: modifiers) }
     }
 
-    public func specialKey(_ name: String, modifiers: [InputModifier] = []) {
+    public func specialKey(_ name: String, action: InputAction? = nil, modifiers: [InputModifier] = []) {
         let node = node
-        Task { await node?.sendSpecialKey(name, modifiers: modifiers) }
+        Task { await node?.sendSpecialKey(name, action: action, modifiers: modifiers) }
+    }
+
+    /// A pointer position on the stream currently on screen, in the container's
+    /// coordinate space. Un-letterboxes to the picture, normalizes, and sends —
+    /// with the equivalent delta so a peer that ignores absolute coordinates
+    /// still follows along. Points in the letterbox bars are dropped.
+    public func pointerMoveOnScreen(
+        x: Double, y: Double, containerWidth: Double, containerHeight: Double
+    ) {
+        guard let offer = activeScreenOffer else { return }
+        guard let normalized = ScreenGeometry.normalize(
+            x: x, y: y, containerWidth: containerWidth, containerHeight: containerHeight,
+            contentWidth: offer.width, contentHeight: offer.height
+        ) else { return }
+        let previousNX = lastPointerNX ?? normalized.nx
+        let previousNY = lastPointerNY ?? normalized.ny
+        let delta = ScreenGeometry.delta(
+            fromNX: previousNX, fromNY: previousNY, toNX: normalized.nx, toNY: normalized.ny,
+            contentWidth: offer.width, contentHeight: offer.height
+        )
+        lastPointerNX = normalized.nx
+        lastPointerNY = normalized.ny
+        let node = node
+        if absolutePointing {
+            let sessionID = offer.screenSessionID
+            Task {
+                await node?.sendPointerMoveAbsolute(
+                    nx: normalized.nx, ny: normalized.ny,
+                    dx: delta.dx, dy: delta.dy, screenSessionID: sessionID
+                )
+            }
+        } else if delta.dx != 0 || delta.dy != 0 {
+            Task { await node?.sendPointerMove(dx: delta.dx, dy: delta.dy) }
+        }
+    }
+
+    /// Forget the last pointer position — called when a gesture ends so the
+    /// next one doesn't send a delta spanning the gap between them.
+    public func endPointerGesture() {
+        lastPointerNX = nil
+        lastPointerNY = nil
     }
 
     public func media(_ action: MediaAction, value: Double? = nil) {

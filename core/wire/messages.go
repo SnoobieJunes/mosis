@@ -155,16 +155,25 @@ type NotificationBody struct {
 // --- Phase 2: remote input + media. Optional fields are pointers so a nil
 // (absent) is distinct from a present zero, matching Swift's Optional encoding. ---
 
+// InputEventBody carries one input event. `Action` applies to clicks AND keys
+// (a key with no action is a complete press-and-release, the pre-existing
+// behavior). Nx/Ny are an OPTIONAL absolute pointer position normalized to 0…1
+// of the captured source named by ScreenSessionID; a sender that sets them must
+// also set Dx/Dy with the equivalent delta, so a receiver that ignores the
+// absolute fields still tracks the pointer. See docs/adr/0015.
 type InputEventBody struct {
-	Kind       string   `json:"kind"`
-	Dx         *float64 `json:"dx,omitempty"`
-	Dy         *float64 `json:"dy,omitempty"`
-	Button     *string  `json:"button,omitempty"`
-	Action     *string  `json:"action,omitempty"`
-	ClickCount *int     `json:"click_count,omitempty"`
-	Key        *string  `json:"key,omitempty"`
-	Text       *string  `json:"text,omitempty"`
-	Modifiers  []string `json:"modifiers,omitempty"`
+	Kind            string   `json:"kind"`
+	Dx              *float64 `json:"dx,omitempty"`
+	Dy              *float64 `json:"dy,omitempty"`
+	Button          *string  `json:"button,omitempty"`
+	Action          *string  `json:"action,omitempty"`
+	ClickCount      *int     `json:"click_count,omitempty"`
+	Key             *string  `json:"key,omitempty"`
+	Text            *string  `json:"text,omitempty"`
+	Modifiers       []string `json:"modifiers,omitempty"`
+	Nx              *float64 `json:"nx,omitempty"`
+	Ny              *float64 `json:"ny,omitempty"`
+	ScreenSessionID *string  `json:"screen_session_id,omitempty"`
 }
 
 type InputStatusBody struct {

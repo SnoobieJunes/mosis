@@ -1,9 +1,13 @@
 package org.conduit.android.ui
 
+import android.app.Activity
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,6 +17,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
@@ -21,7 +27,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.conduit.android.ConduitRuntime
 import org.conduit.android.ConduitService
+import org.conduit.android.capability.ScreenShareStarter
 import org.conduit.core.session.PairPrompt
+import java.io.File
 import kotlin.coroutines.resume
 import kotlin.coroutines.suspendCoroutine
 
@@ -58,26 +66,33 @@ private fun StartingScreen() {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             CircularProgressIndicator()
             Spacer(Modifier.height(12.dp))
-            Text("Starting Conduit…", style = MaterialTheme.typography.bodyMedium)
+            Text("Starting MOSIS…", style = MaterialTheme.typography.bodyMedium)
         }
     }
 }
 
-/** State-based navigation: the device list, or the remote-control surface for
- *  one connected peer. */
+/** State-based navigation: the device list, the remote-control surface, or a
+ *  peer's screen. */
 @Composable
 fun ConduitApp(runtime: ConduitRuntime) {
     val node = runtime.node
     val connected by node.connected.collectAsStateWithLifecycle()
+    val viewing by node.screens.viewing.collectAsStateWithLifecycle()
     var controllingPeerId by remember { mutableStateOf<String?>(null) }
 
-    // Leave the trackpad if the session drops out from under it.
+    // Watching a screen wins the foreground; it is the more demanding surface
+    // and it ends on its own when the source stops.
     val ctrl = controllingPeerId?.takeIf { it in connected }
-    if (ctrl != null) {
-        BackHandler { controllingPeerId = null }
-        RemoteControlRoute(runtime, peerId = ctrl, onBack = { controllingPeerId = null })
-    } else {
-        DevicesScreen(runtime, onControl = { controllingPeerId = it })
+    when {
+        viewing != null -> {
+            BackHandler { node.screens.stopViewing() }
+            ScreenViewerRoute(runtime, onBack = { node.screens.stopViewing() })
+        }
+        ctrl != null -> {
+            BackHandler { controllingPeerId = null }
+            RemoteControlRoute(runtime, peerId = ctrl, onBack = { controllingPeerId = null })
+        }
+        else -> DevicesScreen(runtime, onControl = { controllingPeerId = it })
     }
 }
 
@@ -86,6 +101,9 @@ fun ConduitApp(runtime: ConduitRuntime) {
 fun RemoteControlRoute(runtime: ConduitRuntime, peerId: String, onBack: () -> Unit) {
     val node = runtime.node
     val name = node.peerFor(peerId)?.name ?: "device"
+    // Ask for control up front: the far end gates injection behind a consent
+    // prompt, and sending events before it is granted drops them silently.
+    LaunchedEffect(peerId) { node.requestInputControl(peerId) }
     Scaffold(
         topBar = {
             TopAppBar(
@@ -99,8 +117,12 @@ fun RemoteControlRoute(runtime: ConduitRuntime, peerId: String, onBack: () -> Un
                 connectedHost = name,
                 onMove = { dx, dy -> node.sendInputMove(peerId, dx, dy) },
                 onClick = { node.sendInputClick(peerId) },
-                onModeChange = { /* Bluetooth HID mode is device-gated (ADR); the
-                                    Conduit-peer path is what's wired here. */ },
+                onRightClick = { node.sendInputClick(peerId, "right") },
+                onScroll = { dx, dy -> node.sendInputScroll(peerId, dx, dy) },
+                onText = { text -> node.sendInputKey(peerId, text = text) },
+                onSpecialKey = { key, mods -> node.sendInputKey(peerId, key = key, modifiers = mods) },
+                onMedia = { action -> node.sendMediaControl(peerId, action) },
+                hidMode = runtime.bluetoothHid,
             )
         }
     }
@@ -114,12 +136,57 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
     val pinned by node.pinned.collectAsStateWithLifecycle()
     val connected by node.connected.collectAsStateWithLifecycle()
     val toast by node.toast.collectAsStateWithLifecycle()
+    val incomingClipboard by runtime.incomingClipboard.collectAsStateWithLifecycle()
+    val screenRequestFrom by node.screens.screenRequestFrom.collectAsStateWithLifecycle()
+    val sourcing by node.screens.sourcing.collectAsStateWithLifecycle()
     var acceptPairing by remember { mutableStateOf(false) }
     var prompt by remember { mutableStateOf<Pair<PairPrompt, (Boolean) -> Unit>?>(null) }
     /** Device id (or nearby host) with an operation in flight — row spinner. */
     var busyWith by remember { mutableStateOf<String?>(null) }
+    /** Peer a file is being picked for (AND-3: file SEND had no UI at all). */
+    var sendFileTo by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
+    val context = LocalContext.current
+    val activity = context as? Activity
+
+    // The system file picker. SAF hands back a content:// URI, which the file
+    // sender needs as a real File, so it is copied into the cache first.
+    val filePicker = rememberLauncherForActivityResult(
+        ActivityResultContracts.GetContent()
+    ) { uri ->
+        val peerId = sendFileTo
+        sendFileTo = null
+        if (uri == null || peerId == null) return@rememberLauncherForActivityResult
+        scope.launch(Dispatchers.IO) {
+            val copied = runCatching {
+                val name = uri.lastPathSegment?.substringAfterLast('/') ?: "shared"
+                val out = File(context.cacheDir, name)
+                context.contentResolver.openInputStream(uri)!!.use { input ->
+                    out.outputStream().use { input.copyTo(it) }
+                }
+                out
+            }.getOrNull()
+            if (copied == null) node.toast.value = "Couldn't read that file"
+            else node.sendFile(peerId, copied)
+        }
+    }
+
+    // MediaProjection consent (AND-2). Must be launched from an Activity, and
+    // the peer that asked has to survive the round trip.
+    var projectionForPeer by remember { mutableStateOf<String?>(null) }
+    val projectionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val peerId = projectionForPeer
+        projectionForPeer = null
+        if (peerId == null) return@rememberLauncherForActivityResult
+        val failure = ScreenShareStarter.start(context, peerId, result.resultCode, result.data)
+        if (failure != null) {
+            node.screens.declineRequest(peerId, "source declined")
+            node.toast.value = failure
+        }
+    }
 
     LaunchedEffect(Unit) {
         node.confirmPairing = { p -> suspendCoroutine { cont -> prompt = p to { ok -> prompt = null; cont.resume(ok) } } }
@@ -133,11 +200,19 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
             node.toast.value = null
         }
     }
+    // Clipboard RECEIVE had no UI either: text arrived and went nowhere.
+    LaunchedEffect(incomingClipboard) {
+        incomingClipboard?.let {
+            clipboard.setText(AnnotatedString(it))
+            node.toast.value = "Clipboard received"
+            runtime.incomingClipboard.value = null
+        }
+    }
 
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Conduit") },
+                title = { Text("MOSIS") },
                 actions = {
                     Text("Accept pairing", style = MaterialTheme.typography.labelMedium)
                     Switch(checked = acceptPairing, onCheckedChange = { acceptPairing = it })
@@ -151,6 +226,22 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
         },
     ) { pad ->
         LazyColumn(Modifier.padding(pad).fillMaxSize(), contentPadding = PaddingValues(16.dp)) {
+            sourcing?.let { live ->
+                item {
+                    // The receiver-side invariant, applied to screens: sharing is
+                    // always visibly indicated and instantly revocable.
+                    ElevatedCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+                        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text(
+                                "Sharing your screen with ${node.peerFor(live.peerId)?.name ?: "a device"}",
+                                Modifier.weight(1f),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Button(onClick = { ScreenShareStarter.stop(context) }) { Text("Stop") }
+                        }
+                    }
+                }
+            }
             item { SectionHeader("My devices") }
             if (pinned.isEmpty()) item { Hint("No paired devices yet. Turn on Accept pairing on one device, then tap the other under Nearby.") }
             items(pinned) { peer ->
@@ -173,6 +264,8 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
                         }
                     },
                     onControl = { onControl(peer.deviceId) },
+                    onWatchScreen = { node.screens.requestFrom(peer.deviceId) },
+                    onSendFile = { sendFileTo = peer.deviceId; filePicker.launch("*/*") },
                     onSendClipboard = {
                         val text = clipboard.getText()?.text
                         if (text.isNullOrEmpty()) {
@@ -225,6 +318,28 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
             dismissButton = { TextButton(onClick = { resolve(false) }) { Text("Cancel") } },
         )
     }
+
+    // A peer wants to see this screen. Consent twice on purpose: once for the
+    // peer (this dialog) and once for the OS (MediaProjection), because the
+    // second one cannot say *who* is asking.
+    screenRequestFrom?.let { peerId ->
+        val who = node.peerFor(peerId)?.name ?: "A device"
+        AlertDialog(
+            onDismissRequest = { node.screens.declineRequest(peerId) },
+            title = { Text("Share your screen?") },
+            text = { Text("$who wants to see this device's screen. Android will ask you to confirm screen capture as well.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    projectionForPeer = peerId
+                    node.screens.screenRequestFrom.value = null
+                    projectionLauncher.launch(ScreenShareStarter.consentIntent(context))
+                }) { Text("Share") }
+            },
+            dismissButton = {
+                TextButton(onClick = { node.screens.declineRequest(peerId) }) { Text("Not now") }
+            },
+        )
+    }
 }
 
 @Composable private fun SectionHeader(text: String) =
@@ -241,31 +356,43 @@ private fun PairedRow(
     isBusy: Boolean,
     onConnect: () -> Unit,
     onControl: () -> Unit,
+    onWatchScreen: () -> Unit,
+    onSendFile: () -> Unit,
     onSendClipboard: () -> Unit,
 ) {
     ElevatedCard(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
-        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(name, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    when {
-                        isConnected -> "Connected · $deviceClass"
-                        isBusy -> "Connecting… · $deviceClass"
-                        else -> deviceClass
-                    },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = if (isConnected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            when {
-                isBusy -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
-                isConnected -> {
-                    FilledTonalButton(onClick = onSendClipboard) { Text("Clipboard") }
-                    Spacer(Modifier.width(8.dp))
-                    Button(onClick = onControl) { Text("Control") }
+        Column(Modifier.padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text(name, style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        when {
+                            isConnected -> "Connected · $deviceClass"
+                            isBusy -> "Connecting… · $deviceClass"
+                            else -> deviceClass
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (isConnected) MaterialTheme.colorScheme.primary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
-                else -> Button(onClick = onConnect) { Text("Connect") }
+                when {
+                    isBusy -> CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+                    isConnected -> Button(onClick = onWatchScreen) { Text("Watch screen") }
+                    else -> Button(onClick = onConnect) { Text("Connect") }
+                }
+            }
+            if (isConnected) {
+                // The spec §8 verb pair, finally both present on Android: pull
+                // (watch / control) above, push (file / clipboard) here. Every
+                // one of these called an AndroidNode method that already
+                // existed and that no UI reached.
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = onControl) { Text("Control") }
+                    FilledTonalButton(onClick = onSendFile) { Text("Send file") }
+                    FilledTonalButton(onClick = onSendClipboard) { Text("Clipboard") }
+                }
             }
         }
     }

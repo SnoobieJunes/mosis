@@ -89,6 +89,15 @@ class FramedConnection(val stream: ByteStream) {
         stream.output.flush()
     }
 
+    /** Streams one encoded video frame. On the session link this is the
+     *  control-lane fallback the Apple side already relies on; on a dedicated
+     *  connection it is the normal path. */
+    @Synchronized
+    fun sendScreenFrame(frame: ScreenFrame) {
+        stream.output.write(FrameCodec.encodeScreen(frame))
+        stream.output.flush()
+    }
+
     fun close() = stream.close()
 }
 

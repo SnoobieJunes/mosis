@@ -25,7 +25,7 @@
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
-        android:label="Conduit"
+        android:label="@string/app_name"
         android:icon="@android:drawable/sym_def_app_icon"
         android:banner="@android:drawable/sym_def_app_icon"
         android:supportsRtl="true"
@@ -45,11 +45,24 @@
         </activity>
 
         <!-- The node runs in a foreground service so transfers/streams survive
-             the app going to the background (spec §9 Phase 5). -->
+             the app going to the background (spec §9 Phase 5).
+
+             connectedDevice ONLY. This service starts at launch, and from
+             Android 14 a service may not claim the mediaProjection type before
+             the user has granted a projection — declaring it here would make
+             every launch a SecurityException on a modern phone. Screen capture
+             therefore lives in its own service below, started after consent. -->
         <service
             android:name=".ConduitService"
             android:exported="false"
-            android:foregroundServiceType="connectedDevice|mediaProjection" />
+            android:foregroundServiceType="connectedDevice" />
+
+        <!-- Screen capture (AND-2). Started only once MediaProjection consent
+             has been granted, which is what makes claiming this type legal. -->
+        <service
+            android:name=".ScreenShareService"
+            android:exported="false"
+            android:foregroundServiceType="mediaProjection" />
 
         <!-- Input RECEIVER: Android can be controlled by a peer via
              AccessibilityService#dispatchGesture. Gated OFF by default; the user

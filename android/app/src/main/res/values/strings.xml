@@ -1,5 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Conduit</string>
+    <!-- User-visible product name. NOT identity-bearing: the package,
+         the bundle id and the Bonjour service type are the names that
+         must not move (see ../../CLAUDE.md and plans/01). -->
+    <string name="app_name">MOSIS</string>
     <string name="accessibility_description">Lets a device you have paired and approved control this one\'s pointer and taps. Disabled until you enable it; a persistent notification shows while a device is in control, and you can revoke instantly.</string>
 </resources>

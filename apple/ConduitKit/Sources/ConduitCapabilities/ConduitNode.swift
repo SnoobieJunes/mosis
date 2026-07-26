@@ -196,6 +196,12 @@ public actor ConduitNode {
                 diagnostics: diagnostics,
                 requestConsent: { peerID in
                     await selfBox.node?.awaitInputConsent(peerID: peerID) ?? false
+                },
+                // Absolute pointing needs to know which display the controller
+                // is watching; only the screen source knows that. Routed through
+                // the node because the screen engine is built after this one.
+                resolveRegion: { screenSessionID in
+                    await selfBox.node?.captureRegion(forScreenSessionID: screenSessionID) ?? nil
                 }
             )
         } else {
@@ -906,6 +912,17 @@ public actor ConduitNode {
         await inputControllerEngine.sendMove(dx: dx, dy: dy)
     }
 
+    /// Point at a position on a peer's screen this device is watching — the
+    /// click-where-you-point half of remote control. Carries the equivalent
+    /// delta too, so a receiver that only understands deltas still tracks.
+    public func sendPointerMoveAbsolute(
+        nx: Double, ny: Double, dx: Double, dy: Double, screenSessionID: String?
+    ) async {
+        await inputControllerEngine.sendMoveAbsolute(
+            nx: nx, ny: ny, dx: dx, dy: dy, screenSessionID: screenSessionID
+        )
+    }
+
     public func sendScroll(dx: Double, dy: Double) async {
         await inputControllerEngine.sendScroll(dx: dx, dy: dy)
     }
@@ -914,12 +931,23 @@ public actor ConduitNode {
         await inputControllerEngine.sendClick(button, action: action, clickCount: clickCount)
     }
 
-    public func sendText(_ text: String, modifiers: [InputModifier] = []) async {
-        await inputControllerEngine.sendText(text, modifiers: modifiers)
+    public func sendText(
+        _ text: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) async {
+        await inputControllerEngine.sendText(text, action: action, modifiers: modifiers)
     }
 
-    public func sendSpecialKey(_ name: String, modifiers: [InputModifier] = []) async {
-        await inputControllerEngine.sendSpecialKey(name, modifiers: modifiers)
+    public func sendSpecialKey(
+        _ name: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) async {
+        await inputControllerEngine.sendSpecialKey(name, action: action, modifiers: modifiers)
+    }
+
+    /// The area a viewer's normalized pointer position maps into on this
+    /// device, for the screen session it is watching. Bridges the input
+    /// receiver to the screen source (see `InputReceiveEngine.resolveRegion`).
+    fileprivate func captureRegion(forScreenSessionID id: String) async -> InjectionRegion? {
+        await screenSourceEngine?.captureRegion(forScreenSessionID: id)
     }
 
     public func sendMedia(_ action: MediaAction, value: Double? = nil) async {

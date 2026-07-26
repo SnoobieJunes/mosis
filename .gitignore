@@ -4,6 +4,10 @@ DerivedData/
 xcuserdata/
 *.xcresult
 .swiftpm/
+# xcodebuild run from apple/AppleApps or apple/ConduitKit drops a `build/`
+# beside the project, unlike SwiftPM's dotted `.build/`. Untracked and easy to
+# commit by accident.
+apple/*/build/
 
 # Go
 core/conduitd
