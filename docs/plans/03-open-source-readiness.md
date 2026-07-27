@@ -80,17 +80,17 @@ Precondition: plan 01 (rename) merged. Everything here is small and mechanical.
 >   tracked files (bare-basename prose mentions excluded; README's two links
 >   to plan-09/linux.md are forward references, see above).
 > - **Flagged for Auston, not changed** (candor kept, per the ground rules):
->   1. `NOTICE` copyright line reads "Auston Leroy" — confirm (also §1 below).
->   2. `docs/plans/appture-2013-transcript.txt` names real third parties
->      (judges, team, customer references) from the 2013 pitch. If the SSS
->      video is public, so are these names; confirm you're comfortable, since
->      the transcript goes public with the repo.
->   3. `docs/plans/07-full-interoperability.md` cites `CLAUDE.md` (the
->      private instructions file *outside* the repo) three times — honest but
->      dangling for public readers. Options: leave (harmless), or a one-line
->      footnote naming it an out-of-repo working file.
->   4. `docs/TESTING.md` still says "~74 Swift tests" and other stale counts
->      (TESTING_PLAN.md is current). Fold or banner it before flip.
+>   1. `NOTICE` copyright line reads "Auston Leroy" — **confirmed 2026-07-27**.
+>   2. ~~`docs/plans/appture-2013-transcript.txt` names real third parties~~
+>      **RESOLVED 2026-07-27 (Auston's call): names redacted in place** —
+>      teammates, customer references, and judges replaced with bracketed
+>      roles; the transcript is otherwise unchanged and says so up top.
+>   3. ~~plan 07 cites `CLAUDE.md` three times~~ **RESOLVED 2026-07-27**: the
+>      three citations now point at the in-repo equivalents
+>      (`CONTRIBUTING.md`'s "plans are kept true", `PROTOCOL_CHANGES.md`).
+>   4. `docs/TESTING.md` — **worst staleness fixed 2026-07-27**: counts → 126,
+>      and it printed bare `swift test`, the exact invocation that hangs; it
+>      now carries `--disable-sandbox`. Full fold-or-banner remains gate 6.
 >   5. Commit email + GitHub profile presentation: unchanged decisions from
 >      §2, still open.
 >   6. CODE_OF_CONDUCT remains optional per §3 — not added; decide at flip.
@@ -172,14 +172,17 @@ Everything above, collapsed into the actual sequence. Nothing on this list is
 effort-gated except the device sessions; it is decisions + hardware + one CI
 shakedown.
 
-1. ☐ **Auston decides** (one line each, from `00-overview.md`): crypto domain
-   strings (open decision 4 — until then, `conduit-*-v1` ships in the
-   protocol); NOTICE name; commit email; CoC yes/no; profile identity.
+1. ◐ **Auston decided (2026-07-27)**: crypto domain strings → **deferred to
+   publish time, deliberately** (this gate survives; until then `conduit-*-v1`
+   ships in the protocol and ADR 0016's ALPN waits); NOTICE name →
+   **confirmed** ("Auston Leroy"); profile identity → **keep SnoobieJunes**,
+   no history rewrite (commit email stays as history); CoC → **not added**.
 2. ☐ **Plan 01 finishes** (decision-gated parts: domain strings + vector
    re-freeze, Go module path/`mosisd`, Kotlin packages, `ConduitKit`→
    `MosisKit`, proto rename) — or Auston explicitly ships under the codename
    banner (the README's rename notice already covers this state honestly).
-3. ☐ **Plan 09 + `docs/linux.md` landed** — else fix the two README links.
+3. ☑ **Plan 09 + `docs/linux.md` landed** (2026-07-26, `2e89e4a`) — the two
+   README links resolve.
 4. ☐ **CI shakedown on a private GitHub copy** until the conformance workflow
    is green as-committed. Then the README badge.
 5. ☐ **Device sessions S1–S4** (plan 02 / quirky) → demo GIF → README top.

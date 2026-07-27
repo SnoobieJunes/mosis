@@ -34,20 +34,20 @@ show a real GIF, and it's roughly a week away.
 ## Decisions needed from Auston (one line each)
 
 1. ~~**License**: confirm Apache-2.0.~~ **DECIDED — Apache-2.0** (2026-07-20).
-   `LICENSE`/`NOTICE` committed, ADR 0007 accepted. Confirm only the copyright
-   name ("Auston Leroy" was used in `NOTICE`).
+   `LICENSE`/`NOTICE` committed, ADR 0007 accepted. Copyright name **confirmed
+   2026-07-27**: NOTICE stays "Auston Leroy".
 2. **Name casing**: product "MOSIS", code identifiers `mosis` (assumed in the
    plans). github.com/**mosis** is taken by a dormant account, so the repo
    will live at `<your-account>/mosis`.
-3. **Public identity**: keep the SnoobieJunes handle, or set your GitHub
-   display name to Auston Leroy for the portfolio? (No git-history rewrite
-   either way — commit email `austonJLeroy@gmail.com` is already in history
-   and rewriting would destroy the verifiable 12-commit timeline the
-   writeup relies on.)
-4. **Crypto domain strings**: approve the one-time clean break renaming
-   `conduit-pairing-v1` / `conduit-tls-binding-v1` (see plan 01, step 2 —
-   now is the only cheap moment; the alternative is carrying the codename in
-   the protocol forever).
+3. ~~**Public identity**~~ **DECIDED 2026-07-27 — keep the SnoobieJunes
+   handle.** NOTICE keeps "Auston Leroy" as the copyright name; no
+   git-history rewrite either way (the verifiable 12-commit timeline stays).
+4. **Crypto domain strings** — **DEFERRED 2026-07-27, on the record: decide
+   at publish time**, as flip-checklist gate 1 (plan 03). Until then
+   `conduit-pairing-v1` / `conduit-tls-binding-v1` ship as-is and ADR 0016's
+   ALPN constant waits with the decision. Plan 01 step 2 still documents the
+   clean-break mechanics; the "only cheap moment" tradeoff was accepted
+   knowingly.
 
 ## Honesty ledger (name-related, so it's on record)
 
