@@ -60,7 +60,7 @@ body:
       label: Log bundle and HUD
       description: |
         Follow `docs/DEVICE_CHECKLIST.md`. On macOS:
-        `log show --last 10m --predicate 'subsystem == "org.conduit"' --info`
+        `log show --last 10m --predicate 'subsystem == "org.mosis"' --info`
         A screenshot of the diagnostics HUD (which lane, dial target, frame
         counts) usually identifies the failure on its own.
       render: shell

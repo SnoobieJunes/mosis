@@ -5,11 +5,28 @@ video between a user's devices. A vulnerability here is a vulnerability in
 someone's private data and, in the input case, in control of their computer.
 Reports are taken seriously.
 
+## Pre-release status — set expectations accordingly
+
+This is pre-1.0, pre-beta software with **no releases and no installed user
+base**. The protocol core is proven by automated tests across three
+implementations; the device experience is not yet verified on hardware (the
+README states exactly what is and isn't). Security review of the protocol and
+its documented guarantees (below) is welcome and useful *now*; reports about
+polish-level hardening in flows that have never shipped will be triaged with
+that context.
+
 ## Reporting a vulnerability
 
 Use GitHub's **private vulnerability reporting** on this repository
-(Security → Report a vulnerability). It is enabled. Please do not open a
-public issue for a security bug.
+(Security → Report a vulnerability). Please do not open a public issue for a
+security bug.
+
+> Maintainer note (remove once done): enabling private vulnerability reporting
+> is a repo setting that can only be flipped when the repo goes public — it is
+> on the flip-public checklist in `docs/plans/03-open-source-readiness.md`. If
+> you are reading this on the public repo and the "Report a vulnerability"
+> button is missing, that checklist item was missed: please open a *non-detailed*
+> issue saying only "security contact missing" and a maintainer will fix it.
 
 There is no bounty program. This is an unfunded open-source project; what is
 offered is a prompt, honest response and credit in the fix, if wanted.

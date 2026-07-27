@@ -14,6 +14,8 @@ and is genuinely useful to others.
 | 4 | `04-industry-standard-path.md` | Ongoing after publication. |
 | 5 | `05-matter-support.md` | Validation of existing Matter code; hardware-gated; anytime. |
 | 6 | `07-full-interoperability.md` | **Code complete 2026-07-26; device-unverified.** Converted "wire is cross-OS" into "the *apps* interoperate" in code: simultaneous watch-and-drive, absolute pointing (the one wire change — ADR 0015), and Android parity (screen both ways, send-side UI, keyboard, BT-HID). Everything remaining in it is device work, which folds into plan 02's sessions plus one Android gate. |
+| 7 | `08-direct-link-transport.md` | **Architecture written 2026-07-26** (ADR 0016 QUIC-primary transport, ADR 0017 direct-link path ladder) toward the five-platform goal: cast/control/files/input, peer-to-peer, no shared network required. Sequenced after 07 because it changes what *carries* the lanes, not the lanes. Windows leg on hold; P0 spikes gate everything. |
+| 8 | `09-linux-screen-and-control.md` | **Code + docs landed 2026-07-26** (`core/screencast/`, `conduitview`, `docs/linux.md`): Linux screen-source + viewer/control over today's lanes. Loopback E2E with real ffmpeg proven on a macOS host; every X11/uinput/real-network row is device-gated in the plan's ledger until the first Linux-box session. QUIC slides underneath later. |
 
 `06-appture-2013-gap-analysis.md` is reference, not work: what the 2013 pitch
 promised vs. what exists, feeding `../BRIEF.md` and the README story.

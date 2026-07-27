@@ -17,6 +17,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26"
+      - name: Go vet
+        run: cd core && go vet ./...
       - name: Go unit tests
         run: cd core && go test ./...
       - name: Go conformance against golden vectors
@@ -49,9 +51,29 @@ jobs:
       - name: Kotlin session smoke (pair + file + clipboard)
         run: java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke
 
+  android-apk:
+    name: Android app assembles
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      # GitHub's ubuntu image preinstalls the Android SDK (ANDROID_HOME is
+      # set); the committed Gradle wrapper does the rest. A green run proves
+      # the app COMPILES — nothing more (android/README.md).
+      - name: Assemble debug APK
+        run: cd android && ./gradlew --no-daemon :app:assembleDebug
+
   swift:
     name: Swift full suite + conformance + interop
-    runs-on: macos-15
+    # macos-26: the suite is only ever verified on macOS 26 + Xcode 26 (the
+    # dev machine). The package floor is macOS 15 / Swift 6.1, so macos-15
+    # might work — but "might" is not the bar; pin to the proven environment.
+    # NOTE: no revision of this workflow has ever run on GitHub-hosted
+    # runners (docs/plans/03-open-source-readiness.md §5 — shakedown pending).
+    runs-on: macos-26
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
