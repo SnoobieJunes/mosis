@@ -3,7 +3,7 @@
 **Status: code complete, device-unverified.** Every milestone below is built and
 covered by automated tests; **nothing in it has run on a phone, a tablet, or a
 second Mac.** The distinction is the whole point of this repo's process
-(`CLAUDE.md`) and is carried through every "done" mark in this file: each says
+(`CONTRIBUTING.md`, "plans are kept true") and is carried through every "done" mark in this file: each says
 *how* it is verified, and the answer is never "on hardware".
 
 **What "full interoperability" means here:** every headline capability (files,
@@ -28,7 +28,7 @@ start of this plan and "full interop":
 **Wire-change budget.** Track B needed **no** wire change; Track A's Phases A
 and B likewise. **RC-7 was taken** and is the only wire change in this plan:
 optional absolute pointer coordinates, additive, with Swift + Go + Kotlin + the
-golden vectors moved in lockstep (`CLAUDE.md`'s frozen-wire rule). RC-6 needed
+golden vectors moved in lockstep (the frozen-wire rule — `PROTOCOL_CHANGES.md`). RC-6 needed
 no new field — `action` already existed on `INPUT_EVENT` and now applies to keys
 as well as clicks. Both are documented in **ADR 0015** and
 `docs/protocol-changelog.md`.
@@ -290,7 +290,7 @@ is exclusively device work — and one build problem that blocks all of it.
 
 The one hard rule is unchanged: **don't claim any of it works cross-device until
 a device session says so** — attach the verification method to every "done"
-(`CLAUDE.md`). Every ✅ above names its method, and not one of them is hardware.
+(`CONTRIBUTING.md`). Every ✅ above names its method, and not one of them is hardware.
 
 ## Exit bar
 

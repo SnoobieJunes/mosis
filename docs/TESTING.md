@@ -7,8 +7,9 @@ testing each phase's spec calls for.
 Two kinds of testing, kept separate throughout:
 
 - **Automated** — runs on your Mac, no phones or second machines needed. This is
-  the fast confidence check; ~74 Swift tests + the Go suite + live Swift↔Go
-  interop all pass today.
+  the fast confidence check; 126 Swift tests + the Go suite (52 golden
+  vectors) + Kotlin's 70-vector conformance + live Swift↔Go interop all pass
+  as of 2026-07-27.
 - **Hardware acceptance** — the things only a human with real devices can
   confirm: the local-network prompt, actual file/clipboard/screen latency, the
   Accessibility/Screen-Recording grants, cursor motion, a real daemon.
@@ -39,7 +40,8 @@ Repo lives at `MOSIS/conduit/`. All paths below are relative to that root.
 
 ```bash
 cd apple/ConduitKit
-swift test          # ~74 tests across protocol, pairing, TLS, input, video, E2E, interop
+swift test --disable-sandbox   # 126 tests across protocol, pairing, TLS, input, video, E2E, interop
+# --disable-sandbox is REQUIRED — the sandbox HANGS (not fails) the Network/PKCS#12/VideoToolbox suites
 ```
 
 What it proves, by area:
