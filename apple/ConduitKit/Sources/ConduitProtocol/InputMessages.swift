@@ -31,10 +31,16 @@ public struct InputEventBody: Codable, Sendable, Equatable {
     public var kind: InputKind
     /// move: pointer delta in points. scroll: scroll delta in points
     /// (positive dy scrolls content up, trackpad-natural).
+    ///
+    /// On a `move` these are ALWAYS present, including when `nx`/`ny` are —
+    /// see the compatibility note on `nx`.
     public var dx: Double?
     public var dy: Double?
     /// click fields.
     public var button: PointerButton?
+    /// click: down / up / tap. key: down / up / tap — a `key` with no `action`
+    /// (or `.tap`) is a complete press-and-release, which is what every peer
+    /// before this field existed on keys produced and expected.
     public var action: InputAction?
     public var clickCount: Int?
     /// key fields: exactly one of `key` (special-key name: return, tab,
@@ -43,16 +49,40 @@ public struct InputEventBody: Codable, Sendable, Equatable {
     public var key: String?
     public var text: String?
     public var modifiers: [InputModifier]?
+    /// Optional absolute pointer position, normalized to `0…1` of the
+    /// **captured source's** own coordinate space, top-left origin. Present
+    /// only on `move`, and only from a controller pointing at a live view of
+    /// that source — a trackpad has nothing to be absolute about.
+    ///
+    /// **Compatibility rule, load-bearing:** a sender that includes `nx`/`ny`
+    /// MUST also include the equivalent `dx`/`dy`. A receiver that predates
+    /// this field ignores the unknown keys and applies the delta, so it still
+    /// tracks the pointer; a receiver that understands them positions exactly.
+    /// Without that rule an old receiver would read `dx ?? 0` and the cursor
+    /// would simply never move, which is a worse failure than imprecision.
+    ///
+    /// This does not retract the spec's "send deltas, not absolute" pitfall
+    /// (`docs/spec.md`): deltas remain the default and the only thing a
+    /// trackpad sends. Absolute is the click-where-you-point case the pitfall
+    /// never covered, and it is additive. See ADR 0015.
+    public var nx: Double?
+    public var ny: Double?
+    /// Which screen session `nx`/`ny` are relative to. Lets a multi-display
+    /// receiver map the point into the display the controller is actually
+    /// watching, rather than the union of all of them.
+    public var screenSessionID: String?
 
     enum CodingKeys: String, CodingKey {
-        case kind, dx, dy, button, action, key, text, modifiers
+        case kind, dx, dy, button, action, key, text, modifiers, nx, ny
         case clickCount = "click_count"
+        case screenSessionID = "screen_session_id"
     }
 
     public init(kind: InputKind, dx: Double? = nil, dy: Double? = nil,
                 button: PointerButton? = nil, action: InputAction? = nil,
                 clickCount: Int? = nil, key: String? = nil, text: String? = nil,
-                modifiers: [InputModifier]? = nil) {
+                modifiers: [InputModifier]? = nil, nx: Double? = nil, ny: Double? = nil,
+                screenSessionID: String? = nil) {
         self.kind = kind
         self.dx = dx
         self.dy = dy
@@ -62,10 +92,25 @@ public struct InputEventBody: Codable, Sendable, Equatable {
         self.key = key
         self.text = text
         self.modifiers = modifiers
+        self.nx = nx
+        self.ny = ny
+        self.screenSessionID = screenSessionID
     }
 
     public static func move(dx: Double, dy: Double) -> InputEventBody {
         InputEventBody(kind: .move, dx: dx, dy: dy)
+    }
+
+    /// An absolute move. `dx`/`dy` carry the same motion as a delta so a
+    /// receiver that doesn't know `nx`/`ny` still follows the pointer.
+    public static func moveAbsolute(
+        nx: Double, ny: Double, dx: Double, dy: Double, screenSessionID: String? = nil
+    ) -> InputEventBody {
+        InputEventBody(
+            kind: .move, dx: dx, dy: dy,
+            nx: min(max(nx, 0), 1), ny: min(max(ny, 0), 1),
+            screenSessionID: screenSessionID
+        )
     }
 
     public static func scroll(dx: Double, dy: Double) -> InputEventBody {
@@ -76,12 +121,18 @@ public struct InputEventBody: Codable, Sendable, Equatable {
         InputEventBody(kind: .click, button: button, action: action, clickCount: clickCount)
     }
 
-    public static func text(_ text: String, modifiers: [InputModifier] = []) -> InputEventBody {
-        InputEventBody(kind: .key, text: text, modifiers: modifiers.isEmpty ? nil : modifiers)
+    public static func text(
+        _ text: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) -> InputEventBody {
+        InputEventBody(kind: .key, action: action, text: text,
+                       modifiers: modifiers.isEmpty ? nil : modifiers)
     }
 
-    public static func specialKey(_ name: String, modifiers: [InputModifier] = []) -> InputEventBody {
-        InputEventBody(kind: .key, key: name, modifiers: modifiers.isEmpty ? nil : modifiers)
+    public static func specialKey(
+        _ name: String, action: InputAction? = nil, modifiers: [InputModifier] = []
+    ) -> InputEventBody {
+        InputEventBody(kind: .key, action: action, key: name,
+                       modifiers: modifiers.isEmpty ? nil : modifiers)
     }
 }
 

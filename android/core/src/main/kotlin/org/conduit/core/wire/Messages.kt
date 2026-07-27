@@ -143,17 +143,104 @@ object Bodies {
     fun inputEventMove(dx: Double, dy: Double): Json =
         Json.obj("kind" to Json.of("move"), "dx" to Json.Num(numLit(dx)), "dy" to Json.Num(numLit(dy)))
 
+    /**
+     * A move that also carries an absolute position, normalized to 0…1 of the
+     * captured source named by [screenSessionId]. `dx`/`dy` stay present and
+     * carry the equivalent delta, so a receiver that predates `nx`/`ny` still
+     * tracks the pointer instead of reading a missing delta as zero.
+     */
+    fun inputEventMoveAbsolute(
+        nx: Double, ny: Double, dx: Double, dy: Double, screenSessionId: String? = null,
+    ): Json {
+        val m = linkedMapOf<String, Json>(
+            "kind" to Json.of("move"),
+            "dx" to Json.Num(numLit(dx)), "dy" to Json.Num(numLit(dy)),
+            "nx" to Json.Num(numLit(nx.coerceIn(0.0, 1.0))),
+            "ny" to Json.Num(numLit(ny.coerceIn(0.0, 1.0))),
+        )
+        if (screenSessionId != null) m["screen_session_id"] = Json.of(screenSessionId)
+        return Json.Obj(m)
+    }
+
+    fun inputEventScroll(dx: Double, dy: Double): Json =
+        Json.obj("kind" to Json.of("scroll"), "dx" to Json.Num(numLit(dx)), "dy" to Json.Num(numLit(dy)))
+
     /** A left-button tap, byte-identical to the Swift InputEventBody click
      *  (frozen v1 schema; canonical encoding sorts the keys). */
-    fun inputEventClick(): Json =
+    fun inputEventClick(): Json = inputEventClick("left", "tap", 1)
+
+    fun inputEventClick(button: String, action: String, clickCount: Int = 1): Json =
         Json.obj(
-            "action" to Json.of("tap"), "button" to Json.of("left"),
-            "click_count" to Json.of(1), "kind" to Json.of("click"),
+            "action" to Json.of(action), "button" to Json.of(button),
+            "click_count" to Json.of(clickCount), "kind" to Json.of("click"),
         )
+
+    /**
+     * A key event. Exactly one of [text] (literal characters) or [key] (a
+     * special-key name) is set. [action] distinguishes a held key-down from a
+     * key-up; absent means a complete press-and-release.
+     */
+    fun inputEventKey(
+        text: String? = null, key: String? = null,
+        action: String? = null, modifiers: List<String> = emptyList(),
+    ): Json {
+        val m = linkedMapOf<String, Json>("kind" to Json.of("key"))
+        if (action != null) m["action"] = Json.of(action)
+        if (key != null) m["key"] = Json.of(key)
+        if (text != null) m["text"] = Json.of(text)
+        if (modifiers.isNotEmpty()) m["modifiers"] = Json.Arr(modifiers.map { Json.of(it) })
+        return Json.Obj(m)
+    }
 
     fun mediaControl(action: String, value: Double? = null): Json {
         val m = linkedMapOf<String, Json>("action" to Json.of(action))
         if (value != null) m["value"] = Json.Num(numLit(value))
+        return Json.Obj(m)
+    }
+
+    // --- Phase 3: screen sharing. These are what AND-1 (Android views a Mac)
+    // and AND-2 (a Mac views Android) both needed and neither had. ---
+
+    fun screenRequest(
+        maxWidth: Int? = null, maxHeight: Int? = null, maxFps: Int? = null,
+        codecs: List<String> = listOf("hevc", "h264"),
+    ): Json {
+        val m = linkedMapOf<String, Json>("codecs" to Json.Arr(codecs.map { Json.of(it) }))
+        if (maxWidth != null) m["max_width"] = Json.of(maxWidth)
+        if (maxHeight != null) m["max_height"] = Json.of(maxHeight)
+        if (maxFps != null) m["max_fps"] = Json.of(maxFps)
+        return Json.Obj(m)
+    }
+
+    fun screenOffer(
+        screenSessionId: String, wireSessionId: Int, codec: String,
+        width: Int, height: Int, fps: Int, captureKind: String,
+        sourceName: String, bulkToken: String,
+    ): Json = Json.obj(
+        "screen_session_id" to Json.of(screenSessionId),
+        "wire_session_id" to Json.of(wireSessionId),
+        "codec" to Json.of(codec),
+        "width" to Json.of(width), "height" to Json.of(height), "fps" to Json.of(fps),
+        "capture_kind" to Json.of(captureKind),
+        "source_name" to Json.of(sourceName),
+        "bulk_token" to Json.of(bulkToken),
+    )
+
+    fun screenReject(reason: String): Json = Json.obj("reason" to Json.of(reason))
+
+    fun screenAttach(screenSessionId: String, bulkToken: String): Json =
+        Json.obj("screen_session_id" to Json.of(screenSessionId), "bulk_token" to Json.of(bulkToken))
+
+    fun screenAck(screenSessionId: String, ackedSeq: Long, requestKeyframe: Boolean): Json =
+        Json.obj(
+            "screen_session_id" to Json.of(screenSessionId),
+            "acked_seq" to Json.of(ackedSeq),
+            "request_keyframe" to Json.of(requestKeyframe),
+        )
+
+    fun screenEnd(screenSessionId: String, reason: String? = null): Json {
+        val m = linkedMapOf<String, Json>("screen_session_id" to Json.of(screenSessionId))
+        if (reason != null) m["reason"] = Json.of(reason)
         return Json.Obj(m)
     }
 

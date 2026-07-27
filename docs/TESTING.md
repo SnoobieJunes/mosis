@@ -7,8 +7,9 @@ testing each phase's spec calls for.
 Two kinds of testing, kept separate throughout:
 
 - **Automated** — runs on your Mac, no phones or second machines needed. This is
-  the fast confidence check; ~74 Swift tests + the Go suite + live Swift↔Go
-  interop all pass today.
+  the fast confidence check; 126 Swift tests + the Go suite (52 golden
+  vectors) + Kotlin's 70-vector conformance + live Swift↔Go interop all pass
+  as of 2026-07-27.
 - **Hardware acceptance** — the things only a human with real devices can
   confirm: the local-network prompt, actual file/clipboard/screen latency, the
   Accessibility/Screen-Recording grants, cursor motion, a real daemon.
@@ -39,7 +40,8 @@ Repo lives at `MOSIS/conduit/`. All paths below are relative to that root.
 
 ```bash
 cd apple/ConduitKit
-swift test          # ~74 tests across protocol, pairing, TLS, input, video, E2E, interop
+swift test --disable-sandbox   # 126 tests across protocol, pairing, TLS, input, video, E2E, interop
+# --disable-sandbox is REQUIRED — the sandbox HANGS (not fails) the Network/PKCS#12/VideoToolbox suites
 ```
 
 What it proves, by area:
@@ -79,7 +81,9 @@ Needs a JDK + `kotlinc` (Android Studio bundles JDK 21; `brew install kotlin`):
 export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
 cd android/core
 kotlinc $(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/conduit-core.jar
-java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 42/42 byte-exact
+java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 70/70 byte-exact
+                                                                                 # (52 shared vectors + 18 that pin
+                                                                                 #  the Kotlin builders' own output)
 java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke                     # pair + file + clipboard
 ```
 

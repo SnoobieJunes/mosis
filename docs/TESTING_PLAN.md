@@ -14,26 +14,52 @@
 ## 0. TL;DR — read this first
 
 **What is proven right now, with no hardware:**
-- 109 Swift tests (unit + full end-to-end over real TLS sockets) — green via
+- 126 Swift tests (unit + full end-to-end over real TLS sockets) — green via
   `swift test --disable-sandbox`. The broadcast E2E suite (4 tests) self-skips
   unless the screen is unlocked — it writes an `NSFileProtectionComplete` file
   (the broadcast config carries a TLS private key), which fails on a locked Mac;
   it runs on an unlocked/CI host.
-- Go + Kotlin protocol conformance — 47 golden vectors, byte-for-byte identical
-  across all three implementations.
+- Go + Kotlin protocol conformance — 52 golden vectors, byte-for-byte identical
+  across all three implementations, plus 18 more that pin the Kotlin
+  *builders'* output against Swift's bytes (the shared vectors only prove a
+  decode→re-encode round trip, which a missing builder would also pass).
 - The `ConduitKit` Swift package builds and its whole graph (incl. swift-crypto)
-  compiles under SwiftPM. **Caveat:** building the Xcode *app* targets currently
-  trips a swift-crypto explicit-modules resolution failure on Xcode 26 (it tries
-  to compile `CryptoExtras`/`SwiftASN1`, which the app doesn't use — SwiftPM
-  compiles only the referenced products, which is why `swift test` is clean).
-  This is a toolchain/project-integration issue, not a source issue; fix is an
-  Xcode-side module-cache reset or trimming the package product to `Crypto` only.
+  compiles under SwiftPM — for macOS, and (checked 2026-07-26) cross-compiled
+  for `arm64-apple-ios18.0` and `arm64-apple-tvos18.0` as well.
 
-**The single biggest thing NOT working, by design:**
-- **Wi-Fi Aware is off.** It is gated behind an Apple entitlement we cannot
-  request until the product has a name. The always-on LAN path (Bonjour/NSD +
-  pinned mutual TLS) is what runs; Aware is the dark accelerator. Everything you
-  test today rides the LAN path. See §9.
+**The Xcode app targets build — RESOLVED 2026-07-26, but only via `-scheme`.**
+All four (macOS, iOS, tvOS, broadcast) build green with
+`xcodebuild -scheme <name>` — `make apple-apps` runs exactly that for all four
+and is the canonical check. The earlier "top blocker" was an **invocation
+artifact**: `xcodebuild -target <name>` uses the legacy build path, which
+cannot resolve SwiftPM module dependencies under Xcode 26's explicit modules
+and dies inside swift-crypto with:
+
+```
+swift-crypto/Sources/CryptoExtras/EC/Curve25519+PEM.swift:16:8:
+  error: unable to resolve module dependency: 'SwiftASN1'
+```
+
+That is why DerivedData wipes and `SWIFT_ENABLE_EXPLICIT_MODULES=NO` never
+helped — the legacy `-target` path was the variable, not module caching. The
+tell in the logs: `-target` builds write package objects *inside the checkout*
+(`SourcePackages/checkouts/swift-crypto/build/…`) with a bogus
+`x86_64-apple-macos10.13` deployment target. **Never build these apps with
+`xcodebuild -target`.** Xcode GUI builds use schemes and are unaffected.
+
+Verified 2026-07-26: `make apple-apps` → four `** BUILD SUCCEEDED **`
+(Debug, unsigned: `CODE_SIGNING_ALLOWED=NO`; signing for device installs is a
+separate, still-untested step). Device work in
+`docs/plans/07-full-interoperability.md` is unblocked on the build front.
+
+**The biggest still-unlit path:**
+- **Wi-Fi Aware is implemented but has never carried a session (2026-07-26).**
+  The entitlement is granted (org.auston.mosis), `AwareBackend` is real code on
+  the iOS 26 WiFiAware + new Network API with the same pinned mutual TLS, the
+  iOS app declares `_mosis-aware._tcp`, and the flag is ON for iOS — but it is
+  compile-verified only. It needs two physical iPhones/iPads that are OS-paired
+  via the in-app Wi-Fi Aware section before a single Aware byte flows. The
+  always-on LAN path is still what every test exercises. See §9.
 
 **The things that need real hardware/SDKs to test at all** (none are wired into
 the default build, all are honestly stubbed or flag-gated): virtual display
@@ -46,13 +72,14 @@ desktop daemon. See §8 and §10.
 ## 1. The automated core (run these — they gate every change)
 
 ```bash
-# Swift: 91 tests, unit + E2E. The E2E suite spins up real nodes on 127.0.0.1
-# and exercises pairing, files, clipboard, input, screen sharing, multi-viewer.
-cd apple/ConduitKit && swift test        # ~21s
+# Swift: 126 tests, unit + E2E. The E2E suite spins up real nodes on 127.0.0.1
+# and exercises pairing, files, clipboard, input, screen sharing, multi-viewer,
+# and screen+input running simultaneously in one session.
+cd apple/ConduitKit && swift test --disable-sandbox     # ~2 min
 
 # Go core + daemon logic, and 3-way wire conformance:
 cd core && go test ./...
-cd core && go run ./cmd/conformance ../proto/vectors      # 47 vectors, 0 failed
+cd core && go run ./cmd/conformance ../proto/vectors      # 52 vectors, 0 failed
 
 # Kotlin core + the SAME conformance vectors (proves byte-exactness):
 cd android/core && kotlinc $(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/cc.jar
@@ -100,6 +127,8 @@ path will fail to load its TLS identity.
 | File transfer (chunked, resumable offer/accept) | ✅ proven | E2E round-trips real bytes over the bulk lane |
 | Clipboard push | ✅ proven | E2E + conformance |
 | Trackpad / keyboard control (coalesced at 120 Hz) | ✅ logic proven | Coalescing + protocol are tested; **actual OS injection is device-gated — see §8** |
+| Watching a peer's screen **while driving it** | ✅ proven | `SimultaneousControlE2ETests` — both flow in one session, on the direct lane and the degraded one. Fake injector, so the same §8 caveat applies |
+| Absolute pointing (`nx`/`ny`, ADR 0015) onto the watched display | ✅ proven | golden vectors in all three impls; E2E asserts the point lands on a *second* display at origin (1920,0), not the first |
 
 **Gotcha — the coalescer test is timing-sensitive.** It was flaky at a 60 ms
 deadline under full-suite load (the 120 Hz flush task gets starved). It now waits
@@ -142,11 +171,14 @@ CI-testable.
 
 | What | Status | Notes |
 |---|---|---|
-| Canonical JSON + framing + messages | ✅ proven | passes the **same** 47 vectors as Swift/Go |
+| Canonical JSON + framing + messages | ✅ proven | passes the **same** 52 vectors as Swift/Go |
+| The Kotlin **builders** emit the golden bytes | ✅ **as of 2026-07-26** | 18 extra vectors assert `Bodies.*` output against Swift's. The old suite re-encoded a payload it had just parsed, so it would have passed with builders that were wrong — or, as with `SCREEN_*`, absent entirely |
 | The `app` module compiles at all | ✅ **as of 2026-07-20** | It did **not** before: CI compiles `android/core` only, and `:app` had a hard Kotlin error nobody had ever hit. Gradle wrapper is now committed |
 | Full app (discovery, pairing, transfers) | ⚠️ needs a device | never run on hardware |
-| Screen sharing, either direction | ❌ **not built** | no decoder for viewing; the source is written but unwired. See `../android/README.md` |
-| Bluetooth HID, Wi-Fi Aware | ❌ **not wired** | written, never instantiated |
+| Screen sharing, either direction | ⚠️ **built, never run** | `MediaCodec` decoder + `SurfaceView` for viewing; `ScreenProjectionSource` wired behind MediaProjection consent for sourcing. Verified only by builder vectors + `assembleDebug`. See `../android/README.md` |
+| Send-side UI (file, clipboard, input, keys) | ⚠️ **built, never run** | the methods existed all along; the UI that calls them is new |
+| Bluetooth HID | ⚠️ **wired, never run** | reachable via `BluetoothHidController`; needs two physical devices |
+| Wi-Fi Aware | ❌ **not instantiated** | the always-null cast and the missing data path are fixed, but nothing constructs it and no `FEATURE_WIFI_AWARE` hardware has run it |
 
 **Device test:**
 
@@ -213,7 +245,7 @@ control. Interactive stays on the Phase 3 low-latency path.
 
 | What | Status | How |
 |---|---|---|
-| `DEVICE_STATE`, `PERMISSION_REQUEST/GRANT/REVOKE` wire messages | ✅ proven | added to all 3 impls; 47 vectors byte-exact |
+| `DEVICE_STATE`, `PERMISSION_REQUEST/GRANT/REVOKE` wire messages | ✅ proven | added to all 3 impls; byte-exact |
 | Profiles + `ProfileEngine` (context → offer) | ✅ proven | 11 unit tests: office-walk-in, weekend/peer negatives, most-specific wins, midnight-wrap |
 | On-device suggestion engine | ✅ proven | mines a local log for habits; one-off vs same-day vs ≥N-day tested; **no network** |
 | Context loop (offer → run → log → suggest) | ✅ proven | `ContextCoordinatorTests` proves the whole assistant loop without hardware |
@@ -236,10 +268,19 @@ control. Interactive stays on the Phase 3 low-latency path.
 
 ## 9. What is NOT working / NOT built (read this before promising anything)
 
-1. **Wi-Fi Aware — OFF.** Gated on an Apple entitlement blocked by the naming
-   decision. The LAN path is the product today; Aware is unlit. **This is the long
-   pole.** Nothing in the demo needs it, but "faster/again-without-Wi-Fi" claims
-   depend on it.
+1. **Wi-Fi Aware — implemented, zero device evidence (2026-07-26).** The Apple
+   side is no longer stubbed: entitlement granted, `AwareBackend` publishes and
+   subscribes `_mosis-aware._tcp` over the iOS 26 structured-concurrency Network
+   API, inbound Aware connections join the normal session routing, and the
+   connect path tries Aware endpoints before LAN when any are visible (HUD badge
+   will read AWARE). What nothing has proven: (a) any of it on hardware — it
+   needs two Aware-capable iPhones/iPads, OS-paired via the new "Wi-Fi Aware"
+   section on the devices screen; (b) the deliberate v1 ceiling — bulk/datagram
+   lanes still dial LAN addresses, so an Aware-only session (no AP at all)
+   carries video over the control-lane fallback at ~2.5 Mbps; (c) Android
+   interop — the Kotlin `WifiAwareBackend` is still not instantiated, and
+   Apple-side Aware requires Apple's own OS pairing, so iPhone↔Android Aware
+   likely needs the Phase 0 probe to even establish feasibility.
 2. **Virtual display (tablet as a real 2nd monitor) — NOT functional**, and the
    `unsupported/macos-virtual-display/` module is **not** the head start it looks
    like: it has never been compiled by anything (its `#if` flag is defined

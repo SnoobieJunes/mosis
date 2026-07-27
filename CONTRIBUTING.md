@@ -21,17 +21,34 @@ you get a stalled run, not a red one. See `docs/TESTING_PLAN.md` §1.
 **Go (`core/`)** — the daemon and the second conformant implementation.
 
 ```bash
-cd core && go test ./...
+cd core && go vet ./... && go test ./...
 make go-conformance          # replays the golden vectors byte-for-byte
 ```
 
 **Kotlin (`android/core`)** — a pure-JVM third implementation, no Android SDK
-needed to run conformance.
+needed to run conformance. You need `kotlinc` (`brew install kotlin`) and a JDK
+on `PATH`/`JAVA_HOME` — Android Studio's bundled one works:
 
 ```bash
-make kotlin-conformance
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export PATH="$JAVA_HOME/bin:$PATH"
+make kotlin-conformance      # 70 vectors, byte-exact (52 shared + 18 builder)
 make kotlin-smoke            # pair + file + clipboard over the JVM session layer
 ```
+
+**Android app (`android/app`)** — the Gradle wrapper is committed, so this
+works from a clean checkout with a JDK and an Android SDK:
+
+```bash
+cd android
+echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties   # once
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew :app:assembleDebug
+```
+
+`assembleRelease` is not usable (no signing config). Note that a green
+`assembleDebug` proves the app *compiles*, nothing more — see
+[`android/README.md`](android/README.md) for what is and isn't verified.
 
 **The release gate** — all three green on the same vectors:
 
@@ -41,9 +58,25 @@ make swift-test              # the Swift half (needs Xcode)
 make interop                 # live Swift <-> Go handshake
 ```
 
-The Apple apps are generated, not committed: `cd apple/AppleApps && xcodegen
-generate` (`brew install xcodegen`; `project.yml` is the source of truth — edit
-that, never the `.xcodeproj`).
+**The Apple app project is generated from `apple/AppleApps/project.yml`** and
+the generated `.xcodeproj` is committed (the shared schemes in it are required —
+see below). After editing `project.yml`, run `cd apple/AppleApps && xcodegen
+generate` (`brew install xcodegen`) and commit the result. Never hand-edit the
+`.xcodeproj`; it will be overwritten.
+
+Two traps that have each already cost real damage here:
+
+- **`xcodegen generate` rewrites the `.entitlements` files from `project.yml`.**
+  Any capability present in an `.entitlements` file but not mirrored in
+  `project.yml`'s `properties` is **silently deleted** — this once stripped the
+  granted Wi-Fi Aware entitlement. If you add a capability, add it to
+  `project.yml`, not (only) to the entitlements file.
+- **Never build these apps with `xcodebuild -target`.** The legacy `-target`
+  path cannot resolve SwiftPM module dependencies under Xcode 26 explicit
+  modules and dies inside swift-crypto (`unable to resolve module dependency:
+  'SwiftASN1'`). Use schemes: `make apple-apps` runs the canonical
+  `xcodebuild -scheme` invocation for all four targets
+  (`docs/TESTING_PLAN.md` §0).
 
 ## The two iron rules
 
@@ -70,6 +103,32 @@ If you are choosing between two designs and the choice would be expensive to
 reverse, write the ADR first and let the discussion happen there. Historical
 ADRs are records: correct them with a new ADR that supersedes them, don't
 rewrite the old text.
+
+## Plans are kept true, or they are deleted
+
+`docs/plans/` holds the working plans, and `docs/loop-state.md` /
+`docs/quirky-tickling-dongarra.md` hold the running logs. They are deliberately
+candid — they name broken features and wrong past claims, and that stays. The
+rule that keeps them useful: **if your PR completes, changes, or invalidates
+something a plan says, update the plan in the same PR.** A plan that claims
+something false is worse than no plan; this project has been bitten by exactly
+that, which is why the rule is written down.
+
+## PR expectations: honesty labels
+
+Every claim in a PR description carries its verification method, exactly like
+the docs do. "Works" is not a verification method. The vocabulary used
+throughout this repo:
+
+- **vectors** — byte-exact against the golden vectors (wire correctness only);
+- **unit / loopback E2E** — automated tests, real TLS sockets on 127.0.0.1,
+  with fakes standing in for hardware (say *which* fakes);
+- **build-only** — it compiles / the APK assembles; implies nothing else;
+- **device-verified** — demonstrated on named physical hardware (say which).
+
+A PR that says "screen sharing now works (loopback E2E, fake capturer; not
+device-verified)" will be reviewed kindly. A PR that says "screen sharing now
+works" and means the former will not.
 
 ## Third-party clients are the goal
 

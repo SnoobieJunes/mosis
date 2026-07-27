@@ -94,9 +94,17 @@ public protocol TransportBackend: AnyObject, Sendable {
 /// Compile-time feature flags (spec §12 risk 2: everything Aware-specific is
 /// feature-flagged until the entitlement lands).
 public enum ConduitFeatureFlags {
-    /// Wi-Fi Aware requires the com.apple.developer.wifi-aware entitlement,
-    /// which requires a real App ID. Not yet requested — see docs/adr/0003.
+    /// Wi-Fi Aware. The com.apple.developer.wifi-aware entitlement is granted
+    /// for org.auston.mosis and the backend is implemented (ADR 0003 step 4) —
+    /// on for iOS/iPadOS, the only platforms Apple ships Aware on. Runtime
+    /// gating (device support, Info.plist service declaration) happens in
+    /// `AwareBackendStatus.availability()`, so `true` here still degrades to
+    /// LAN-only everywhere Aware can't actually run.
+    #if os(iOS)
+    public static let wifiAwareEnabled = true
+    #else
     public static let wifiAwareEnabled = false
+    #endif
 }
 
 /// Minimal lock box for state shared with synchronous Network.framework callbacks.

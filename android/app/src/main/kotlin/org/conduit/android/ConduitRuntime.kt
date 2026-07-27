@@ -2,6 +2,7 @@ package org.conduit.android
 
 import android.content.Context
 import kotlinx.coroutines.flow.MutableStateFlow
+import org.conduit.android.capability.BluetoothHidController
 import org.conduit.android.transport.TlsMaterial
 import org.conduit.core.identity.Identity
 import org.conduit.core.wire.Json
@@ -15,7 +16,12 @@ import java.io.File
  * bound-service dance. Holds the [AndroidNode] plus the small pieces of UI
  * state the capability services feed.
  */
-class ConduitRuntime private constructor(val node: AndroidNode) {
+class ConduitRuntime private constructor(
+    val node: AndroidNode,
+    /** Phone-as-a-real-Bluetooth-keyboard. Off the MOSIS wire entirely; held
+     *  here so the control surface can reach it (AND-4). */
+    val bluetoothHid: BluetoothHidController,
+) {
 
     val incomingClipboard = MutableStateFlow<String?>(null)
     val incomingNotification = MutableStateFlow<Triple<String, String, String>?>(null)
@@ -32,6 +38,10 @@ class ConduitRuntime private constructor(val node: AndroidNode) {
     fun onInputReceiverAvailable(available: Boolean) { node.canReceiveInput = available }
     fun onNotificationSourceAvailable(available: Boolean) { node.canSourceNotifications = available }
     fun onClipboardReceived(text: String) { incomingClipboard.value = text }
+    /// A controller asked for something Android has no API for. Surfaced rather
+    /// than dropped: a key that does nothing and says nothing is the failure
+    /// mode this project keeps having to fix.
+    fun onInputUnsupported(reason: String) { node.toast.value = reason }
     fun onNotificationReceived(payload: Json) {
         val o = payload.asObj()
         incomingNotification.value = Triple(o.getValue("app_name").str(), o.getValue("title").str(), o.getValue("body").str())
@@ -50,7 +60,7 @@ class ConduitRuntime private constructor(val node: AndroidNode) {
             val name = android.os.Build.MODEL ?: "Android"
             val receive = File(appCtx.getExternalFilesDir(null), "Conduit").apply { mkdirs() }
             val node = AndroidNode(appCtx, identity, material, name, receive)
-            return ConduitRuntime(node).also { instance = it }
+            return ConduitRuntime(node, BluetoothHidController(appCtx)).also { instance = it }
         }
 
         private fun loadOrCreate(context: Context, dir: File): Pair<Identity, TlsMaterial> {

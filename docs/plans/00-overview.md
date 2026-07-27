@@ -13,7 +13,9 @@ and is genuinely useful to others.
 | 3 | `03-open-source-readiness.md` | License, community files, hygiene sweep, CI, publish checklist. |
 | 4 | `04-industry-standard-path.md` | Ongoing after publication. |
 | 5 | `05-matter-support.md` | Validation of existing Matter code; hardware-gated; anytime. |
-| 6 | `07-full-interoperability.md` | The next capability phase: converts "wire is cross-OS" into "the *apps* interoperate" — device-proving the Apple side, Android app parity, and true simultaneous remote control. Gated behind plan 02's device sessions; Android track runs in parallel. |
+| 6 | `07-full-interoperability.md` | **Code complete 2026-07-26; device-unverified.** Converted "wire is cross-OS" into "the *apps* interoperate" in code: simultaneous watch-and-drive, absolute pointing (the one wire change — ADR 0015), and Android parity (screen both ways, send-side UI, keyboard, BT-HID). Everything remaining in it is device work, which folds into plan 02's sessions plus one Android gate. |
+| 7 | `08-direct-link-transport.md` | **Architecture written 2026-07-26** (ADR 0016 QUIC-primary transport, ADR 0017 direct-link path ladder) toward the five-platform goal: cast/control/files/input, peer-to-peer, no shared network required. Sequenced after 07 because it changes what *carries* the lanes, not the lanes. Windows leg on hold; P0 spikes gate everything. |
+| 8 | `09-linux-screen-and-control.md` | **Code + docs landed 2026-07-26** (`core/screencast/`, `conduitview`, `docs/linux.md`): Linux screen-source + viewer/control over today's lanes. Loopback E2E with real ffmpeg proven on a macOS host; every X11/uinput/real-network row is device-gated in the plan's ledger until the first Linux-box session. QUIC slides underneath later. |
 
 `06-appture-2013-gap-analysis.md` is reference, not work: what the 2013 pitch
 promised vs. what exists, feeding `../BRIEF.md` and the README story.
@@ -32,20 +34,20 @@ show a real GIF, and it's roughly a week away.
 ## Decisions needed from Auston (one line each)
 
 1. ~~**License**: confirm Apache-2.0.~~ **DECIDED — Apache-2.0** (2026-07-20).
-   `LICENSE`/`NOTICE` committed, ADR 0007 accepted. Confirm only the copyright
-   name ("Auston Leroy" was used in `NOTICE`).
+   `LICENSE`/`NOTICE` committed, ADR 0007 accepted. Copyright name **confirmed
+   2026-07-27**: NOTICE stays "Auston Leroy".
 2. **Name casing**: product "MOSIS", code identifiers `mosis` (assumed in the
    plans). github.com/**mosis** is taken by a dormant account, so the repo
    will live at `<your-account>/mosis`.
-3. **Public identity**: keep the SnoobieJunes handle, or set your GitHub
-   display name to Auston Leroy for the portfolio? (No git-history rewrite
-   either way — commit email `austonJLeroy@gmail.com` is already in history
-   and rewriting would destroy the verifiable 12-commit timeline the
-   writeup relies on.)
-4. **Crypto domain strings**: approve the one-time clean break renaming
-   `conduit-pairing-v1` / `conduit-tls-binding-v1` (see plan 01, step 2 —
-   now is the only cheap moment; the alternative is carrying the codename in
-   the protocol forever).
+3. ~~**Public identity**~~ **DECIDED 2026-07-27 — keep the SnoobieJunes
+   handle.** NOTICE keeps "Auston Leroy" as the copyright name; no
+   git-history rewrite either way (the verifiable 12-commit timeline stays).
+4. **Crypto domain strings** — **DEFERRED 2026-07-27, on the record: decide
+   at publish time**, as flip-checklist gate 1 (plan 03). Until then
+   `conduit-pairing-v1` / `conduit-tls-binding-v1` ship as-is and ADR 0016's
+   ALPN constant waits with the decision. Plan 01 step 2 still documents the
+   clean-break mechanics; the "only cheap moment" tradeoff was accepted
+   knowingly.
 
 ## Honesty ledger (name-related, so it's on record)
 

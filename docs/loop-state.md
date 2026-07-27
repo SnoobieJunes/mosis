@@ -327,13 +327,138 @@ and remote mouse control were confirmed working.
 **Verification.** Swift `swift test --disable-sandbox`: **109 green** (105 + 4 new
 `PushShareE2ETests` over real sockets, including "cast to the TV *and* the tablet
 with the reverse-dial impossible"). Go `go test ./...` + 47-vector conformance:
-PASS. Kotlin 47-vector conformance + session smoke: PASS. All four Apple targets
-build (macOS, iOS, tvOS, broadcast extension). Android debug APK built.
+PASS. Kotlin 47-vector conformance + session smoke: PASS. Android debug APK built.
+
+> **Correction (2026-07-26).** This paragraph originally ended "All four Apple
+> targets build (macOS, iOS, tvOS, broadcast extension)." That is **not true
+> today**: `xcodebuild` fails on every one of them with a swift-crypto
+> explicit-modules error (`CryptoExtras` → `SwiftASN1`), and a full DerivedData
+> wipe does not fix it. The package itself compiles fine under SwiftPM for all
+> three platforms, which is presumably what was actually checked. See
+> `docs/TESTING_PLAN.md` §0 — it is now the top blocker, because every remaining
+> device session needs an app that Xcode can build.
+>
+> **Resolved later the same day** — the failure was specific to
+> `xcodebuild -target`; `-scheme` builds (and the Xcode GUI) work. See the
+> 2026-07-26 "ADR audit" entry below and `make apple-apps`.
 
 **Still only backed by hope — no device session has been run for any of this.**
 The push path, the local cast, the browser page, and every broadcast fix are
 proven by automated tests and a synthetic capturer, not by a phone or a TV. See
 `docs/DEVICE_CHECKLIST.md` §§6–8.
+
+## Loop 7 — watch and drive at once, and Android reaches parity (2026-07-26)
+
+Executing `docs/plans/07-full-interoperability.md` end to end. Both tracks are
+code-complete; **not one line of it has run on a device.**
+
+**Track A — the two halves of remote control were mutually exclusive.**
+
+The transport was never the problem: one `PeerLink` interleaves control messages
+and screen frames, input rides its own datagram lane, video its own bulk lane,
+and teardown is peer-scoped. The gap was above it.
+
+- `RemoteControlView` was a trackpad with **no video**; `ScreenViewerScreen` was
+  video with **no input**, despite a header comment claiming since Phase 3 that
+  it forwarded touches. There was no gesture code in that file at all — a
+  comment describing a feature that was never built, which reads as finished to
+  anyone who greps instead of running.
+- They were separate navigation destinations, and `RemoteControlView.onDisappear
+  → stopControlling()` meant **opening the video ended the input session**. One
+  line made watching-and-driving impossible by construction.
+
+Built: `AppModel.takeControl(of:)` fires both requests at once and the peer menu
+leads with it; `onDisappear` no longer ends control (it ends when the user says
+so, when the peer revokes, or when the session drops, and both surfaces have a
+Stop); `ScreenControlSurface` forwards pointing, dragging, scrolling, left/right
+click and typing from the live video.
+
+**Keyboards, properly.** macOS uses an `NSEvent` **local monitor** rather than
+`keyDown(with:)` so it sees keys before menu-key equivalents — otherwise ⌘Q
+quits the app you are driving *from* instead of reaching the machine you are
+driving. iPadOS uses `pressesBegan/Ended` for real down/up. No new wire field
+was needed: `action` already existed on `INPUT_EVENT` and now applies to keys as
+well as clicks, so a held arrow repeats and chords work. `MacInputInjector`
+tracks held keycodes and releases them on the kill switch, so a controller that
+quits mid-keystroke can't leave a key stuck down on the Mac.
+
+**The one wire change (ADR 0015).** Optional `nx`/`ny` (normalized 0…1 of the
+captured source) plus `screen_session_id`. What makes it safe rather than a
+break: a sender including them **must** also send the equivalent `dx`/`dy`, so a
+peer that predates the fields still tracks the pointer instead of reading a
+missing delta as zero and never moving at all. The spec's "send deltas, not
+absolute" pitfall is **amended in place, not deleted** — it is still exactly
+right about a trackpad, whose operator cannot see the remote cursor. Swift, Go
+and Kotlin moved in lockstep; 5 vectors appended, none edited.
+
+Absolute lands on the display you are *watching*, not the desktop union:
+`CaptureSourceDescriptor` now carries the source's global origin (from
+`CGDisplayBounds`, already the top-left space CGEvent posts into), the source
+engine resolves `screen_session_id` to that region, and the injector aims there.
+The viewer's `ScreenGeometry` un-letterboxes the aspect-fit and **rejects**
+points in the black bars rather than clamping them — a clamped edge click is a
+real click somewhere the user did not aim.
+
+**Head-of-line blocking on the degraded lane**, with an honest split:
+1. The input **datagram lane now retries** (5×, 15 s apart, only while control
+   is live and the lane is down). One failed dial used to condemn the whole
+   session to sharing TCP with 2.5 Mbps of video. *This* is the fix that
+   removes input from behind video.
+2. Control frames no longer queue behind video at the app layer, bounded by a
+   250 ms valve so a wedged control send can't strand the video lane.
+
+The residual is stated rather than glossed: a frame already inside the transport
+can't be preempted, so input still waits out at most one frame.
+
+**Track B — Android went from "pairs and receives" to parity, in code.**
+
+- **Screen viewer**: a `MediaCodec` decoder + `SurfaceView`. Two things had to
+  be true and neither was: `routeInbound` now answers `SCREEN_ATTACH` (it closed
+  the socket, so the Mac's reverse dial was always refused) and the read loop
+  now routes `Frame.Screen` (it was dropped on the floor). The wire carries AVCC
+  with parameter sets on every keyframe; MediaCodec wants Annex-B plus
+  `csd-0`/`csd-1`, and that conversion is the entire difference between video
+  and a permanently black surface with no error anywhere.
+- **Screen source**: `ScreenProjectionSource` is finally instantiated, behind
+  MediaProjection consent, and `CAP_SCREEN_SOURCE` is advertised again now the
+  path can serve frames. Android 14 forbids a service claiming `mediaProjection`
+  type before consent exists — and `ConduitService` declared it and started at
+  launch, which is a `SecurityException` on every modern phone whose only
+  symptom would be "nothing works". Capture moved to its own
+  `ScreenShareService`.
+- **Send-side UI**: file send, clipboard send *and* receive, and a control
+  surface with scroll, right-click, modifiers and keys. Every one of these
+  called an `AndroidNode` method that already existed and that no UI reached.
+- **Keyboard injection**, with the wall stated: Android has no general
+  key-injection API for an accessibility service. Text goes into the focused
+  editable node (reading the existing contents first — `ACTION_SET_TEXT`
+  replaces the field, so typing "hello" a character at a time would otherwise
+  leave "o"); Back/Home/Enter map to global actions; **everything else is
+  refused with a message** rather than silently dropped.
+- **Bluetooth HID** is reachable for the first time (`BluetoothHidController`).
+- **Wi-Fi Aware**: its subscribe callback cast `this` — a
+  `DiscoverySessionCallback` — to `SubscribeDiscoverySession`. Unrelated types,
+  so the cast was always null and **no peer was ever reported**. Fixed, and the
+  `ConnectivityManager` data path (with the IPv6 link-local re-scoped to the
+  Aware interface, without which `connect()` fails "network is unreachable" for
+  no visible reason) is written where it did not exist. Still uninstantiated and
+  hardware-blocked.
+
+**Verification.** Swift `swift test --disable-sandbox`: **126 green** (was 109).
+Go `go vet` + `go test ./...` + conformance: PASS. Kotlin conformance **70
+vectors** — 52 shared plus **18 new builder vectors that pin the Kotlin
+`Bodies.*` output against Swift's bytes**, which the old suite could not do: it
+re-encoded a payload it had just parsed, so it would have passed with builders
+that were wrong, or missing entirely. That is exactly the state the `SCREEN_*`
+builders were in while Android "passed conformance". Kotlin session smoke: PASS.
+`./gradlew :app:assembleDebug`: APK built.
+
+**Still only backed by hope.** No device session has run any of this. The real
+`MacInputInjector` has still never injected a real event; MediaProjection has
+never been granted; no frame has ever been decoded on a phone; the Android
+pairing gate — the thing everything else waits behind — is still unproven on
+Conscrypt hardware. `docs/plans/07-full-interoperability.md` lists what is left
+and `docs/DEVICE_CHECKLIST.md` is the script.
 
 ## Known limitations (deliberate, not oversights)
 - ~~**Secondary (multi-viewer) sessions** still use the blocking dial with no
@@ -352,14 +477,144 @@ proven by automated tests and a synthetic capturer, not by a phone or a TV. See
   virtual display**, which macOS has no public API for. See
   `docs/extending-your-screen.md` for what works today and what the
   private-API route would cost.
-- **The Android app builds and pairs, and that is roughly where it stops.** It
-  cannot view a Mac's screen (no decoder exists) and cannot source its own
-  (`ScreenProjectionSource` is written but never instantiated, and there are no
-  `SCREEN_*` message builders in the Kotlin wire layer). See `android/README.md`,
-  which has been corrected — it previously described both as "device-gated".
+- ~~**The Android app builds and pairs, and that is roughly where it stops.**~~
+  **Closed in code in loop 7**: decoder, source, send-side UI, keyboard and
+  BT-HID all exist now. The limitation that replaces it is sharper and worse:
+  **the Android app has never run on an Android device at all**, so "parity" is
+  a statement about source files. `android/README.md` gives the verification
+  method for every capability, and none of them is hardware.
+- **Android keyboard injection is a short list, not a keyboard.** Text into a
+  focused field, Back, Home, Enter. There is no general key-injection API for a
+  third-party accessibility service, so arrows, function keys and modifier
+  chords have no route — they are refused with a message rather than dropped.
 - **iPhone→Mac broadcast cannot use this fallback.** The ReplayKit extension is a
   separate process with no session link of its own, so it must dial the Mac
   directly. That direction is the *easy* one (phone dialing out, same as
   pairing); its remaining risk is the extension's own Local Network access, and
   every failure there is now named on the phone.
 - **Control-lane video is ~2.5 Mbps**, deliberately below the 8 Mbps direct lane.
+
+## ADR audit + the Xcode build blocker falls (2026-07-26)
+
+Cross-checked all 14 ADRs (0001–0013, 0015; there is no 0014) against the tree.
+Every decision's artifacts exist and the provable parts are verified today on
+this machine: Swift **126 green** (`swift test --disable-sandbox`), Go **52/52
+vectors** + session tests, Kotlin **70/70 vectors** (needs
+`JAVA_HOME=/opt/homebrew/opt/openjdk` — the Homebrew JDK isn't in
+`java_home`). "Accepted" in the ADRs means the decision stands; the
+device-gated halves (ADR 3 Aware, ADR 6 broadcast on-device, ADR 11 real cast
+endpoints, ADR 12 drivers on their target OSes, ADR 13 sensors/Matter) remain
+blocked on hardware/entitlements exactly as those ADRs state.
+
+**The "Xcode app targets do not build" blocker is closed, and the fix is
+embarrassing in the good way: nothing was broken.** The recorded failure
+(`CryptoExtras` → `unable to resolve module dependency: 'SwiftASN1'`)
+reproduces only with `xcodebuild -target <name>` — the legacy build path,
+which mishandles SwiftPM module deps under Xcode 26 explicit modules and
+writes package objects *inside the checkout* with a bogus macOS 10.13
+deployment target. `xcodebuild -scheme <name>` builds all four targets green
+(macOS, iOS, tvOS, broadcast; Debug, `CODE_SIGNING_ALLOWED=NO`). That is why
+DerivedData wipes and `SWIFT_ENABLE_EXPLICIT_MODULES=NO` changed nothing.
+
+- Verified: `make apple-apps` (new Makefile target pinning the `-scheme`
+  invocation) → four `** BUILD SUCCEEDED **`.
+- `docs/TESTING_PLAN.md` §0 rewritten to match.
+- Still unproven: signed builds and device installs — unblocked now, not done.
+
+## Wi-Fi Aware backend implemented (2026-07-26, same session as the ADR audit)
+
+ADR 0003's unblock checklist is now 3-of-4 done: name (1) and entitlement (2)
+were already in hand, and this session executed step 4 — a real `AwareBackend`
+— leaving only step 3 (hardware probes) blocked on physical devices.
+
+**What was built, grounded in the iOS 26.5 SDK interfaces (not the spec's 2025
+guesses):**
+
+- `AwareBackend` + `AwareConnection` (`ConduitTransport/AwareBackend.swift`):
+  publisher (`NetworkListener` + `WAPublisherListener`), subscriber
+  (`NetworkBrowser` + `WASubscriberBrowser`), and dialing (`NetworkConnection`
+  to a `WAEndpoint`) on the structured-concurrency Network API — the API split
+  ADR 0001 predicted. Conduit's mandatory pinned mutual TLS is intact: the new
+  `TLS` builder's `certificateValidator` runs the same `TLSVerifier` evaluate
+  as the classic verify-block, `localIdentity` + `peerAuthentication(.required)`
+  + TLS 1.3 minimum. Key-hash extraction was deduplicated into
+  `TLSVerifier.peerLeafKeyHash` (shared with `LANConnection`).
+- **Platform truths encoded:** Aware peers must be OS-paired first
+  (`WAPairedDevice` — Apple's trust gate, on top of and separate from Conduit
+  pairing); Aware is iPhone/iPad-only; Aware discovery carries no TXT record,
+  so Aware endpoints never enter the pairing/discovery UI — they are dial
+  candidates for already-pinned peers, where the TLS handshake is what
+  identifies the device (a wrong-device endpoint fails pinning and the chain
+  falls through to LAN).
+- `ConduitNode`: constructs the backend via `AwareBackendFactory` (nil = LAN-
+  only, everywhere Aware can't run), merges Aware inbound into the same
+  `routeInbound`, tries Aware endpoints before LAN in `attemptConnection` when
+  any are visible, and no longer refuses to dial when Aware is the only
+  visibility. The HUD backend badge (`TransportBackendKind.aware`) lights up
+  for free.
+- OS pairing UI: `AwarePairingSection` (DevicePairingView + DevicePicker via
+  the DeviceDiscoveryUI cross-import overlay) embedded in the devices screen.
+- `ConduitFeatureFlags.wifiAwareEnabled` = **true on iOS only**; runtime
+  self-gating via `AwareBackendStatus.availability()` (capability check +
+  `WiFiAwareServices` Info.plist declaration) keeps every other process
+  LAN-only, including `swift test`.
+- `project.yml`: `WiFiAwareServices: {_mosis-aware._tcp: {Publishable,
+  Subscribable}}` on the iOS app; service name constant
+  `ProtocolServiceType.awareService` (new namespace — no fleet break). Also:
+  all four app targets now declare `scheme: {}` so `xcodegen generate` stops
+  deleting the schemes that scheme-based builds (the only working kind) need;
+  regeneration verified to leave entitlements byte-identical.
+- ADR 0014 written (the MOSIS name decision project.yml already cited; closes
+  the 0013→0015 numbering gap).
+
+**Verification (stated per the house rule):** macOS `swift build` clean; iOS
+cross-compile `swift build --triple arm64-apple-ios18.0 --sdk <iphoneos>` clean
+(0 errors — the Aware code compiles against the real frameworks); `make
+apple-apps` → four BUILD SUCCEEDED; full `swift test --disable-sandbox` → 126
+green (Aware factory self-gates to nil on macOS, so nothing moved).
+
+**Not verified, and cannot be on this Mac:** every Aware behavior at runtime.
+Establishment-on-first-send (the empty-send kick in `AwareBackend.open`), the
+listener/browser restart discipline, OS pairing UX, and the accelerator
+actually being chosen — all need two Aware-capable iPhones/iPads. Known v1
+ceilings: bulk/datagram lanes still dial LAN addresses (Aware-only sessions
+carry video on the control-lane fallback at ~2.5 Mbps), and the datagram input
+lane never rides Aware. Android's `WifiAwareBackend` remains uninstantiated;
+iPhone↔Android Aware interop is doubtful anyway given Apple's OS-pairing gate —
+that's exactly what the Phase 0 probe (checklist step 3) has to answer.
+
+## Linux joins screen sharing, both directions (2026-07-27)
+
+The Go core grew the two halves Linux never had: **conduitd sources its X11
+screen** (pure-Go xgb capture → ffmpeg/libx264 → the frozen SCREEN_FRAME
+format) and a new **conduitview binary views and drives a peer** (X11 window,
+ffmpeg decode, ADR 0015 absolute pointing + real key down/up). Same lane
+discipline as the Swift source — session link first, reverse-dialed lane as a
+background upgrade promoted at a keyframe — and the daemon advertises
+`screen-source` only when a probe proves X11 + ffmpeg can actually serve, with
+the reason printed when they can't. Also fixed on the way: the Go daemon never
+answered INPUT_REQUEST at all, so every Swift controller aimed at conduitd
+timed out after 10 s before this; it now grants/refuses honestly, and a Go
+node with no screen engine refuses SCREEN_REQUEST instead of going silent.
+
+**Verified (macOS, 2026-07-27):** 30 screencast tests green (0 skips) including real
+ffmpeg 8.1.2 encode/decode round trips (BT.709 asserted within ΔRGB ≤ 10) and
+a two-node loopback E2E over real pinned TLS asserting the lane
+(`bulk` after promotion, `control` when the dial is forced off), pixel
+fidelity, the input grant, nx/ny+dx/dy on every absolute move, and
+click-after-move ordering; `go test ./...` + `-race` green; 52/52 conformance
+vectors; `GOOS=linux CGO_ENABLED=0` (amd64+arm64) and windows builds + vet
+clean. Found by experiment and worth remembering: ffmpeg 8's forced-h264 pipe
+demuxer emits **zero frames** under `-fflags nobuffer`, and starving probing
+(`-probesize 32`) makes it cut packets at read boundaries — the low-latency
+folklore flags are fatal there.
+
+**Not verified, and cannot be on this Mac:** everything X11 — capture, blit,
+window events — plus real-network reverse dials and any actual session against
+a Swift or Android peer; uinput still drops `kind:"key"` (pre-existing).
+Plan `docs/plans/09-linux-screen-and-control.md` carries the per-row
+proven-vs-device-gated table, the deviations (encoder restarts instead of
+mid-run retune, one viewer per source, standing consent for a headless daemon,
+the shift-only capitals divergence from Swift — flagged as a possible Swift
+bug, not copied), and the first-Linux-box session script; `docs/linux.md` is
+the runbook.

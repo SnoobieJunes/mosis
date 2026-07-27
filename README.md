@@ -5,147 +5,263 @@ cross-device connectivity: discover your own devices, pair once, then move
 files, clipboard, input, and screens over a fast peer-to-peer link. No cloud,
 no account, no relay.
 
-MOSIS revives the 2011–2013 APPture/MOSIS project as a modern, honest,
-three-implementation codebase. Licensed **Apache-2.0** ([LICENSE](LICENSE)).
+The goal is five platforms — **Linux, Android, iOS, Windows, macOS** — where
+any device can cast to, control, and share files with the others (within each
+platform's walls), peer-to-peer, with no cloud in the path. Windows build-out
+is deliberately on hold (see [plan 08](docs/plans/08-direct-link-transport.md));
+the other four are in active development.
+
+MOSIS revives the 2011–2013 APPture/MOSIS project ([`docs/BRIEF.md`](docs/BRIEF.md),
+[gap analysis](docs/plans/06-appture-2013-gap-analysis.md)) as a modern,
+honest, three-implementation codebase. Licensed **Apache-2.0**
+([LICENSE](LICENSE)).
 
 > **Rename in progress.** The code is being renamed from its **Conduit**
 > codename to **MOSIS**; identifiers and paths still read `conduit`/`cndt` in
 > many places. This is deliberate and staged — the App Group id, the iOS bundle
-> id (keychain access group), the Bonjour service type, and the `conduit-*-v1`
-> crypto domain strings frozen into the golden vectors are all compatibility or
-> identity boundaries that must move together, once, with a re-pair. See
-> [`docs/plans/01-rename-to-mosis.md`](docs/plans/01-rename-to-mosis.md).
+> id (keychain access group), the Bonjour service type (`_cndt-app._tcp`), and
+> the `conduit-*-v1` crypto domain strings frozen into the golden vectors are
+> all compatibility or identity boundaries that must move together, once, with
+> a re-pair. See [`docs/plans/01-rename-to-mosis.md`](docs/plans/01-rename-to-mosis.md).
 
-Full specification and 8-phase build plan: [`docs/spec.md`](docs/spec.md).
-Wire protocol: [`docs/protocol.md`](docs/protocol.md).
-Decisions: [`docs/adr/`](docs/adr).
+Full specification and build plan: [`docs/spec.md`](docs/spec.md).
+Wire protocol: [`docs/protocol.md`](docs/protocol.md) (start here to write a
+client — [`docs/IMPLEMENTORS.md`](docs/IMPLEMENTORS.md)).
+Decisions: [`docs/adr/`](docs/adr). Working plans: [`docs/plans/`](docs/plans).
 
-## Status: Phases 1–7 implemented; device-truth pass in progress
+## Status, honestly
 
-> Before a launch, read **`docs/TESTING_PLAN.md`**: it lays out, phase by phase,
-> what's proven by automated tests vs. what's device-gated, and is blunt about
-> what is **not** working yet (Wi-Fi Aware, virtual-display drivers, Matter/Cast).
->
-> Honest label: **proven core, device experience being hardened.** The wire
-> protocol, crypto, pairing, TLS identity and encode/decode pipeline are proven
-> by three byte-exact implementations and a real-socket test suite; the
-> last-mile device seams (screen-lane fallback, reverse-dial addressing, input
-> lane, permissions) are being converted from "green on loopback" to
-> "demonstrated on hardware" — see [`docs/quirky-tickling-dongarra.md`](docs/quirky-tickling-dongarra.md)
-> and [`docs/loop-state.md`](docs/loop-state.md).
+**Nothing in this repo is device-verified as of 2026-07-26.** That sentence is
+the most important one in this README. What *is* true:
 
-| Piece | State |
+- The wire protocol, crypto, pairing, TLS identity, and codec pipeline are
+  proven by **three independent implementations** (Swift, Go, Kotlin) that are
+  byte-exact against the same frozen golden vectors, plus a live Swift↔Go
+  session over real loopback TLS sockets. Re-verified today: 126/126 Swift
+  tests, 52/52 Go vectors, 70/70 Kotlin vectors + JVM session smoke, all four
+  Apple app targets and the Android APK build.
+- Every end-to-end test runs over **real TLS sockets on the same host**, with
+  fakes at exactly two hardware seams (screen capturer, input injector) — the
+  fakes are named wherever they stand in.
+- **No current build has completed a session on physical hardware.** An
+  earlier build did pair and hold an iPhone↔Mac session — that session is what
+  exposed the broken screen/input paths the recent work fixed — but the fixes
+  themselves, the partial rename, and everything Android have not been run on
+  any device. Android has never completed a device session at all, including
+  pairing.
+
+This project once shipped three broken headline features under a fully green
+test suite, because every E2E ran same-process over loopback with fakes and CI
+ran a filtered subset. The candid history is in
+[`docs/quirky-tickling-dongarra.md`](docs/quirky-tickling-dongarra.md) and
+[`docs/loop-state.md`](docs/loop-state.md); the rule it produced — every claim
+names its verification method — is why the matrix below has a tag in every
+cell. [`docs/TESTING_PLAN.md`](docs/TESTING_PLAN.md) is the full
+what-is-proven-vs-gated ledger.
+
+There is no demo GIF yet, deliberately: it waits for a real device session
+([plan 02](docs/plans/02-device-truth-beta.md)), not a screen recording of a
+test harness.
+
+## Capability × platform matrix
+
+How to read a cell — the tag is the **strongest evidence that exists**:
+
+| Tag | Meaning |
 |---|---|
-| `ConduitKit` Swift package (Protocol · Transport · Session · Capabilities · UI) | ✅ builds, Swift 6 strict concurrency |
-| **Go `conduit-core`** (wire · identity · transport · session · capabilities) | ✅ passes the golden vectors byte-for-byte |
-| **Kotlin core** (`android/core`, pure JVM) — third implementation | ✅ 47/47 vectors byte-exact + JVM session smoke |
-| **Live Swift↔Go interop**: pair, file transfer, clipboard, notification | ✅ real Go node ↔ Swift node over loopback TLS |
-| **`conduitd` daemon** (Windows/Linux/macOS) + cross-compilation | ✅ builds for all three; runs on macOS |
-| **Android app** — discovery, pairing, TLS, file receive, input receive, notification source | ◐ **builds now** (`./gradlew :app:assembleDebug`, wrapper committed); no device session yet. Screen sharing in **either** direction, BT-HID, and Wi-Fi Aware are written-but-unwired — see [`android/README.md`](android/README.md) for the corrected per-capability table |
-| **tvOS viewer** (Apple TV — screen viewer + on-TV pairing) | ✅ builds for tvOS |
-| **Show My Screen** (macOS): push this Mac's display/window to a paired device — the "Share" half of the verb pair | ✅ `PushShareE2ETests` over real sockets, incl. two destinations with the reverse-dial impossible; no device session yet |
-| **Cast this Mac to a TV or any browser** — own capturer + encoder + live HLS, no peer required, with a zero-install watch page + QR | ✅ `HLSPublisherTests` serves playlist, init segment, and watch page over real HTTP; final hop to a physical TV is device-gated |
-| **Convenience senders**: AirPlay + Google Cast + Matter Casting | ✅ HLS re-publisher verified end-to-end; AirPlay built-in, Cast/Matter SDK-gated (ADR 0011). **Note:** HLS runs a few seconds behind — for watching, not controlling |
-| **Extending** a Mac desktop (not mirroring) onto another device | ◐ works today via macOS AirPlay/Sidecar, or an HDMI dummy plug + MOSIS. Software-only needs a virtual display macOS has no public API for — [`docs/extending-your-screen.md`](docs/extending-your-screen.md) |
-| **Virtual display** (tablet as extra monitor): Windows IddCx, Linux evdi, macOS `unsupported/` | ◐ driver skeletons + design (ADR 0012); native/driver gated |
-| **Contexts & Routines**: profiles (region/dock/display/time/peer) → one-tap offer | ✅ ProfileEngine + ContextCoordinator, suggest-then-confirm, unit-tested |
-| **On-device suggestion engine**: mines a local log for habits, proposes automations | ✅ heuristic tested; data never leaves device; Foundation Models lens device-gated |
-| **Multi-viewer + social permissions**: source→N viewers, per-peer view-only/control, live revoke | ✅ `MultiViewerE2ETests` (2nd viewer view-only → frames → revoked live) |
-| **Matter scenes** (Office profile → desk scene): Apple Matter framework | ◐ `MatterSceneController` behind `CONDUIT_MATTER_SCENES`; needs a Matter home (ADR 0013) |
-| **Geofencing / App Intents / Shortcuts**: context triggers + Siri | ◐ CoreLocation + AppIntents adapters; device-gated |
-| Wire protocol **v1 frozen** (canonical JSON, ADR 0008) + `proto/conduit.proto` schema | ✅ three implementations, `docs/protocol.md` |
-| LAN transport: Bonjour + TCP, TLS 1.3, mutual certs, key pinning | ✅ real-handshake tests incl. unpinned rejection |
-| Identity (Ed25519) + pairing (6-digit code + word pair, TOFU) | ✅ MITM-substitution covered by tests |
-| Sessions: HELLO negotiation, ping/RTT, degraded, reconnect by identity | ✅ |
-| File transfer: chunked, windowed, bulk lane, SHA-256, resume | ✅ two-node E2E over real sockets |
-| Clipboard: explicit send/receive both directions | ✅ |
-| **Remote input**: phone→Mac trackpad/keyboard/media, 120 Hz coalescing, DTLS datagram lane | ✅ full-path E2E with fake injector |
-| **macOS CGEvent injector**: pointer/scroll/click/key, multi-monitor clamp, secure-input guard, media keys | ✅ non-sandboxed (ADR 0005) |
-| **Screen streaming**: VideoToolbox HEVC/H.264 encode+decode, wire framing, adaptive bitrate | ✅ headless encode→wire→decode round-trip test |
-| **macOS source** (ScreenCaptureKit, display/window), **Apple viewer** (AVSampleBufferDisplayLayer) | ✅ two-node source→viewer E2E with synthetic capturer |
-| **iOS screen source** (ReplayKit broadcast extension) | ◐ builds + architected; device-only validation pending (ADR 0006) |
-| **Notifications**: source→display mirroring (Go sources, Apple displays) | ✅ Go→Swift interop test |
-| **Desktop input inject** (Linux uinput, Windows SendInput) | ◐ cross-compiles; runtime device-gated |
-| **Consent gates + persistent indicators + kill switches** (spec invariant) | ✅ |
-| iOS + macOS apps (peer bubbles, Connect/Share, trackpad, screen viewer, pickers, stats HUD) | ✅ build + launch; on-device validation pending |
-| Wi-Fi Aware backend | ◐ entitlement **granted** (`com.apple.developer.wifi-aware`, in the iOS entitlements); backend behind a build flag pending on-device validation (ADR 0003) |
+| `E2E` | automated end-to-end over real TLS sockets, same host (loopback) |
+| `E2E*` | E2E with a fake at the hardware seam (fake injector / synthetic capturer) |
+| `unit` | unit-tested logic |
+| `smoke` | Kotlin/JVM in-process session smoke (real crypto, no Android) |
+| `bld` | compiles / APK assembles — **no runtime evidence** |
+| `code` | written but unreachable or uninstantiated — weaker than `bld` |
+| `wall` | the platform forbids it (documented, not a TODO) |
+| `—` | not implemented |
+| `dev` | device-verified on real hardware — **this tag appears nowhere yet** |
 
-## Build & test
+| Capability | macOS | iOS/iPadOS | tvOS | Android | Linux | Windows² |
+|---|---|---|---|---|---|---|
+| Discover + pair (code + word pair, TOFU) | E2E | bld¹ | bld¹ | smoke³ | E2E⁴ | E2E⁴ |
+| File transfer (chunked, resumable, SHA-256) | E2E | bld¹ | — | smoke³ | E2E⁴ | E2E⁴ |
+| Clipboard (both directions, explicit) | E2E | bld¹ | — | smoke³ | E2E⁴ | E2E⁴ |
+| Input — send (drive a peer) | E2E | bld¹ | — | bld | E2E*¹³ | — |
+| Input — receive (be driven) | E2E* fake injector⁵ | wall | — | bld⁶ | bld (uinput) | bld (SendInput) |
+| Screen — source (be watched) | E2E* synthetic capturer⁷ | bld (ReplayKit ext) | wall | bld (MediaProjection) | E2E*¹³ | — |
+| Screen — view a peer | E2E | bld¹ | bld¹ | bld⁸ | E2E*¹³ | — |
+| Watch **and** drive, one surface (ADR 0015 absolute pointing) | E2E* | bld¹ | — | bld | E2E*¹³ | — |
+| Push-share + cast to any browser (HLS + QR) | E2E (real HTTP) ⁹ | — | — | (browser plays it) | — | — |
+| Multi-viewer, per-peer view-only/control, live revoke | E2E | bld¹ | bld¹ | — | — | — |
+| Notifications (source → display) | E2E (display) | bld¹ | — | bld (listener svc) | code¹⁰ | code¹⁰ |
+| Phone as Bluetooth HID peripheral | wall | wall | — | bld (needs 2 devices) | — | — |
+| Wi-Fi Aware (link with no router) | wall | **bld — flag ON, zero runtime**¹¹ | wall | code¹² | — | — |
+| Contexts / Routines / on-device suggestions | unit | unit¹ (triggers device-gated) | — | — | — | — |
+| Extra monitor (virtual display) | code (`unsupported/`, never compiled) | — | — | — | code (evdi, unwired) | code (IddCx, unsigned) |
+
+¹ Shared `ConduitKit` core: the logic runs in the loopback E2E suite on macOS;
+the iOS/tvOS app targets build unsigned (`make apple-apps`, four
+`** BUILD SUCCEEDED **` re-verified today) but no session has run on an
+iOS/tvOS device with the current code.
+² Windows: daemon logic only; new Windows work is **on hold** per
+[plan 08](docs/plans/08-direct-link-transport.md).
+³ JVM in-process smoke proves the session code with real Ed25519 + pairing
+math. **No Android device has ever completed pairing** — the gate everything
+Android waits behind. Per-capability detail: [`android/README.md`](android/README.md).
+⁴ Go daemon logic proven over loopback on a macOS host (Go↔Go pair+transfer
+test, plus the live Swift↔Go interop suite). The Linux/Windows binaries
+cross-compile but **have never been executed on those OSes**.
+⁵ The real macOS `CGEvent` injector compiles and is wired (needs Accessibility,
+non-sandboxed app — ADR 0005) but has never moved a real cursor post-fixes.
+⁶ Android input receive is an AccessibilityService; keyboard support is a
+narrow, documented subset — unsupported keys are refused out loud
+([`android/README.md`](android/README.md)).
+⁷ Real ScreenCaptureKit capture is device-gated (Screen Recording grant).
+⁸ Decoder + `SurfaceView` exist; **no frame has ever been decoded on an
+Android device.**
+⁹ Includes the browser watch page over real HTTP GETs. AirPlay endpoint is
+built-in; Google Cast / Matter Casting are real code behind their SDKs
+(SDK-gated, unvalidated — ADR 0011). HLS runs seconds behind: for watching,
+not controlling.
+¹⁰ The Go→Swift notification path is E2E-tested on host; the OS hooks
+(Linux D-Bus / Windows WinRT sources) are stubs.
+¹¹ Implemented today (2026-07-26): entitlement granted, `_mosis-aware._tcp`
+published/subscribed over the iOS 26 Network API, same pinned mutual TLS,
+OS-level `WAPairedDevice` pairing UI in the app, flag ON for iOS with runtime
+self-gating. **Compile-verified only** — not one Aware byte has ever flowed;
+needs two Aware-capable iPhones/iPads. Aware-only sessions would carry video
+on the control-lane fallback (~2.5 Mbps) until plan 08 lands QUIC.
+¹² Android's `WifiAwareBackend` was rewritten to be capable of working
+(2026-07-26) but nothing instantiates it ([`docs/interop-status.md`](docs/interop-status.md)).
+¹³ Linux via the Go core (`core/screencast/` + `conduitview`, landed
+2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the
+codec seam, synthetic frames at the capture seam; lane promotion and
+control-lane fallback asserted on both ends. All X11 code (capture,
+window/blit/events), uinput, and real-network reverse dial cross-compile but
+have **never executed on a Linux box** — per-row ledger in
+[plan 09](docs/plans/09-linux-screen-and-control.md), runbook in
+[`docs/linux.md`](docs/linux.md).
+
+## Where this is heading
+
+- **[Plan 08 — QUIC everywhere + the direct-link ladder](docs/plans/08-direct-link-transport.md)**
+  ([ADR 0016](docs/adr/0016-quic-primary-transport.md): QUIC primary transport,
+  TCP+TLS universal fallback; [ADR 0017](docs/adr/0017-direct-link-path-ladder.md):
+  LAN → same-vendor P2P → soft-AP → manual hotspot, so two devices link with
+  **no shared network at all**). Both ADRs are accepted *as design* — every
+  claim in them is intent until the P0 spikes pass.
+- **[Plan 09 — Linux screen-source + viewer/control](docs/plans/09-linux-screen-and-control.md)**
+  landed 2026-07-26 (with [`docs/linux.md`](docs/linux.md)): Linux joins screen
+  sharing and remote control over today's lanes — loopback-proven on a macOS
+  host (matrix note ¹³), device-gated until its first session on a real Linux
+  box. QUIC slides underneath later.
+
+## Quickstart
+
+Every command below was run successfully on 2026-07-26 (macOS 26.5, Xcode 26.6,
+Go 1.26.5) except those marked **device-gated**.
+
+### The provable core (no hardware needed)
+
+```bash
+# Swift — 126 tests: unit + E2E over real loopback TLS; screen, input,
+# multi-viewer, watch-and-drive, push-share, Swift<->Go live interop.
+cd apple/ConduitKit
+swift test --disable-sandbox
+# --disable-sandbox is REQUIRED: the sandbox HANGS (not fails) the
+# Network/PKCS#12/VideoToolbox paths — docs/TESTING_PLAN.md §1.
+# The 4-test broadcast E2E suite self-skips while the screen is locked.
+
+# Go — unit tests + byte-exact conformance against the same golden vectors.
+cd core
+go test ./...
+go run ./cmd/conformance ../proto/vectors    # 52 vectors, 0 failed
+
+# Kotlin — third implementation, pure JVM, no Android SDK.
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"  # any JDK 17+
+export PATH="$JAVA_HOME/bin:$PATH"
+cd android/core
+kotlinc $(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/conduit-core.jar
+java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors  # 70 vectors
+java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke
+```
+
+### macOS + iOS + tvOS apps
 
 Requires Xcode 26+ on macOS 26+.
 
 ```bash
-cd apple/ConduitKit
-swift test --disable-sandbox      # 109 tests: protocol, pairing, TLS, input, video, contexts, multi-viewer, E2E
-                                  # --disable-sandbox is REQUIRED — the sandbox HANGS the
-                                  # Network/PKCS#12/VideoToolbox paths (docs/TESTING_PLAN.md §1).
-                                  # The broadcast E2E suite self-skips unless the screen is
-                                  # unlocked (it does an NSFileProtectionComplete write).
-
-cd ../AppleApps
-xcodegen generate                 # brew install xcodegen (project.yml is source of truth).
-                                  # NOTE: this REWRITES the .entitlements files from project.yml —
-                                  # capabilities missing there are silently dropped.
-open ConduitApps.xcodeproj        # select your team, run the macOS / iOS app
+make apple-apps                   # builds all four targets unsigned, via -scheme
+                                  # (NEVER xcodebuild -target — it cannot resolve
+                                  # SwiftPM deps under Xcode 26; TESTING_PLAN §0)
+open apple/AppleApps/ConduitApps.xcodeproj   # select your team to run on devices
 ```
 
-First run on devices: enable **Accept pairing** on one device, tap the other
-under **Nearby**, compare the code + word pair on both screens, confirm both.
-Expect the local-network permission prompt once per device.
+If you edit `apple/AppleApps/project.yml`, regenerate with `xcodegen generate`
+— and mirror any new capability into `project.yml` first, because regeneration
+**rewrites the `.entitlements` files and silently drops** anything not listed
+there.
 
-To drive the Mac from the phone: connect, tap **Connect → Control**, and grant
-Accessibility when macOS prompts (the app guides you to the Settings pane).
-A persistent orange banner on the Mac shows who's in control with a one-tap
-**Stop**. The Mac app is not sandboxed — input injection requires it (ADR 0005).
+**Device-gated from here** (unverified with current code): pairing two
+devices, granting Accessibility (input) and Screen Recording (capture),
+ReplayKit broadcast (iPhone→Mac), Wi-Fi Aware between two iPhones/iPads.
+The scripted session with expected output at each step is
+[`docs/DEVICE_CHECKLIST.md`](docs/DEVICE_CHECKLIST.md).
 
-Two directions, two verbs (spec §8):
-
-- **Pull** — on the phone or Apple TV, tap **Connect → View Screen**. The Mac
-  prompts for a display or a single window, then streams it.
-- **Push** — on the Mac, click **Show My Screen** in the toolbar. Pick what
-  (a display or a window), then where: a paired device, **any browser on your
-  network** (you get a URL and a QR code — nothing to install on the far end),
-  AirPlay, or a Cast route. Sending to a second destination adds it to the same
-  capture rather than restarting it.
-
-To share the iPhone's screen to the Mac: **Share → Share My Screen**, then Start
-Broadcast in the system picker (ReplayKit extension; needs a real device —
-ADR 0006). That sheet also tells you, honestly, that Apple's own AirPlay is
-simpler for iPhone→Mac; MOSIS's value there is the destinations AirPlay won't
-serve (Apple TV running MOSIS, Android, Windows, Linux, a browser).
-
-**Extending vs mirroring** — everything above mirrors. For a genuine second
-desktop, read [`docs/extending-your-screen.md`](docs/extending-your-screen.md):
-macOS does it natively to an Apple TV and an iPad, and a $10 HDMI dummy plug
-plus MOSIS does it to anything else, today.
-
-## Layout (spec §10)
-
-```
-docs/          spec, protocol, ADRs, spike results, interop status
-proto/         conduit.proto schema (informative) + vectors/ (append-only golden)
-apple/         ConduitKit package + iOS/macOS apps + broadcast extension
-core/          Go conduit-core: wire · identity · transport · session · capability
-               · platform (input inject) · cmd/{conduitd,conformance,interop}
-android/       Kotlin client: core/ (pure-JVM protocol, conformance-tested)
-               + app/ (Compose + Android superpowers). See android/README.md
-unsupported/   gray-API modules, never in store builds
-tools/         conformance runner + CI (.github/workflows/conformance.yml)
-```
-
-## The Go core & daemon
+### The Go daemon (macOS / Linux / Windows)
 
 ```bash
 cd core
-go run ./cmd/conformance ../proto/vectors   # byte-exact vs the Swift vectors
-go test ./...                               # Go-to-Go pair + transfer
-go build -o conduitd ./cmd/conduitd         # the daemon
-./conduitd run --pair                       # accept a phone/Mac, receive files
+go build -o conduitd ./cmd/conduitd
+./conduitd run --pair     # prints listen port, device id, active input backend,
+                          # and ACCEPTING while waiting for a phone/Mac to pair
 ```
 
-`conduitd` cross-compiles for Linux and Windows (`make cross-build`). Input
-injection uses Linux `uinput` / Windows `SendInput` (runtime needs that OS);
-notification sourcing (Linux D-Bus, Windows WinRT) is stubbed pending OS
-validation.
+Cross-compiles for Linux and Windows (`make cross-build` — verified), but has
+only ever *run* on macOS. Input injection backends (`uinput` / `SendInput`)
+compile and are runtime-unverified; the daemon prints which backend is active
+(`none` when unavailable).
 
-License: **Apache-2.0 proposed** (ADR 0007), pending owner confirmation.
+### Android
+
+```bash
+cd android
+echo "sdk.dir=$HOME/Library/Android/sdk" > local.properties   # once
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew :app:assembleDebug
+# device-gated (never yet done — this install+pair is Android's gate):
+adb install -r app/build/outputs/apk/debug/app-debug.apk      # Android 13+
+```
+
+Interim honesty: an Android tablet can watch a Mac's screen **today** with no
+Android app at all — Show My Screen → *any browser*, Chrome plays the HLS
+stream natively.
+
+### Two verbs, once devices are paired *(device-gated, unverified)*
+
+- **Connect** (pull): on the phone/TV, view a Mac display or single window, or
+  take control — live video that forwards pointer, scroll, clicks, and a
+  hardware keyboard, with a persistent who's-in-control banner and one-tap
+  Stop on the Mac (the Mac app is non-sandboxed for exactly this — ADR 0005).
+- **Share** (push): on the Mac, pick a display/window, then a destination — a
+  paired device, **any browser on the network** (URL + QR, nothing to
+  install), AirPlay, or a Cast route; extra destinations join the same
+  capture. Mirroring only — for a genuine second desktop today, see
+  [`docs/extending-your-screen.md`](docs/extending-your-screen.md).
+
+## Layout
+
+```
+docs/          spec, protocol, ADRs, plans, testing ledgers, interop status
+proto/         conduit.proto schema (informative) + vectors/ (append-only golden)
+apple/         ConduitKit package + iOS/macOS/tvOS apps + broadcast extension
+core/          Go conduit-core: wire · identity · transport · session · capability
+               · platform (input inject) · cmd/{conduitd,conformance,interop}
+android/       Kotlin: core/ (pure-JVM protocol, conformance-tested)
+               + app/ (Compose client). See android/README.md
+unsupported/   gray-API modules (private APIs), never in store builds
+tools/         conformance runner; CI in .github/workflows/conformance.yml
+```
+
+Contributions: [`CONTRIBUTING.md`](CONTRIBUTING.md) — including the two iron
+rules (protocol doc moves with the wire; golden vectors are append-only) and
+the honesty-label vocabulary this README uses. Security:
+[`SECURITY.md`](SECURITY.md). License: **Apache-2.0** (ADR 0007, accepted).

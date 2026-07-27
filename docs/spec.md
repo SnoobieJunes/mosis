@@ -234,6 +234,16 @@ Conventions for every phase: work happens on a feature branch per step group; ev
 
 **Pitfalls:** CGEvent coordinates are global display space, handle multi-monitor origins; secure-input fields (password boxes) block synthetic keys, detect `IsSecureEventInputEnabled` and tell the user instead of failing silently; don't send absolute coordinates from the phone, send deltas.
 
+> **Amended 2026-07-26 (ADR 0015).** The delta rule stands for a *trackpad* — a
+> surface whose operator cannot see the remote cursor has nothing to be absolute
+> about, and inventing coordinates there is the mistake this pitfall names. It
+> does not stand for a controller **watching a live view** of the screen it is
+> driving, which is what Phase 3 step 5 composes. That surface may additionally
+> send `nx`/`ny` normalized to the captured source, plus the
+> `screen_session_id` that says which source, so a click lands where the person
+> pointed. Deltas ride along with every such event, so a receiver that ignores
+> the position still tracks the pointer.
+
 *(Note: v0.1 placed notification display here; removed because in an Apple-only pair no platform can legally source notifications: iOS and macOS both lack the API. Notifications arrive with the first source-capable platforms in Phases 4-5.)*
 
 ---

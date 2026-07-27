@@ -115,6 +115,9 @@ type Node struct {
 	bulkMu      sync.Mutex
 	pendingBulk map[string]*fileReceiver
 	activeLinks map[string]*Link
+	// Same idea for screen lanes: SCREEN_OFFER tokens this node (as viewer)
+	// is waiting on (screen.go). Guarded by bulkMu like its file sibling.
+	pendingScreen map[string]ScreenAttachHandler
 }
 
 func (n *Node) registerBulkToken(token string, r *fileReceiver) {
@@ -160,14 +163,36 @@ func (n *Node) SendNotificationTo(deviceID, app, title, body, id string) error {
 }
 
 // Handlers are optional callbacks for received capability messages/events.
+// The screen/input-request callbacks run on the link's read goroutine — do
+// slow work (starting a capture, spawning an encoder) in a goroutine or the
+// link's pings queue behind it.
 type Handlers struct {
 	OnFileReceived func(path string, offer wire.FileOfferBody)
 	OnClipboard    func(fromDeviceID string, body wire.ClipboardPushBody)
 	OnNotification func(fromDeviceID string, body wire.NotificationBody)
 	OnPaired       func(PinnedPeer)
 	OnSessionReady func(deviceID string, remote wire.HelloBody)
-	OnInput        func(deviceID string, ev wire.InputEventBody)
-	Log            func(string)
+	// OnSessionClosed fires when a link's read loop ends, however it ends.
+	// Screen shares and input grants tied to the peer must stop here.
+	OnSessionClosed func(deviceID string)
+	OnInput         func(deviceID string, ev wire.InputEventBody)
+	// OnInputRequest: a controller asked to drive this device. The handler
+	// must answer with INPUT_STATUS (grant or honest refusal). When nil the
+	// link refuses politely itself, so a controller never times out against a
+	// Go node the way it would against silence.
+	OnInputRequest func(deviceID string, l *Link)
+	// OnInputStatus: the receiver's grant lifecycle, on the controller side.
+	OnInputStatus func(deviceID string, body wire.InputStatusBody)
+	// Screen sharing. Request/Ack/End arrive at a source; Offer/Reject/End at
+	// a viewer; Frame is a control-lane screen frame (the no-reverse-dial
+	// fallback lane every implementation supports).
+	OnScreenRequest func(deviceID string, body wire.ScreenRequestBody, l *Link)
+	OnScreenOffer   func(deviceID string, body wire.ScreenOfferBody, l *Link)
+	OnScreenReject  func(deviceID string, body wire.ScreenRejectBody)
+	OnScreenAck     func(deviceID string, body wire.ScreenAckBody)
+	OnScreenEnd     func(deviceID string, body wire.ScreenEndBody)
+	OnScreenFrame   func(deviceID string, frame wire.ScreenFrame, l *Link)
+	Log             func(string)
 }
 
 func (n *Node) logf(format string, args ...interface{}) {
@@ -245,6 +270,8 @@ func (n *Node) routeInbound(framed *FramedConn) {
 		}
 	case wire.TypeBulkAttach:
 		n.attachFileBulk(framed, msg.Body.(wire.BulkAttachBody))
+	case wire.TypeScreenAttach:
+		n.attachScreenLane(framed, msg.Body.(wire.ScreenAttachBody))
 	default:
 		framed.Close()
 	}

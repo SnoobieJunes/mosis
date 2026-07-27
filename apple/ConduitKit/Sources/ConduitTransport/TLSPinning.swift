@@ -32,6 +32,20 @@ public enum TLSVerifier {
         return Data(SHA256.hash(data: external))
     }
 
+    /// SHA-256 key hash of the peer's leaf certificate from established-handshake
+    /// metadata. Shared by the classic-API LAN connection and the new-API Aware
+    /// connection so the pinning identity is extracted exactly one way.
+    public static func peerLeafKeyHash(securityMetadata: sec_protocol_metadata_t) -> Data? {
+        var leaf: SecCertificate?
+        _ = sec_protocol_metadata_access_peer_certificate_chain(securityMetadata) { cert in
+            if leaf == nil {
+                leaf = sec_certificate_copy_ref(cert).takeRetainedValue()
+            }
+        }
+        guard let leaf else { return nil }
+        return publicKeyHash(of: leaf)
+    }
+
     public static func evaluate(trust: SecTrust, policy: TLSVerifyPolicy) -> TLSVerifyVerdict {
         guard let chain = SecTrustCopyCertificateChain(trust) as? [SecCertificate],
               let leaf = chain.first,

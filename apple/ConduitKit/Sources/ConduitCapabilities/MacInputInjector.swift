@@ -6,17 +6,28 @@ import AppKit
 import ConduitProtocol
 
 /// macOS input injection via CGEvent (spec §9 Phase 2 step 2). Requires the
-/// Accessibility (TCC) permission. Posts deltas relative to the current cursor
-/// (the phone sends deltas, never absolute coordinates — spec pitfall), clamps
-/// to the display union so multi-monitor origins are handled, refuses keys
-/// while secure input is on, and can release everything on the kill switch.
+/// Accessibility (TCC) permission. A trackpad controller sends deltas, which
+/// are added to the current cursor and clamped to the display union so
+/// multi-monitor origins are handled; a controller that is *watching* a display
+/// may additionally send a normalized absolute position, which lands inside
+/// exactly that display's bounds (`setAbsoluteRegion`). Refuses keys while
+/// secure input is on, and releases everything on the kill switch.
 public final class MacInputInjector: InputInjector, @unchecked Sendable {
     private let source = CGEventSource(stateID: .hidSystemState)
     private let lock = NSLock()
     /// Buttons currently held down, so releaseAll() can lift them.
     private var heldButtons: Set<PointerButton> = []
+    /// Keycodes currently held down by a `key`+`action:down` with no matching
+    /// up. Released by releaseAll() so a dropped key-up can't wedge a key.
+    private var heldKeys: Set<CGKeyCode> = []
+    /// Where a normalized absolute position maps to. nil = whole display union.
+    private var absoluteRegion: InjectionRegion?
 
     public init() {}
+
+    public func setAbsoluteRegion(_ region: InjectionRegion?) {
+        lock.withLock { absoluteRegion = region }
+    }
 
     public var isPermitted: Bool {
         AXIsProcessTrusted()
@@ -79,12 +90,45 @@ public final class MacInputInjector: InputInjector, @unchecked Sendable {
         )
     }
 
+    /// Where an absolute move lands. Prefers the region the controller is
+    /// actually watching; falls back to the display union so a normalized point
+    /// from a peer we have no capture context for is still on screen somewhere
+    /// sensible rather than at (0,0).
+    private func absoluteTarget(nx: Double, ny: Double) -> CGPoint {
+        if let region = lock.withLock({ absoluteRegion }) {
+            let p = region.point(nx: nx, ny: ny)
+            return clampToDisplays(CGPoint(x: p.x, y: p.y))
+        }
+        let screens = NSScreen.screens
+        guard !screens.isEmpty else { return currentLocation() }
+        let totalHeight = screens.map { $0.frame.maxY }.max() ?? 0
+        var minX = CGFloat.greatestFiniteMagnitude, minY = CGFloat.greatestFiniteMagnitude
+        var maxX = -CGFloat.greatestFiniteMagnitude, maxY = -CGFloat.greatestFiniteMagnitude
+        for screen in screens {
+            let f = screen.frame
+            let top = totalHeight - f.maxY
+            minX = min(minX, f.minX); maxX = max(maxX, f.maxX)
+            minY = min(minY, top); maxY = max(maxY, top + f.height)
+        }
+        return clampToDisplays(CGPoint(
+            x: minX + CGFloat(min(max(nx, 0), 1)) * (maxX - minX),
+            y: minY + CGFloat(min(max(ny, 0), 1)) * (maxY - minY)
+        ))
+    }
+
     private func injectMove(_ event: InputEventBody) throws {
         let current = currentLocation()
-        let target = clampToDisplays(CGPoint(
-            x: current.x + (event.dx ?? 0),
-            y: current.y + (event.dy ?? 0)
-        ))
+        let target: CGPoint
+        if let nx = event.nx, let ny = event.ny {
+            // Click-where-you-point: the controller is looking at a live view of
+            // a specific display/window and named a position inside it.
+            target = absoluteTarget(nx: nx, ny: ny)
+        } else {
+            target = clampToDisplays(CGPoint(
+                x: current.x + (event.dx ?? 0),
+                y: current.y + (event.dy ?? 0)
+            ))
+        }
         let dragButton = lock.withLock { heldButtons.first }
         let type: CGEventType
         let button: CGMouseButton
@@ -150,6 +194,14 @@ public final class MacInputInjector: InputInjector, @unchecked Sendable {
             throw InputInjectorError.secureInputActive
         }
         let flags = cgFlags(for: event.modifiers ?? [])
+        // A key with no action is a complete press-and-release — the only thing
+        // any peer sent before the field applied to keys, so absence must keep
+        // meaning exactly that. A hardware-keyboard controller sends real
+        // down/up (and repeats as further downs), which is what makes held
+        // arrows repeat and ⌘-drag-style chords behave.
+        let action = event.action ?? .tap
+        let wantDown = action == .down || action == .tap
+        let wantUp = action == .up || action == .tap
 
         if let text = event.text {
             // Type literal characters via unicode payload — layout-independent.
@@ -158,10 +210,11 @@ public final class MacInputInjector: InputInjector, @unchecked Sendable {
                       let up = CGEvent(keyboardEventSource: source, virtualKey: 0, keyDown: false) else { continue }
                 var utf16 = Array(String(String.UnicodeScalarView(scalarGroup)).utf16)
                 down.flags = flags
+                up.flags = flags
                 down.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: &utf16)
                 up.keyboardSetUnicodeString(stringLength: utf16.count, unicodeString: &utf16)
-                down.post(tap: .cghidEventTap)
-                up.post(tap: .cghidEventTap)
+                if wantDown { down.post(tap: .cghidEventTap) }
+                if wantUp { up.post(tap: .cghidEventTap) }
             }
             return
         }
@@ -169,14 +222,22 @@ public final class MacInputInjector: InputInjector, @unchecked Sendable {
         guard let keyName = event.key, let keyCode = Self.virtualKey(for: keyName) else {
             throw InputInjectorError.unsupportedEvent("key \(event.key ?? "nil")")
         }
-        guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true),
-              let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
-            throw InputInjectorError.unsupportedEvent("keycode alloc")
+        if wantDown {
+            guard let down = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: true) else {
+                throw InputInjectorError.unsupportedEvent("keycode alloc")
+            }
+            down.flags = flags
+            if action == .down { lock.withLock { _ = heldKeys.insert(keyCode) } }
+            down.post(tap: .cghidEventTap)
         }
-        down.flags = flags
-        up.flags = flags
-        down.post(tap: .cghidEventTap)
-        up.post(tap: .cghidEventTap)
+        if wantUp {
+            guard let up = CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false) else {
+                throw InputInjectorError.unsupportedEvent("keycode alloc")
+            }
+            up.flags = flags
+            lock.withLock { heldKeys.remove(keyCode) }
+            up.post(tap: .cghidEventTap)
+        }
     }
 
     private func cgFlags(for modifiers: [InputModifier]) -> CGEventFlags {
@@ -232,15 +293,22 @@ public final class MacInputInjector: InputInjector, @unchecked Sendable {
     // MARK: Cleanup
 
     public func releaseAll() {
-        let held = lock.withLock { () -> Set<PointerButton> in
-            let copy = heldButtons
+        let (buttons, keys) = lock.withLock { () -> (Set<PointerButton>, Set<CGKeyCode>) in
+            let b = heldButtons, k = heldKeys
             heldButtons.removeAll()
-            return copy
+            heldKeys.removeAll()
+            return (b, k)
         }
         let location = currentLocation()
-        for button in held {
+        for button in buttons {
             let (_, upType, cgButton) = mouseTypes(for: button)
             CGEvent(mouseEventSource: source, mouseType: upType, mouseCursorPosition: location, mouseButton: cgButton)?
+                .post(tap: .cghidEventTap)
+        }
+        // A controller that quit mid-keystroke leaves a key physically stuck
+        // down on this Mac; the kill switch has to lift those too.
+        for keyCode in keys {
+            CGEvent(keyboardEventSource: source, virtualKey: keyCode, keyDown: false)?
                 .post(tap: .cghidEventTap)
         }
     }

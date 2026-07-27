@@ -133,6 +133,11 @@ func transportPolicyFor(peer PinnedPeer) transport.PinPolicy {
 
 // run is the read loop dispatching capability messages.
 func (l *Link) run() {
+	defer func() {
+		if l.node.handlers.OnSessionClosed != nil {
+			l.node.handlers.OnSessionClosed(l.peer.DeviceID)
+		}
+	}()
 	for {
 		frame, ok, err := l.framed.NextFrame()
 		if err != nil || !ok {
@@ -147,6 +152,12 @@ func (l *Link) run() {
 			l.handle(msg)
 		case wire.KindFileChunk:
 			l.receiver.handleChunk(*frame.Chunk)
+		case wire.KindScreenFrame:
+			// Control-lane video: the source couldn't (or didn't) open a
+			// dedicated lane and is streaming over the session link.
+			if l.node.handlers.OnScreenFrame != nil {
+				l.node.handlers.OnScreenFrame(l.peer.DeviceID, *frame.Screen, l)
+			}
 		}
 	}
 }
@@ -171,6 +182,43 @@ func (l *Link) handle(msg wire.Message) {
 	case wire.TypeInputEvent:
 		if l.node.handlers.OnInput != nil {
 			l.node.handlers.OnInput(l.peer.DeviceID, msg.Body.(wire.InputEventBody))
+		}
+	case wire.TypeInputRequest:
+		if l.node.handlers.OnInputRequest != nil {
+			l.node.handlers.OnInputRequest(l.peer.DeviceID, l)
+		} else {
+			// Refuse rather than staying silent: a Swift controller waits 10 s
+			// on an unanswered INPUT_REQUEST and blames the network.
+			reason := "input injection not supported here"
+			_ = l.Send(wire.Message{Type: wire.TypeInputStatus, Body: wire.InputStatusBody{
+				Active: false, Reason: &reason}})
+		}
+	case wire.TypeInputStatus:
+		if l.node.handlers.OnInputStatus != nil {
+			l.node.handlers.OnInputStatus(l.peer.DeviceID, msg.Body.(wire.InputStatusBody))
+		}
+	case wire.TypeScreenRequest:
+		if l.node.handlers.OnScreenRequest != nil {
+			l.node.handlers.OnScreenRequest(l.peer.DeviceID, msg.Body.(wire.ScreenRequestBody), l)
+		} else {
+			_ = l.Send(wire.Message{Type: wire.TypeScreenReject, Body: wire.ScreenRejectBody{
+				Reason: "screen sharing not supported here"}})
+		}
+	case wire.TypeScreenOffer:
+		if l.node.handlers.OnScreenOffer != nil {
+			l.node.handlers.OnScreenOffer(l.peer.DeviceID, msg.Body.(wire.ScreenOfferBody), l)
+		}
+	case wire.TypeScreenReject:
+		if l.node.handlers.OnScreenReject != nil {
+			l.node.handlers.OnScreenReject(l.peer.DeviceID, msg.Body.(wire.ScreenRejectBody))
+		}
+	case wire.TypeScreenAck:
+		if l.node.handlers.OnScreenAck != nil {
+			l.node.handlers.OnScreenAck(l.peer.DeviceID, msg.Body.(wire.ScreenAckBody))
+		}
+	case wire.TypeScreenEnd:
+		if l.node.handlers.OnScreenEnd != nil {
+			l.node.handlers.OnScreenEnd(l.peer.DeviceID, msg.Body.(wire.ScreenEndBody))
 		}
 	}
 }

@@ -6,7 +6,7 @@ SWIFT_PKG := apple/ConduitKit
 CORE      := core
 VECTORS   := proto/vectors
 
-.PHONY: all conformance vectors go-conformance go-test swift-test cross-build clean
+.PHONY: all conformance vectors go-conformance go-test swift-test apple-apps cross-build clean
 
 all: conformance
 
@@ -37,6 +37,17 @@ cross-build:
 	cd $(CORE) && GOOS=linux   GOARCH=amd64 go build ./...
 	cd $(CORE) && GOOS=windows GOARCH=amd64 go build ./...
 	cd $(CORE) && GOOS=darwin  GOARCH=arm64 go build ./...
+
+## Build all four Apple app targets (unsigned). MUST use -scheme: the legacy
+## `xcodebuild -target` path cannot resolve SwiftPM module deps under Xcode 26
+## explicit modules and fails inside swift-crypto's CryptoExtras
+## ("unable to resolve module dependency: 'SwiftASN1'"). Schemes are fine.
+APPS_PROJ := apple/AppleApps/ConduitApps.xcodeproj
+apple-apps:
+	xcodebuild -project $(APPS_PROJ) -scheme Conduit-macOS   -configuration Debug -destination "platform=macOS,arch=arm64" CODE_SIGNING_ALLOWED=NO build
+	xcodebuild -project $(APPS_PROJ) -scheme Conduit-iOS     -configuration Debug -destination "generic/platform=iOS"      CODE_SIGNING_ALLOWED=NO build
+	xcodebuild -project $(APPS_PROJ) -scheme ConduitBroadcast -configuration Debug -destination "generic/platform=iOS"     CODE_SIGNING_ALLOWED=NO build
+	xcodebuild -project $(APPS_PROJ) -scheme Conduit-tvOS    -configuration Debug -destination "generic/platform=tvOS"     CODE_SIGNING_ALLOWED=NO build
 
 ## The Swift conformance suite (subset that reads proto/vectors).
 swift-test:

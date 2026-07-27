@@ -41,8 +41,10 @@ so no company can wall it off.
 ## How to use it
 
 ```bash
-cd apple/ConduitKit && swift test     # the provable core: 91 tests
-cd ../AppleApps && xcodegen generate  # then run the macOS + iOS apps
+cd apple/ConduitKit && swift test --disable-sandbox   # the provable core: 126 tests
+                                      # (the flag is required — the macOS sandbox
+                                      #  hangs the test run; TESTING_PLAN.md §1)
+cd ../AppleApps && open ConduitApps.xcodeproj         # run the macOS + iOS apps
 cd core && go build -o mosisd ./cmd/conduitd   # headless daemon (Win/Linux/macOS)
 ```
 
@@ -53,12 +55,15 @@ and **Share** (push yours to them).
 
 ## Honest limitations
 
-- **The core is proven; the device experience is still beta.** 91 automated
+- **The core is proven; the device experience is still beta.** 126 automated
   tests and 3-way protocol conformance are green, but early hardware testing
   found last-mile bugs (screen attach, input lane) that a device-validation
   pass is fixing. "Tests pass" and "works on your phone" are different claims.
-- **Wi-Fi Aware is off** pending an Apple entitlement — everything rides the
-  LAN today, so no router means no link (Aware will fix that).
+- **Wi-Fi Aware is implemented on iOS but has never carried a session** — the
+  entitlement is granted and the flag is on, yet it is compile-verified only
+  (needs two Aware-capable iPhones/iPads). Everything proven rides the LAN
+  today, so no router still means no link; the no-shared-network path is
+  plan 08's ladder.
 - **Local network only.** "Anywhere in the world" access needs a relay —
   explicitly future work, never a hidden dependency.
 - **Tablet-as-extra-monitor is not functional** — driver skeletons only
