@@ -582,3 +582,39 @@ carry video on the control-lane fallback at ~2.5 Mbps), and the datagram input
 lane never rides Aware. Android's `WifiAwareBackend` remains uninstantiated;
 iPhone↔Android Aware interop is doubtful anyway given Apple's OS-pairing gate —
 that's exactly what the Phase 0 probe (checklist step 3) has to answer.
+
+## Linux joins screen sharing, both directions (2026-07-27)
+
+The Go core grew the two halves Linux never had: **conduitd sources its X11
+screen** (pure-Go xgb capture → ffmpeg/libx264 → the frozen SCREEN_FRAME
+format) and a new **conduitview binary views and drives a peer** (X11 window,
+ffmpeg decode, ADR 0015 absolute pointing + real key down/up). Same lane
+discipline as the Swift source — session link first, reverse-dialed lane as a
+background upgrade promoted at a keyframe — and the daemon advertises
+`screen-source` only when a probe proves X11 + ffmpeg can actually serve, with
+the reason printed when they can't. Also fixed on the way: the Go daemon never
+answered INPUT_REQUEST at all, so every Swift controller aimed at conduitd
+timed out after 10 s before this; it now grants/refuses honestly, and a Go
+node with no screen engine refuses SCREEN_REQUEST instead of going silent.
+
+**Verified (macOS, 2026-07-27):** 30 screencast tests green (0 skips) including real
+ffmpeg 8.1.2 encode/decode round trips (BT.709 asserted within ΔRGB ≤ 10) and
+a two-node loopback E2E over real pinned TLS asserting the lane
+(`bulk` after promotion, `control` when the dial is forced off), pixel
+fidelity, the input grant, nx/ny+dx/dy on every absolute move, and
+click-after-move ordering; `go test ./...` + `-race` green; 52/52 conformance
+vectors; `GOOS=linux CGO_ENABLED=0` (amd64+arm64) and windows builds + vet
+clean. Found by experiment and worth remembering: ffmpeg 8's forced-h264 pipe
+demuxer emits **zero frames** under `-fflags nobuffer`, and starving probing
+(`-probesize 32`) makes it cut packets at read boundaries — the low-latency
+folklore flags are fatal there.
+
+**Not verified, and cannot be on this Mac:** everything X11 — capture, blit,
+window events — plus real-network reverse dials and any actual session against
+a Swift or Android peer; uinput still drops `kind:"key"` (pre-existing).
+Plan `docs/plans/09-linux-screen-and-control.md` carries the per-row
+proven-vs-device-gated table, the deviations (encoder restarts instead of
+mid-run retune, one viewer per source, standing consent for a headless daemon,
+the shift-only capitals divergence from Swift — flagged as a possible Swift
+bug, not copied), and the first-Linux-box session script; `docs/linux.md` is
+the runbook.

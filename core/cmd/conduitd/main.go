@@ -22,6 +22,7 @@ import (
 	"syscall"
 
 	"github.com/auston/conduit-core/platform"
+	"github.com/auston/conduit-core/screencast"
 	"github.com/auston/conduit-core/session"
 	"github.com/auston/conduit-core/wire"
 )
@@ -38,7 +39,7 @@ func main() {
 	acceptPairing := fs.Bool("pair", false, "accept incoming pairing (run)")
 	_ = fs.Parse(os.Args[2:])
 
-	node, injector := buildNode()
+	node, injector, screenStatus := buildNode()
 	defer injector.Close()
 
 	switch mode {
@@ -59,7 +60,17 @@ func main() {
 	case "run":
 		node.PairingEnabled = *acceptPairing
 		node.Confirm = confirmInteractively
-		node.SetHandlers(session.Handlers{
+		// Screen source engine (Linux/X11 + ffmpeg). Only wired into handlers
+		// when it can actually serve — the same rule as the capability string.
+		var screenSource *screencast.Source
+		if screenStatus.available {
+			screenSource = screencast.NewSource(node, screencast.SourceConfig{
+				FFmpegPath: screenStatus.ffmpeg,
+				Capturer:   screenStatus.capturer,
+				Log:        func(s string) { fmt.Printf("  [screen] %s\n", s) },
+			})
+		}
+		handlers := session.Handlers{
 			OnPaired: func(p session.PinnedPeer) { fmt.Printf("Paired with %s\n", p.Name) },
 			OnFileReceived: func(path string, o wire.FileOfferBody) {
 				fmt.Printf("Received %s (%d bytes) → %s\n", o.Name, o.Size, path)
@@ -68,10 +79,36 @@ func main() {
 			OnNotification: func(_ string, b wire.NotificationBody) {
 				fmt.Printf("🔔 %s: %s — %s\n", b.AppName, b.Title, b.Body)
 			},
-			OnInput:        func(_ string, ev wire.InputEventBody) { _ = injector.Inject(ev) },
+			OnInput: func(_ string, ev wire.InputEventBody) { _ = injector.Inject(ev) },
+			// Controllers wait 10 s on an unanswered INPUT_REQUEST; answer
+			// honestly either way. Consent posture: standing grant for paired
+			// peers, matching the daemon's file auto-accept (pairing = trust
+			// for a headless process; there is no screen to prompt on).
+			OnInputRequest: func(deviceID string, l *session.Link) {
+				if injector.Available() {
+					fmt.Printf("Input control granted to %s (backend %s)\n", deviceID[:8], injector.Backend())
+					_ = l.Send(wire.Message{Type: wire.TypeInputStatus, Body: wire.InputStatusBody{Active: true}})
+				} else {
+					reason := "input injection unavailable on this device (backend: " + injector.Backend() + ")"
+					_ = l.Send(wire.Message{Type: wire.TypeInputStatus, Body: wire.InputStatusBody{
+						Active: false, Reason: &reason}})
+				}
+			},
 			OnSessionReady: func(id string, h wire.HelloBody) { fmt.Printf("Connected: %s\n", h.Name) },
 			Log:            func(s string) { fmt.Fprintf(os.Stderr, "[log] %s\n", s) },
-		})
+		}
+		if screenSource != nil {
+			handlers.OnScreenRequest = func(deviceID string, req wire.ScreenRequestBody, l *session.Link) {
+				// Startup takes ~100 ms (capture + ffmpeg spawn); keep it off
+				// the link's read goroutine so pings keep flowing.
+				go screenSource.HandleRequest(deviceID, req, l)
+			}
+			handlers.OnScreenAck = screenSource.HandleAck
+			handlers.OnScreenEnd = screenSource.HandleEnd
+			handlers.OnSessionClosed = screenSource.HandleSessionClosed
+			defer screenSource.Stop()
+		}
+		node.SetHandlers(handlers)
 		if err := node.Start(); err != nil {
 			fatal("start: %v", err)
 		}
@@ -79,6 +116,7 @@ func main() {
 		fmt.Printf("  listen port : %d\n", node.ListenPort())
 		fmt.Printf("  device id   : %s\n", node.ID.DeviceID())
 		fmt.Printf("  input inject: %s\n", injector.Backend())
+		fmt.Printf("  screen src  : %s\n", screenStatus.line)
 		fmt.Printf("  paired peers: %d\n", len(node.Peers.All()))
 		if node.PairingEnabled {
 			fmt.Println("  pairing     : ACCEPTING new devices")
@@ -100,7 +138,37 @@ func main() {
 	}
 }
 
-func buildNode() (*session.Node, platform.Injector) {
+// screenSourceStatus is the honest probe result for screen sourcing: the
+// capability is advertised only when capture AND encode can actually run, and
+// the status line names the reason when they can't (mirroring the injector
+// and the Swift/Kotlin Aware backends' Available()/unavailableReason shape).
+type screenSourceStatus struct {
+	available bool
+	line      string // for the startup status print
+	ffmpeg    string
+	capturer  screencast.Capturer
+}
+
+func probeScreenSource() screenSourceStatus {
+	capturer := screencast.NewCapturer()
+	capOK, capReason := capturer.Available()
+	ffmpeg, ffReason := screencast.FindFFmpeg()
+	switch {
+	case capOK && ffmpeg != "":
+		return screenSourceStatus{
+			available: true,
+			line:      fmt.Sprintf("%s + %s", capturer.Backend(), ffmpeg),
+			ffmpeg:    ffmpeg,
+			capturer:  capturer,
+		}
+	case !capOK:
+		return screenSourceStatus{line: "unavailable — " + capReason}
+	default:
+		return screenSourceStatus{line: "unavailable — " + ffReason}
+	}
+}
+
+func buildNode() (*session.Node, platform.Injector, screenSourceStatus) {
 	cfgDir := configDir()
 	os.MkdirAll(cfgDir, 0o700)
 	id, tls, err := session.LoadIdentity(filepath.Join(cfgDir, "identity.json"))
@@ -111,9 +179,13 @@ func buildNode() (*session.Node, platform.Injector) {
 		}
 	}
 	injector := platform.NewInjector()
+	screenStatus := probeScreenSource()
 	caps := []string{wire.CapFile, wire.CapClipboard, wire.CapNotifySource}
 	if injector.Available() {
 		caps = append(caps, wire.CapInputInject)
+	}
+	if screenStatus.available {
+		caps = append(caps, wire.CapScreenSource)
 	}
 	node := &session.Node{
 		Name:         hostname(),
@@ -125,7 +197,7 @@ func buildNode() (*session.Node, platform.Injector) {
 		ReceiveDir:   receiveDir(),
 		Capabilities: caps,
 	}
-	return node, injector
+	return node, injector, screenStatus
 }
 
 func confirmInteractively(p session.PairPrompt) bool {
