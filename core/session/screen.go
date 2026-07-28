@@ -51,9 +51,20 @@ func (n *Node) attachScreenLane(framed *FramedConn, attach wire.ScreenAttachBody
 		delete(n.pendingScreen, attach.BulkToken)
 	}
 	n.bulkMu.Unlock()
-	if h == nil || attach.BulkToken == "" || !h(framed, attach) {
-		framed.Close()
+	// Say which refusal it was. A dropped lane is otherwise invisible from this
+	// side and shows up only as the source's "closed before it carried frames",
+	// which names the symptom and not one of the three distinct causes.
+	switch {
+	case attach.BulkToken == "":
+		n.logf("screen attach refused: no bulk token")
+	case h == nil:
+		n.logf("screen attach refused: unknown or already-used token")
+	case !h(framed, attach):
+		n.logf("screen attach refused: viewer declined (screen session %q)", attach.ScreenSessionID)
+	default:
+		return
 	}
+	framed.Close()
 }
 
 // OpenLane dials a dedicated pinned connection to a peer's listener — the

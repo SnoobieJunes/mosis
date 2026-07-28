@@ -618,3 +618,61 @@ mid-run retune, one viewer per source, standing consent for a headless daemon,
 the shift-only capitals divergence from Swift — flagged as a possible Swift
 bug, not copied), and the first-Linux-box session script; `docs/linux.md` is
 the runbook.
+
+---
+
+## 2026-07-27 — macOS TCC grants never stuck; Linux ran for real in containers
+
+**The permission bug was in the signing, not the permission code.** The Mac app
+built ad-hoc-signed — `codesign` reported `flags=0x2(adhoc)` and
+`TeamIdentifier=not set`. TCC keys an ad-hoc app's grant to its **cdhash**, so
+every rebuild was a new app to the OS: the grant given yesterday applied to
+yesterday's binary, the panel stayed red, and the app asked again. The
+`DEVELOPMENT_TEAM` had been hand-added to the *pbxproj* after `xcodegen
+generate` — exactly the failure mode CLAUDE.md warns about — and the macOS
+target was the one that never got it back. It now lives in `project.yml`
+(`settings.base`), with `CODE_SIGN_IDENTITY: "Apple Development"` on the macOS
+target because macOS targets otherwise default to `-` even with a team set.
+
+**Verified:** the rebuilt app signs as `TeamIdentifier=49CQA5YX6U`, and its
+designated requirement is now `identifier "org.auston.mosis.mac" and anchor
+apple generic and certificate leaf[subject.CN] = "Apple Development: …"` — no
+cdhash, so grants survive rebuilds. Stale entries were cleared with `tccutil
+reset {ScreenCapture,Accessibility,ListenEvent} org.auston.mosis.mac`.
+**Not verified:** that the grant actually persists across a rebuild — that
+needs one grant and one rebuild by hand.
+
+**Second, independent bug in the same symptom:** `requestScreenRecordingPermission`
+refreshed the panel *once*, immediately. The OS prompt is modal to the user,
+not to us, so that refresh always read "off" — and after the tick, TCC will not
+apply the grant to a process that started before it, so the row could never go
+green in the session where you granted. Now: the request polls for up to 60 s,
+and `MacScreenCapturer.permissionNeedsRelaunch()` splits "off" from
+"granted, stale process" (CGPreflightScreenCaptureAccess says yes, the display
+list is still empty). The panel shows "Granted — MOSIS has to restart to pick
+it up" with a **Relaunch** button instead of sending the user back to Settings
+where everything already looks correct.
+
+**Linux is no longer device-gated for X11.** `tools/linux-docker/` runs two
+containers on the Mac — box A shares its Xvfb desktop, box B watches it. Real
+X server (LSB-first, 1280x800x24), real ffmpeg, real pinned TLS, two separate
+network namespaces. Capture → encode → wire → decode → blit all work: a
+screenshot of B's viewer window reads back legible text from A's xterm at the
+same wall-clock second, and the dedicated lane promoted (`screen frames now on
+the direct lane`) across the namespace boundary. `docs/linux.md` and plan 09's
+table are updated row by row.
+
+One code change was needed: `CONDUIT_LISTEN_PORT` pins the listen port, because
+an ephemeral port cannot be published through a container port map.
+
+**Known limitations of that harness — do not over-read a green run:** no GPU,
+no compositor, no window manager quirks, no `uinput` in the Colima kernel (so
+input receive is still untested), no Wayland, and both boxes run the same Go
+build, so Swift↔Go interop remains undemonstrated.
+
+**Open, one observation each way:** the very first view session after an
+in-session pairing lost the dedicated lane (`direct lane closed before it
+carried frames`) and ran on the session link; every run after a daemon restart
+promoted correctly. Suspect the freshly-paired peer record the reverse dial
+reads. `attachScreenLane` now logs which of its three refusals it took, so the
+next occurrence names itself.

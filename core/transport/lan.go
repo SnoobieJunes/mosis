@@ -11,6 +11,8 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"os"
+	"strconv"
 
 	"github.com/auston/conduit-core/identity"
 )
@@ -121,8 +123,26 @@ type Listener struct {
 	ln net.Listener
 }
 
+// ListenPortEnv pins the listen port instead of taking an ephemeral one.
+// Ephemeral is right on a LAN with discovery, but wrong behind a port map: a
+// container or a hand-punched firewall rule has to know the number in advance.
+// Unset or unparseable keeps the ephemeral default.
+const ListenPortEnv = "CONDUIT_LISTEN_PORT"
+
+func listenAddr() string {
+	raw := os.Getenv(ListenPortEnv)
+	if raw == "" {
+		return ":0"
+	}
+	port, err := strconv.Atoi(raw)
+	if err != nil || port < 1 || port > 65535 {
+		return ":0"
+	}
+	return ":" + strconv.Itoa(port)
+}
+
 func (b *Backend) Listen(policyFn func() PinPolicy) (*Listener, uint16, error) {
-	tcpLn, err := net.Listen("tcp", ":0")
+	tcpLn, err := net.Listen("tcp", listenAddr())
 	if err != nil {
 		return nil, 0, err
 	}

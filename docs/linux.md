@@ -6,12 +6,19 @@ receive, notifications, input receive, **screen source**) and the viewer
 
 **Honesty header, per house rules:** the codec pipeline, session/lane logic,
 and input translation in these binaries are proven by tests on macOS (real
-ffmpeg, real TLS, loopback). **The X11 capture and window code has never
-executed against a real X server** — it cross-compiles and its logic mirrors
-documented protocol, and that is the entire claim until the first device
-session (docs/plans/09-linux-screen-and-control.md has the full
-proven-vs-device-gated table). If something here turns out wrong on a real
-box, that's expected — fix it and update plan 09's table.
+ffmpeg, real TLS, loopback). As of 2026-07-27 the **X11 capture and window
+code has executed against a real X server** — two containers, Xvfb, real
+ffmpeg, real pinned TLS across separate network namespaces; capture, encode,
+dedicated-lane promotion, decode and blit all worked and a screenshot of the
+viewer matched the source (`tools/linux-docker/`). What is still unproven: a
+real desktop (GPU, compositor, window manager), Wayland, `uinput` input
+receive, and any session against a Swift or Android peer. See
+docs/plans/09-linux-screen-and-control.md for the row-by-row table. If
+something here turns out wrong on real hardware, that's expected — fix it and
+update plan 09's table.
+
+**No Linux machine handy?** `tools/linux-docker/README.md` runs all of this in
+containers on a Mac, including a VNC view of each box's real screen.
 
 ## Dependencies
 
@@ -52,6 +59,10 @@ the Linux pointer today, not the keyboard.
 ```sh
 ./conduitd run --pair        # first run: accept pairing from your other device
 ```
+
+Set `CONDUIT_LISTEN_PORT` to pin the listen port instead of taking an ephemeral
+one — needed whenever the peer cannot learn the port at runtime: a container
+port map, or a hand-punched firewall rule.
 
 Startup prints what this box can actually do — trust these lines, they are
 probed, not assumed:
@@ -111,11 +122,15 @@ control-lane-first streaming, dedicated-lane promotion (and forced fallback),
 acks/keyframes, the input grant, absolute-pointer events with their mandatory
 deltas, click-after-move ordering, clean teardown from either side.
 
-Device-gated (never executed): everything touching X11 — capture, blit,
-window events, keyboard mapping — plus real-network reverse dials, real
-uinput, and any session against a Swift or Android peer. "Compatible with the
-Mac app" is currently an argument from shared code conventions and vectors,
-not a demonstrated fact.
+Proven in the container harness (real X server, two hosts, no real desktop):
+X11 capture and the viewer's blit and window, the honest capability advert,
+and a cross-namespace reverse dial that promoted to the dedicated lane.
+
+Still device-gated (never executed): a real desktop's compositor and window
+manager, XShm-free performance on real hardware, Wayland/XWayland, keyboard
+mapping, real uinput, and any session against a Swift or Android peer.
+"Compatible with the Mac app" is still an argument from shared code
+conventions and vectors, not a demonstrated fact.
 
 ## Troubleshooting
 
