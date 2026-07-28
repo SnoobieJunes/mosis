@@ -13,7 +13,17 @@
 >   anything — **fixed in this pass** (it previously passed with the dial broken).
 > - **M4** (input lane — reliable-first, datagram-after-echo): done; the
 >   "echo-lost stays reliable" negative test is still missing (the original bug).
-> - **M5** (permission pre-flight panel + wrong-capturer fix): done.
+> - **M5** (permission pre-flight panel + wrong-capturer fix): done, then
+>   **re-opened and fixed properly on 2026-07-27**. The panel was correct and
+>   still useless: the Mac app was ad-hoc-signed (`TeamIdentifier=not set`), so
+>   TCC keyed each grant to a cdhash and every rebuild threw it away. Fixed by
+>   moving `DEVELOPMENT_TEAM` into `project.yml` (the pbxproj copy had been
+>   hand-applied and the macOS target lost it) plus an explicit
+>   `CODE_SIGN_IDENTITY`. Second, separate bug: the panel refreshed once,
+>   immediately, so it always read the pre-grant answer, and it could not
+>   express "granted, but this process predates the grant" — now polled, and
+>   split into a **Relaunch** affordance. Not yet verified by hand: that a
+>   grant survives an actual rebuild.
 > - **M6** (CI honesty — full unfiltered `swift test` in CI): **done**; this was
 >   the core accusation and it's fixed (`.github/workflows/conformance.yml`).
 > - **M7** (`docs/DEVICE_CHECKLIST.md`): done, and good.
@@ -115,9 +125,7 @@ Total: ~6–7.5 agent-days; your time ≈ 4–5 sessions × 10–20 min. Order: 
 - Per-milestone automated tests named above (failing-bulkOpener → control-lane `screenEnd`; watchdog; NV12 encode; pointer-move E2E; lane upgrade/downgrade; LAN-IP suite; mDNS discovery).
 - Device sessions S1–S4 are the real verification, each with expected-output checklists so a failure is diagnosable from one log bundle.
 
-## Explicitly out of the beta (defer list)
 
-Any wire-protocol change (incl. inverting the bulk dial direction — only revisit if S1/S2 prove reverse-dial unfixable in your environment); Wi-Fi Aware (entitlement, blocked on naming); virtual display; Matter/Cast/HLS senders beyond existing tests; Android device validation; Go/Kotlin attach-echo (they degrade to reliable lane); multi-viewer hardening; datagram liveness fallback (only if S2 shows mid-session black-holing); bundle-ID rename (accept TCC reset at naming time); anything off-LAN.
 
 ## What you'll be asked to do
 

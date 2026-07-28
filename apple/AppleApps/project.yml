@@ -24,7 +24,17 @@ settings:
     # org.auston.mosis.ios: the iOS keychain access group is derived from the
     # bundle ID, so changing it orphans the device identity and forces a
     # re-pair. That already happened once in e6c6eb3.
-    # DEVELOPMENT_TEAM is set per-target in the pbxproj so TCC grants stick.
+    #
+    # DEVELOPMENT_TEAM lives HERE, not in the pbxproj. It used to be hand-set
+    # per-target after `xcodegen generate`, which meant the macOS target
+    # silently lost it (only the iOS/broadcast targets ever got it back), and
+    # the Mac app shipped ad-hoc signed: `TeamIdentifier=not set`, `flags=
+    # 0x2(adhoc)`. TCC keys an ad-hoc app's grant to its **cdhash**, so every
+    # rebuild produced a "new" app — the user ticked Screen Recording /
+    # Accessibility, the grant applied to the previous binary, and the app
+    # re-prompted forever. With a team, the designated requirement is
+    # bundle-id + team OU and grants survive rebuilds.
+    DEVELOPMENT_TEAM: "49CQA5YX6U"
     CURRENT_PROJECT_VERSION: 1
     MARKETING_VERSION: 0.1.0
     GENERATE_INFOPLIST_FILE: false
@@ -48,6 +58,10 @@ targets:
         # for input tools (Karabiner, BTT, Synergy). See docs/adr/0005.
         ENABLE_HARDENED_RUNTIME: true
         ENABLE_APP_SANDBOX: false
+        # Explicit, because macOS targets otherwise default to "-" (ad-hoc)
+        # even with a DEVELOPMENT_TEAM set — which is exactly how this target
+        # ended up with unstable, per-build TCC identity. See settings.base.
+        CODE_SIGN_IDENTITY: "Apple Development"
     entitlements:
       path: ConduitMac/Conduit.entitlements
       properties:

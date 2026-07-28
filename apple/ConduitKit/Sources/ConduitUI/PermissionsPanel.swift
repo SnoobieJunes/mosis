@@ -26,7 +26,20 @@ struct PermissionsPanel: View {
                 onAction: { model.requestScreenRecordingPermission() },
                 onOpenSettings: { model.openScreenRecordingSettings() }
             )
-            if model.screenRecordingGranted == false {
+            if model.screenRecordingNeedsRelaunch {
+                // The grant IS recorded — TCC just won't apply it to a process
+                // that started before it. Say that, and offer the one action
+                // that fixes it, instead of pointing back at System Settings
+                // where everything already looks correct.
+                HStack(spacing: 8) {
+                    Text("Granted — MOSIS has to restart to pick it up.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                    Button("Relaunch") { model.relaunchForPermissions() }
+                        .controlSize(.small)
+                }
+                .padding(.leading, 26)
+            } else if model.screenRecordingGranted == false {
                 Text("First grant needs a relaunch: after you tick MOSIS in System Settings, quit and reopen this app or it will keep capturing nothing.")
                     .font(.caption)
                     .foregroundStyle(.secondary)

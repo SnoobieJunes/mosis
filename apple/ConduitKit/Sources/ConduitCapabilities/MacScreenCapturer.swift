@@ -42,6 +42,16 @@ public final class MacScreenCapturer: NSObject, ScreenCapturer, @unchecked Senda
         _ = try? await SCShareableContent.excludingDesktopWindows(false, onScreenWindowsOnly: true)
     }
 
+    /// Distinguishes "not granted" from "granted, but this process predates the
+    /// grant". CGPreflightScreenCaptureAccess reads the TCC decision itself, so
+    /// preflight-yes + no-displays is exactly the stale-process case that only
+    /// a relaunch fixes. Without this split the Permissions panel shows one
+    /// red row for two states with two different cures.
+    public func permissionNeedsRelaunch() async -> Bool {
+        guard CGPreflightScreenCaptureAccess() else { return false }
+        return await !isPermitted()
+    }
+
     public func availableSources() async throws -> [CaptureSourceDescriptor] {
         let content: SCShareableContent
         do {

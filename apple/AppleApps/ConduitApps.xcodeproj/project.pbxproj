@@ -261,15 +261,19 @@
 				LastUpgradeCheck = 2600;
 				TargetAttributes = {
 					63E128F5A24ED29BF1833B53 = {
+						DevelopmentTeam = 49CQA5YX6U;
 						ProvisioningStyle = Automatic;
 					};
 					81AF205366A2831325D63C5D = {
+						DevelopmentTeam = 49CQA5YX6U;
 						ProvisioningStyle = Automatic;
 					};
 					DEA852562D8F0284B0FBDDCC = {
+						DevelopmentTeam = 49CQA5YX6U;
 						ProvisioningStyle = Automatic;
 					};
 					F1DA299FA59B88C8F5A57FAC = {
+						DevelopmentTeam = 49CQA5YX6U;
 						ProvisioningStyle = Automatic;
 					};
 				};
@@ -366,6 +370,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ConduitMac/Conduit.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -385,6 +390,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = ConduitMac/Conduit.entitlements;
+				CODE_SIGN_IDENTITY = "Apple Development";
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_APP_SANDBOX = NO;
 				ENABLE_HARDENED_RUNTIME = YES;
@@ -525,6 +531,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -593,6 +600,7 @@
 				COPY_PHASE_STRIP = NO;
 				CURRENT_PROJECT_VERSION = 1;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = 49CQA5YX6U;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
