@@ -1,0 +1,12 @@
+# The Linux container only needs core/ and tools/linux-docker/. Everything else
+# is build context the daemon will never read — apple/ alone is most of the repo.
+apple/
+android/
+docs/
+proto/
+unsupported/
+marketing-notes/
+.git/
+**/*.xcodeproj
+**/.build/
+core/out/

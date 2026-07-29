@@ -158,6 +158,10 @@ public final class AppModel {
     /// reset on a bundle rename and silently disable the headline features.
     public var screenRecordingGranted: Bool?
     public var accessibilityGranted: Bool?
+    /// Screen Recording is ticked in System Settings, but this process started
+    /// before the grant, so ScreenCaptureKit still hands back nothing. Not the
+    /// same as "off" — the cure is a relaunch, not another trip to Settings.
+    public var screenRecordingNeedsRelaunch = false
     public var showPermissions = false
 
     /// Spec §8: the stats overlay doubles as the debug HUD.
@@ -179,6 +183,10 @@ public final class AppModel {
     private var toastTask: Task<Void, Never>?
     private var screenRequestTimeout: Task<Void, Never>?
     private var permissionPollTask: Task<Void, Never>?
+    /// Separate from permissionPollTask: the Accessibility poll and the Screen
+    /// Recording poll can legitimately be in flight at once, and sharing one
+    /// handle made whichever started second silently cancel the first.
+    private var screenPermissionPollTask: Task<Void, Never>?
 
     public init() {}
 
@@ -491,16 +499,48 @@ public final class AppModel {
         #if os(macOS)
         guard let node else { return }
         screenRecordingGranted = await node.screenPermissionGranted()
+        screenRecordingNeedsRelaunch = screenRecordingGranted == true
+            ? false
+            : await node.screenPermissionNeedsRelaunch()
         accessibilityGranted = await node.canReceiveInput ? await node.inputPermissionGranted() : nil
         #endif
     }
 
     public func requestScreenRecordingPermission() {
+        #if os(macOS)
         let node = node
-        Task {
+        screenPermissionPollTask?.cancel()
+        screenPermissionPollTask = Task { [weak self] in
             await node?.requestScreenPermission()
-            await refreshPermissions()
+            // The prompt is modal to the *user*, not to us: requestPermission
+            // returns immediately and the tick happens seconds later in
+            // System Settings. A single refresh here always read "off", which
+            // is what made the row look like the grant hadn't registered.
+            // Poll instead, so the row flips to "Relaunch to finish" (or to
+            // green, if TCC lets this process through) on its own.
+            for _ in 0..<60 {
+                await self?.refreshPermissions()
+                if self?.screenRecordingGranted == true { return }
+                if self?.screenRecordingNeedsRelaunch == true { return }
+                try? await Task.sleep(for: .seconds(1))
+                if Task.isCancelled { return }
+            }
         }
+        #endif
+    }
+
+    /// Relaunches the app so a fresh process picks up the Screen Recording
+    /// grant. `open -n` after this process exits: a TCC grant is read at
+    /// process start, so nothing short of a new process will do.
+    public func relaunchForPermissions() {
+        #if os(macOS)
+        let bundleURL = Bundle.main.bundleURL
+        let task = Process()
+        task.executableURL = URL(fileURLWithPath: "/usr/bin/open")
+        task.arguments = ["-n", bundleURL.path]
+        try? task.run()
+        NSApplication.shared.terminate(nil)
+        #endif
     }
 
     public func requestAccessibilityPermission() {

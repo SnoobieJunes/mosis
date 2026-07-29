@@ -1332,6 +1332,12 @@ public actor ConduitNode {
         return await screenCapturer.isPermitted()
     }
 
+    /// Whether Screen Recording is granted but only takes effect after this
+    /// process restarts. Drives the panel's "Relaunch" affordance.
+    public func screenPermissionNeedsRelaunch() async -> Bool {
+        await screenCapturer?.permissionNeedsRelaunch() ?? false
+    }
+
     /// Triggers the OS Screen Recording prompt (first grant needs a relaunch
     /// before ScreenCaptureKit will actually hand over frames).
     public func requestScreenPermission() async {

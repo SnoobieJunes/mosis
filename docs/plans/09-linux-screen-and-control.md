@@ -131,7 +131,12 @@ Verification legend: **unit** = `go test` on this Mac · **ffmpeg** = test
 running the real ffmpeg 8.1.2 binary on this Mac · **E2E** = two real nodes
 over 127.0.0.1, real pinned TLS, real ffmpeg encode+decode, fake
 capturer/window · **xcompile** = `GOOS=linux CGO_ENABLED=0 go build` only ·
-**device-gated** = has never executed on Linux; needs the first device session.
+**device-gated** = has never executed on Linux; needs the first device session
+· **container** = executed on real Linux with a real X server (Xvfb) inside the
+Docker harness in `tools/linux-docker/`, on 2026-07-27 — real capture, real
+ffmpeg, real pinned TLS between two separate nodes, but no GPU/compositor and
+no `uinput`, so it retires the "has never run" claim and *not* the
+real-hardware one.
 
 | Item | State | Verified by |
 |---|---|---|
@@ -141,19 +146,32 @@ capturer/window · **xcompile** = `GOOS=linux CGO_ENABLED=0 go build` only ·
 | Full codec round trip through frozen wire packing, BT.709 both ways (mean ΔRGB ≤ 10 on solid colour) | done | ffmpeg |
 | Decoder live-stream behavior (paused AU writes, multi-buffer AUs) | done | ffmpeg (CLI experiments; Go path covered by round trip + E2E) |
 | Source engine: offer, control-lane-first streaming, ack handling, honest rejects/ends | done | E2E |
-| Reverse dial + `SCREEN_ATTACH` + promotion at keyframe (lane asserted `== "bulk"` on both ends) | done (loopback) | E2E; real-network reverse dial **device-gated** — loopback is exactly the seam that hid this class of bug before (loop-state.md) |
+| Reverse dial + `SCREEN_ATTACH` + promotion at keyframe (lane asserted `== "bulk"` on both ends) | done (cross-host) | E2E; **container** — the dial now crosses two container network namespaces (172.18.0.2 ⇄ 172.18.0.3), not loopback: lane came up, promoted at a keyframe, and frames moved to it ("screen frames now on the direct lane"). Still device-gated for a real LAN with a firewall in the path. **One unexplained failure**: see "Open question" below |
 | Control-lane fallback (no dial ever) | done | E2E (`DisableBulkLane`), lane asserted `== "control"` |
 | Viewer: decode→blit, acks, watchdogs, clean/reasoned ends both directions | done | E2E + unit |
 | Input grant flow, ADR 0015 absolute+delta moves, click-after-move ordering, key down/up, scroll | done | E2E (asserts nx≈0.5/ny≈0.5 + dx/dy present + `screen_session_id` + ordering) |
 | Coalescer semantics (sum/latest/flush-first/zero-net) | done | unit (deterministic, no ticker) |
 | Geometry (un-letterbox, bars refuse, source-pixel deltas) | done | unit (mirrors Swift cases) |
 | Keysym → wire translation (frozen name list, chords, case rules, modifiers) | done | unit |
-| conduitd honest capability advert + status line + `INPUT_REQUEST` answer | done (negative path) | macOS run shows `unavailable — …` and no `screen-source`; the **positive** path (Linux advertising it) is **device-gated** |
-| X11 capture (`GetImage`, pixel-layout probe) | built | xcompile + vet only — **device-gated** |
-| X11 window (blit strips, events, WM protocols, keyboard mapping) | built | xcompile + vet only — **device-gated** |
+| conduitd honest capability advert + status line + `INPUT_REQUEST` answer | done (both paths) | **container** — a Linux box prints `screen src : x11-getimage + /usr/bin/ffmpeg` and advertises `screen-source`; the negative paths still show correctly (`input inject: none`, no uinput in the Colima kernel) |
+| X11 capture (`GetImage`, pixel-layout probe) | done | **container** — captured a live xterm+xclock desktop off Xvfb (LSB-first, 1280x800x24) for minutes; the probe passes and the pixels are correct |
+| X11 window (blit strips, events, WM protocols) | done | **container** — the viewer window opened at 800x500, and a screenshot of it read back legible text and correct colours matching the source at the same wall-clock second |
+| X11 keyboard mapping / viewer input events | **device-gated** | untested: the container runs `--view-only`, and the far side has no `uinput` to receive into |
 | Interop with the Swift/Kotlin viewers and sources | **not demonstrated** | compatible by construction (conventions read from `MacScreenCapturer`/`ScreenSourceEngine`/`VideoSampleConversion`/`ScreenDecoder.kt` + shared vectors); no Swift↔Go screen session has run — first cross-device session must prove it |
 | uinput **key** injection + absolute pointer on the Linux receive side | **not implemented** | pre-existing gap, out of scope here; conduitd now *says so* in `INPUT_STATUS` only via grant/refuse, not per-event |
 | Windows capture, Wayland-native capture, multi-viewer, XShm, scaled viewer window | not implemented | named follow-ups |
+
+### Open question from the container runs (2026-07-27)
+
+The **first** view session after an in-session pairing lost the dedicated lane:
+the source logged `direct screen lane up` and then `direct lane closed before
+it carried frames`, and the share ran on the session link for its whole life.
+Every run after conduitd was restarted (so the pairing was loaded from
+`peers.json` rather than established at runtime) promoted the lane correctly.
+That is one observation each way, so it is a lead, not a diagnosis: suspect the
+freshly-paired peer record the reverse dial reads. `attachScreenLane` now logs
+*which* of the three refusals it took, so the next occurrence will say so
+instead of being silent on the viewer side.
 
 Test counts for this work, verbatim from the runs on 2026-07-27:
 `go test ./screencast/` → **30 passing tests, 0 skipped** (every

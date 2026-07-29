@@ -71,10 +71,16 @@ public protocol ScreenCapturer: AnyObject, Sendable {
     /// viewer freezing on a dead stream. Default: no-op (fakes, and platforms
     /// with no mid-stream stop signal). `error` is nil on a clean self-stop.
     func setStreamStoppedHandler(_ handler: @escaping @Sendable (Error?) -> Void)
+    /// True when TCC has recorded the grant but *this process* was launched
+    /// before it, so capture still returns nothing. The only cure is a
+    /// relaunch, and the UI must say so — otherwise the user grants, sees the
+    /// row stay red, and grants again forever. Default: false.
+    func permissionNeedsRelaunch() async -> Bool
 }
 
 public extension ScreenCapturer {
     func setStreamStoppedHandler(_ handler: @escaping @Sendable (Error?) -> Void) {}
+    func permissionNeedsRelaunch() async -> Bool { false }
 }
 
 public enum ScreenCaptureError: Error {
