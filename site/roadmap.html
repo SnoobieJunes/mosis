@@ -12,8 +12,6 @@
     <link rel="stylesheet" href="assets/css/tokens.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
-    <!-- Applies a stored theme choice before first paint. Three lines, no
-         dependency: prefers-color-scheme covers everyone without it. -->
     <script>
       try {
         var t = localStorage.getItem('mosis-theme');
@@ -60,11 +58,190 @@
       <div class="wrap page-head">
         <span class="label">/roadmap</span>
         <h1>Three horizons, and which rung is real&nbsp;today.</h1>
-        <p class="lede">Device truth first, then linking two devices with no router at all, then a protocol somebody else implements. What is designed is marked designed, not done.</p>
-        <p class="pending" style="margin-block-start: var(--s-6)">
-          <b>scaffold</b> this page is built in P4 — site/PROGRESS.md
+        <p class="lede">
+          Device truth first, then linking two devices with no router at all,
+          then a protocol somebody else implements. What is designed is marked
+          designed — accepted as a decision is not the same as run.
         </p>
       </div>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>One horizon is measurable. The other two are&nbsp;design.</h2>
+        <ol class="horizons">
+          <li class="horizon">
+            <span class="horizon__n">Horizon 1</span>
+            <div>
+              <h3>Device truth</h3>
+              <p>
+                Every capability tag turns <code>dev</code> on real hardware.
+                This is the only horizon with a number attached, and the number
+                is <span data-total="claimed">54</span> cells still to go.
+              </p>
+            </div>
+            <span class="mark mark--part">0 / <span data-total="claimed">54</span> verified</span>
+          </li>
+          <li class="horizon">
+            <span class="horizon__n">Horizon 2</span>
+            <div>
+              <h3>No shared network</h3>
+              <p>
+                QUIC as the primary transport, plus the direct-link ladder below,
+                so two devices can link with no router at all. Both decisions are
+                accepted as design; every claim in them is intent until the
+                spikes pass.
+              </p>
+            </div>
+            <span class="mark mark--gone">design accepted</span>
+          </li>
+          <li class="horizon">
+            <span class="horizon__n">Horizon 3</span>
+            <div>
+              <h3>A protocol other people implement</h3>
+              <p>
+                Adoption makes a standard, not a declaration. One rung of eight
+                is done, one is partly done, and the rung that actually confers
+                standard-hood needs someone else to show up.
+              </p>
+            </div>
+            <span class="mark mark--gone">1 of 8 rungs</span>
+          </li>
+        </ol>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>The link ladder: only the first rung is&nbsp;proven.</h2>
+        <p>
+          When there is no shared network, MOSIS should walk down to whatever
+          still works. The rail below is lit exactly as far as the evidence goes.
+        </p>
+        <ol class="ladder">
+          <li class="rung rung--proven">
+            <span class="rung__n">01</span>
+            <h3>Shared LAN</h3>
+            <span class="mark mark--done">proven</span>
+            <p>The status quo. mDNS discovery, direct dial, pinned mutual TLS — every session today runs here.</p>
+          </li>
+          <li class="rung">
+            <span class="rung__n">02</span>
+            <h3>Same-vendor P2P</h3>
+            <span class="mark mark--part">spike pending</span>
+            <p>Apple↔Apple over AWDL, iPhone↔iPad over Wi-Fi Aware. The Aware backend is written and compile-verified; no byte has flowed.</p>
+          </li>
+          <li class="rung">
+            <span class="rung__n">03</span>
+            <h3>Soft-AP</h3>
+            <span class="mark mark--gone">designed</span>
+            <p>One device hosts an access point and the other joins. Linux and Windows can host outright; Android randomises the credentials.</p>
+          </li>
+          <li class="rung">
+            <span class="rung__n">04</span>
+            <h3>Manual hotspot</h3>
+            <span class="mark mark--gone">designed</span>
+            <p>The ladder must never dead-end: instruct the human to switch on Personal Hotspot, then detect the new link. UX and detection, not new radio code.</p>
+          </li>
+        </ol>
+        <p class="cta"><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/adr/0017-direct-link-path-ladder.md">ADR 0017, the ladder in full →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>Eight rungs to a standard. One is&nbsp;done.</h2>
+        <p>
+          A protocol becomes a standard when other people implement it, so most
+          of this list is not code. It is publishing, registering and giving away
+          control.
+        </p>
+        <ol class="rungs">
+          <li>
+            <b>Be real</b>
+            <span>A standard nobody can run is not one. Device truth first.</span>
+            <span class="mark mark--gone">horizon 1</span>
+          </li>
+          <li>
+            <b>Make the protocol a first-class artifact</b>
+            <span>The wire format is documented and frozen at v1, with a change process. It is not yet an RFC-style versioned spec.</span>
+            <span class="mark mark--part">partly</span>
+          </li>
+          <li>
+            <b>Register the service names with IANA</b>
+            <span>Free, real, and almost no hobby protocol bothers. Not filed.</span>
+            <span class="mark mark--gone">not started</span>
+          </li>
+          <li>
+            <b>Weaponise conformance</b>
+            <span>Golden vectors and runners are published and gate CI; IMPLEMENTORS.md is the write-a-client one-pager.</span>
+            <span class="mark mark--done">done</span>
+          </li>
+          <li>
+            <b>Seed a fourth implementation</b>
+            <span>Someone else’s client, in a language the three do not cover.</span>
+            <span class="mark mark--gone">not started</span>
+          </li>
+          <li>
+            <b>Coexist, don’t fight</b>
+            <span>Document the honest relationship to KDE Connect, LocalSend and scrcpy.</span>
+            <span class="mark mark--gone">not started</span>
+          </li>
+          <li>
+            <b>Governance, lightweight</b>
+            <span>Commit rights offered once two external implementations exist. That is the rung that confers standard-hood.</span>
+            <span class="mark mark--gone">not started</span>
+          </li>
+          <li>
+            <b>The formal option, later</b>
+            <span>An IETF Informational Internet-Draft, once rung 7 exists.</span>
+            <span class="mark mark--gone">not started</span>
+          </li>
+        </ol>
+        <p class="cta"><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/04-industry-standard-path.md">Plan 04, with what would falsify it →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>Five things this deliberately doesn't&nbsp;do.</h2>
+        <p>
+          A non-goal is a decision, not an omission. Each of these was chosen,
+          and each one buys something else.
+        </p>
+        <ol class="rungs">
+          <li>
+            <b>Internet-range access</b>
+            <span>Local-first is the design, not a limitation to fix later. A self-hosted relay stays optional future work, never a dependency.</span>
+            <span><span class="mark mark--gone">not building</span></span>
+          </li>
+          <li>
+            <b>Accounts</b>
+            <span>There is nothing to sign up for and nowhere to sign in. Pairing is two devices agreeing, with no third party.</span>
+            <span><span class="mark mark--gone">not building</span></span>
+          </li>
+          <li>
+            <b>Telemetry</b>
+            <span>No analytics, no crash upload, no phone-home — including from this website.</span>
+            <span><span class="mark mark--gone">not building</span></span>
+          </li>
+          <li>
+            <b>A tablet as a second desktop, today</b>
+            <span>Mirroring works; a genuine extra display needs a virtual display driver that is written and never compiled.</span>
+            <span><span class="mark mark--gone">not building</span></span>
+          </li>
+          <li>
+            <b>Injecting input into iOS</b>
+            <span>No entitlement exists for it. This is a platform wall, documented in the matrix, not a TODO.</span>
+            <span><abbr class="tag tag--wall" tabindex="0" aria-describedby="def-wall" data-def="the platform forbids it (documented, not a TODO)">wall</abbr></span>
+          </li>
+        </ol>
+        <dl class="legend" style="margin-block-start: var(--s-6)">
+          <dt><span class="tag tag--wall">wall</span></dt>
+          <dd id="def-wall">the platform forbids it (documented, not a TODO)</dd>
+        </dl>
+        <p class="cta"><a href="status.html">Every capability, with its evidence →</a></p>
+      </section>
     </main>
 
     <footer class="site-foot">

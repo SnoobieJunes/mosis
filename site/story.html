@@ -12,8 +12,6 @@
     <link rel="stylesheet" href="assets/css/tokens.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
-    <!-- Applies a stored theme choice before first paint. Three lines, no
-         dependency: prefers-color-scheme covers everyone without it. -->
     <script>
       try {
         var t = localStorage.getItem('mosis-theme');
@@ -60,11 +58,154 @@
       <div class="wrap page-head">
         <span class="label">/story</span>
         <h1>The internet died mid&#8209;pitch. That was the&nbsp;point.</h1>
-        <p class="lede">MOSIS was pitched in 2013 as APPture. The venue’s connection dropped and took the demo with it, while the founder was on stage explaining why it would not need one.</p>
-        <p class="pending" style="margin-block-start: var(--s-6)">
-          <b>scaffold</b> this page is built in P4 — site/PROGRESS.md
+        <p class="lede">
+          In 2013 this was pitched as APPture at RIT's Saunders Summer Start-up.
+          The venue's connection dropped and took the live demo with it, while
+          the founder was on stage explaining why the product would not need one.
         </p>
       </div>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>The demo needed the internet. The room's went&nbsp;down.</h2>
+        <p>
+          The pitch opened with a deck streamed from a laptop “anywhere in the
+          world,” driven from a tablet on stage, watchable by anyone who typed a
+          web address into a browser. Mid-questions, the venue's Wi-Fi failed —
+          the judges' connections went too, so it was the room, not the demo.
+        </p>
+        <p>
+          The answer given on the spot was Wi-Fi Direct: <q>so situations as
+          these don't happen — if the internet goes down you can just set up a
+          direct peer-to-peer connection.</q> Punctuation is added; the words are
+          the transcript's. That sentence is the entire design brief this rebuild
+          works from.
+        </p>
+        <p class="cta"><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/appture-2013-transcript.txt">The full transcript →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>A judge gave away the better elevator&nbsp;line.</h2>
+        <figure class="pull" style="margin-block-start: var(--s-6)">
+          <p>What you're doing is essentially abstracting the OS to the network.</p>
+          <footer>
+            A judge, closing the session, 2013. Roles in the transcript stay
+            bracketed; the recording is a rough auto-transcription, in which this
+            line survives as “abstracting the lesson to the network.”
+          </footer>
+        </figure>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>Most of 2013's promises exist now. Two were dropped on&nbsp;purpose.</h2>
+        <p>
+          Thirteen years is long enough for the platforms to catch up with the
+          idea. What follows is the pitch's own list, scored against this repo —
+          including the two lines that were abandoned deliberately.
+        </p>
+        <table class="tbl">
+          <caption class="sr-only">Each 2013 promise and its state in the 2026 repo.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Promised in 2013</th>
+              <th scope="col">In the repo, 2026</th>
+              <th scope="col">Outcome</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row">Cross-platform display sharing, software only</th>
+              <td>The core, three ways — Swift, Go and Kotlin, one HEVC pipeline.</td>
+              <td><span class="mark mark--done">shipped</span></td>
+            </tr>
+            <tr>
+              <th scope="row">Control the remote machine, launch anything</th>
+              <td>Remote input, where the platform allows it. iOS cannot receive.</td>
+              <td><span class="mark mark--done">shipped</span></td>
+            </tr>
+            <tr>
+              <th scope="row">Wi-Fi Direct, so no internet is needed</th>
+              <td>Became Wi-Fi Aware. Entitlement granted, code written, not one byte has flowed.</td>
+              <td><span class="mark mark--part">the long pole</span></td>
+            </tr>
+            <tr>
+              <th scope="row">Chromecast and set-top boxes</th>
+              <td>AirPlay is built in; Cast and Matter are real code behind their SDKs, unvalidated.</td>
+              <td><span class="mark mark--part">partly</span></td>
+            </tr>
+            <tr>
+              <th scope="row">File streaming</th>
+              <td>File transfer, plus an HLS re-publisher any browser can play.</td>
+              <td><span class="mark mark--done">shipped</span></td>
+            </tr>
+            <tr>
+              <th scope="row">“Touch of a button” automation</th>
+              <td>Became Contexts and Routines, mined on-device. Better than the pitch promised.</td>
+              <td><span class="mark mark--done">shipped</span></td>
+            </tr>
+            <tr>
+              <th scope="row">Home automation, some day</th>
+              <td>Matter scenes inside Routines. Validation pending.</td>
+              <td><span class="mark mark--part">partly</span></td>
+            </tr>
+            <tr>
+              <th scope="row">Mobile device management, some day</th>
+              <td>Dropped. The judges said pick one thing; they were right.</td>
+              <td><span class="mark mark--gone">dropped</span></td>
+            </tr>
+            <tr>
+              <th scope="row">$99 in four app stores</th>
+              <td>Replaced by Apache-2.0. Different goal now, deliberately.</td>
+              <td><span class="mark mark--gone">dropped</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>Three things the pitch had that the repo still&nbsp;doesn't.</h2>
+        <p>
+          The 2013 demo was not all promise — parts of it genuinely worked on
+          stage, and have no equivalent here yet.
+        </p>
+
+        <ol class="rungs" style="counter-reset: rung">
+          <li>
+            <b>Presenting to a device you don't own.</b>
+            <span>
+              A Mac can push its screen to any browser on the network today, over
+              real HTTP. What is missing is the guest case the pitch demoed: a
+              client's projector, no pairing, time-boxed and view-only.
+            </span>
+            <span class="mark mark--part">the gap</span>
+          </li>
+          <li>
+            <b>Zero-install as the default path.</b>
+            <span>
+              In 2013 the browser <em>was</em> the product. Here it is one
+              destination among several, and both ends normally run the app.
+            </span>
+            <span class="mark mark--part">the gap</span>
+          </li>
+          <li>
+            <b>Range beyond the local network.</b>
+            <span>
+              The pitch said “anywhere in the world.” This does not, and will
+              not — that is a stated non-goal, not an unfinished feature.
+            </span>
+            <span class="mark mark--gone">by choice</span>
+          </li>
+        </ol>
+
+        <p class="cta"><a href="roadmap.html">What happens next, and what never will →</a></p>
+      </section>
     </main>
 
     <footer class="site-foot">

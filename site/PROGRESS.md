@@ -14,6 +14,7 @@ with a reason.
 - `node tools/site/check-contrast.mjs` — every text-on-surface pair clears WCAG AA in both themes.
 - From P3: `node tools/site/check-matrix.mjs` — `site/data/matrix.json` matches the README table exactly.
 - Every page loads with JavaScript disabled with all content present.
+- No horizontal overflow at **any** of 390 / 834 / 1440 — checking one width is not checking.
 - Zero third-party requests; zero dependencies; zero build step.
 - Guardrails (§8): no `dev` claim, no demo GIF, no invented metrics, no logos,
   no testimonials, no block over 3 sentences, nothing contradicting
@@ -65,14 +66,14 @@ with a reason.
 
 ## P4 — `/story` + `/roadmap`
 
-- [ ] `/story` leads with the dead-internet 2013 pitch.
-- [ ] 2013 → 2026 scorecard table.
-- [ ] Judge quote: "abstracting the OS to the network."
-- [ ] The gaps 2013 had that 2026 still has, named.
-- [ ] `/roadmap` shows the three horizons with today's rung marked.
-- [ ] **Path ladder** component: LAN → vendor P2P → soft-AP → hotspot, rungs marked proven / designed / spike-pending.
-- [ ] Stated non-goals as a section, not an omission.
-- [ ] Transcript redactions hold — bracketed roles stay bracketed.
+- [x] `/story` leads with the dead-internet 2013 pitch.
+- [x] 2013 → 2026 scorecard table.
+- [x] Judge quote: "abstracting the OS to the network."
+- [x] The gaps 2013 had that 2026 still has, named.
+- [x] `/roadmap` shows the three horizons with today's rung marked.
+- [x] **Path ladder** component: LAN → vendor P2P → soft-AP → hotspot, rungs marked proven / designed / spike-pending.
+- [x] Stated non-goals as a section, not an omission.
+- [x] Transcript redactions hold — bracketed roles stay bracketed.
 
 ## P5 — `/protocol` + `/build`
 
@@ -160,3 +161,25 @@ with a reason.
 - **P3 — `site.yml` runs both gates plus a third-party-asset grep.** It ran on
   GitHub for the P3 push (`0f2961a`) and passed in 21s — verified on the
   runner, not just locally. The Pages deploy job itself is still P6.
+- **P4 — a real bug shipped through three phases: every page scrolled
+  sideways.** The evidence-tag tooltip is absolutely positioned and was hidden
+  with `opacity: 0`, which still contributes to scrollable overflow — so all 90
+  matrix cells and every inline tag widened their page. Fixed with
+  `display: none`. It survived P1–P3 because the overflow assertion ran at one
+  viewport width; it now runs at 390, 834 and 1440, and is a standing gate.
+- **P4 — plan 10 §2 says adoption "rungs 2 and 4 already done"; rung 2 is only
+  partly done.** `docs/protocol.md` is frozen at v1 and `PROTOCOL_CHANGES.md`
+  exists, but there is no `/spec`, no semver beyond "v1", and only five
+  MUST/SHOULD in the whole document — not the RFC-style versioned spec rung 2
+  describes. The site says "partly". **Worth Auston's eye: either the site is
+  right and the plan is optimistic, or rung 2's bar is lower than it reads.**
+- **P4 — the judge quote is corrected from the auto-transcript.** The recording
+  renders it "abstracting the lesson to the network"; the site quotes "the OS",
+  as plan 10 §2 does, and says so directly under the quote. The Wi-Fi Direct
+  quote is punctuated but otherwise unchanged, and says so.
+- **P4 — the 2013 customer-validation names are not on the site at all.** The
+  transcript brackets them (`[Rep A]`, `[Rep B]`, `[Tester A]`); rather than
+  reproduce bracketed placeholders, the willingness-to-pay evidence is simply
+  omitted. Redactions hold by not quoting them.
+- **P4 — one headline was walked back during self-review.** "Five things this
+  will never do" contradicted its own fourth item, which says *today*.

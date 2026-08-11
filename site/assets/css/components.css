@@ -136,7 +136,7 @@
   inset-inline-start: 0;
   z-index: 10;
   width: max-content;
-  max-width: min(38ch, 78vw);
+  max-width: min(38ch, calc(100vw - 2 * var(--gutter)));
   padding: var(--s-2) var(--s-3);
   border: var(--hair) solid var(--rail-2);
   border-radius: var(--radius);
@@ -147,15 +147,15 @@
   line-height: 1.45;
   white-space: normal;
   text-transform: none;
-  opacity: 0;
-  visibility: hidden;
-  transition: opacity var(--dur-ui) var(--ease);
+  /* display:none, not opacity:0 — a hidden absolutely-positioned child still
+     counts toward the page's scrollable overflow, and 90 of these were making
+     every page scroll sideways. */
+  display: none;
 }
 
 .tag:hover::after,
 .tag:focus-visible::after {
-  opacity: 1;
-  visibility: visible;
+  display: block;
 }
 
 /* Near the right edge the tooltip flips its anchor rather than overflowing. */
@@ -857,6 +857,7 @@
     padding: var(--s-2) var(--s-3) var(--s-2) 0;
     border-inline-start: 0;
     border-block-start: var(--hair) solid var(--rail);
+    white-space: normal;
   }
 }
 
@@ -1031,8 +1032,8 @@
   }
 }
 
-/* Without this a long command line widens its own column instead of
- * scrolling inside the <pre>. */
+/* Without this a long command line widens its own grid item instead of
+ * scrolling inside the <pre> — at every width, not just the 3-column one. */
 .quickstart > * {
   min-width: 0;
 }
@@ -1328,4 +1329,273 @@
 .matrix-tools:has(#col-linux:not(:checked)) ~ .matrix-wrap [data-col='5'],
 .matrix-tools:has(#col-windows:not(:checked)) ~ .matrix-wrap [data-col='6'] {
   display: none;
+}
+
+/* ── Outcome marks ───────────────────────────────────────────────────────
+ * Square-cornered, so they never read as evidence tags. An evidence tag says
+ * how something was tested; a mark says what happened to a promise. */
+
+.mark {
+  display: inline-block;
+  padding: 1px var(--s-2) 2px;
+  border: var(--hair) solid currentColor;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--inert);
+}
+
+.mark--done {
+  color: var(--sig);
+}
+
+.mark--part {
+  color: var(--partial);
+}
+
+.mark--gone {
+  color: var(--inert);
+  border-style: dashed;
+}
+
+/* ── Pull quote ─────────────────────────────────────────────────────────── */
+
+.pull {
+  margin: 0;
+  border-inline-start: 2px solid var(--sig);
+  padding-inline-start: clamp(var(--s-4), 3vw, var(--s-6));
+}
+
+.pull p {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: var(--t-h2);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  text-wrap: balance;
+  max-width: 22ch;
+}
+
+.pull footer {
+  margin-block-start: var(--s-4);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+/* ── Plain table (scorecard, non-goals) ─────────────────────────────────── */
+
+.tbl {
+  inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--t-small);
+  margin-block-start: var(--s-5);
+}
+
+.tbl th,
+.tbl td {
+  text-align: start;
+  vertical-align: top;
+  padding: var(--s-3) var(--s-4) var(--s-3) 0;
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+.tbl thead th {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-block-end-color: var(--rail-2);
+}
+
+.tbl td:last-child,
+.tbl th:last-child {
+  padding-inline-end: 0;
+}
+
+.tbl .mark {
+  margin-block-start: 1px;
+}
+
+/* ── Path ladder (§4.3.5) ────────────────────────────────────────────────
+ * LAN → same-vendor P2P → soft-AP → manual hotspot. One continuous rail
+ * across the top; the segment above a rung is lit only where that rung is
+ * proven, so the graphic itself says how far along we actually are. */
+
+.ladder {
+  display: grid;
+  gap: var(--s-5);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .ladder {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+  }
+
+  .rung {
+    padding-inline: var(--s-4);
+    border-inline-start: var(--hair) solid var(--rail);
+  }
+
+  .rung:first-child {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+}
+
+.rung {
+  position: relative;
+  max-width: none;
+  padding-block-start: var(--s-4);
+  border-block-start: 2px solid var(--rail-2);
+}
+
+.rung--proven {
+  border-block-start-color: var(--sig);
+}
+
+.rung::before {
+  content: '';
+  position: absolute;
+  inset-block-start: -5px;
+  inset-inline-start: 0;
+  inline-size: 8px;
+  block-size: 8px;
+  background: var(--rail-2);
+}
+
+@media (min-width: 900px) {
+  .rung::before {
+    inset-inline-start: var(--s-4);
+  }
+
+  .rung:first-child::before {
+    inset-inline-start: 0;
+  }
+}
+
+.rung--proven::before {
+  background: var(--sig);
+}
+
+.rung__n {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  margin-block-end: var(--s-2);
+}
+
+.rung h3 {
+  font-size: 1.15rem;
+}
+
+.rung h3 + .mark {
+  margin-block-start: var(--s-2);
+}
+
+.rung p {
+  margin-block-start: var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+/* ── Horizons ───────────────────────────────────────────────────────────── */
+
+.horizons {
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.horizon {
+  display: grid;
+  gap: var(--s-2) var(--s-5);
+  max-width: none;
+  padding-block: var(--s-5);
+  border-block-start: var(--hair) solid var(--rail);
+}
+
+.horizon:last-child {
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+@media (min-width: 880px) {
+  .horizon {
+    grid-template-columns: 14ch minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+.horizon__n {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sig);
+  padding-block-start: 4px;
+}
+
+.horizon p {
+  margin-block-start: var(--s-2);
+  color: var(--muted);
+}
+
+/* ── Numbered rung list (adoption ladder, plan 04) ──────────────────────── */
+
+.rungs {
+  display: grid;
+  gap: 0;
+  margin: var(--s-5) 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rung;
+}
+
+.rungs li {
+  display: grid;
+  gap: var(--s-2) var(--s-4);
+  max-width: none;
+  padding-block: var(--s-3);
+  border-block-end: var(--hair) solid var(--rail);
+  counter-increment: rung;
+}
+
+/* Four children — counter, name, description, mark — so four columns. Three
+ * made the description wrap inside the mark's width. */
+@media (min-width: 720px) {
+  .rungs li {
+    grid-template-columns: 4ch minmax(16ch, 26ch) minmax(0, 1fr) auto;
+    align-items: baseline;
+  }
+}
+
+.rungs li::before {
+  content: counter(rung, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+}
+
+.rungs b {
+  font-weight: 600;
+}
+
+.rungs span:not(.mark) {
+  color: var(--muted);
 }
