@@ -204,12 +204,12 @@ with a reason.
   clicks through hits the contradiction. **Not fixed here — it is outside
   `site/`, and CONTRIBUTING's rule is that the protocol doc moves with the
   wire. Auston's call.**
-- **P6 — nothing is deployed, and that is deliberate.** GitHub Pages is not
+- **P6 — nothing is deployed, by Auston's decision.** GitHub Pages is not
   enabled on the repo (the Pages API 404s), `pages.yml` triggers on pushes to
-  `main`, and this work is on an unmerged branch. Publishing would mean either
-  merging without review or pointing the workflow at this branch — both are
-  outward-facing and both are Auston's call, so the loop stopped and asked
-  instead of guessing.
+  `main`, and this work is on an unmerged branch. Asked whether to publish;
+  the answer was **review first, then merge to `main`**. So: no merge, no PR,
+  no Pages, nothing live. The branch is complete at `42da480` and waiting on
+  that review.
 - **P6 — the Lighthouse numbers are measured, and where matters.** Against
   `python -m http.server` performance scored 86–90, failing on `cache-insight`
   and `document-latency-insight` — properties of that server (HTTP/1.0, no
