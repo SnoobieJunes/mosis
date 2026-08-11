@@ -55,13 +55,13 @@ with a reason.
 
 ## P3 — `/status`
 
-- [ ] `site/data/matrix.json` carries every README row, cell, tag and footnote.
-- [ ] `site/data/evidence.json` carries the tag definitions and per-tag counts.
-- [ ] Semantic `<table>` renderer: sticky header row and first column, keyboard-navigable, screen-reader sane.
-- [ ] Filters by platform and capability; the unfiltered table is in the HTML so JS-off readers see everything.
-- [ ] Live counter reads `0 / N cells device-verified`.
-- [ ] Testing ledger summary sourced from `docs/TESTING_PLAN.md`.
-- [ ] `tools/site/check-matrix.mjs` written and green; wired into CI.
+- [x] `site/data/matrix.json` carries every README row, cell, tag and footnote.
+- [x] `site/data/evidence.json` carries the tag definitions and per-tag counts.
+- [x] Semantic `<table>` renderer: sticky header row and first column, keyboard-navigable, screen-reader sane.
+- [x] Filters by platform and capability; the unfiltered table is in the HTML so JS-off readers see everything.
+- [x] Live counter reads `0 / 54 cells device-verified`.
+- [x] Testing ledger summary sourced from `docs/TESTING_PLAN.md`.
+- [x] `tools/site/check-matrix.mjs` written and green; wired into CI (`.github/workflows/site.yml`).
 
 ## P4 — `/story` + `/roadmap`
 
@@ -138,3 +138,24 @@ with a reason.
   the whole vocabulary (there are nine); the quickstart said all three
   implementations check themselves "against the same frozen vectors", which
   undersells `swift test` — 126 tests, not only a vector run.
+- **P3 — `matrix.json` and `evidence.json` are generated, never hand-edited.**
+  `node tools/site/check-matrix.mjs --write` regenerates them by parsing
+  README.md; running it without `--write` is the gate. One parser, in the
+  repo, so there is no second implementation to drift.
+- **P3 — the counter denominator is 54, not 90, and that is a judgement
+  call.** 90 cells exist; 54 name an implementation and could one day carry
+  `dev`. The other 36 are `wall` (the platform forbids it) or `—`, and never
+  can. The page states the arithmetic rather than presenting 54 as a given.
+- **P3 — a `dev` pill is allowed in a legend, and only there.** §8.1 forbids a
+  *claim* of device verification; a definition sitting beside the count
+  "0 cells" is the opposite of one. `check-matrix.mjs` now enforces exactly
+  that: no `dev` in a `<td>`, none outside a `<dl class="legend">`, and the
+  legend entry must still read 0.
+- **P3 — the 29 `—` cells are deliberately not in the tab order.** A dash is
+  self-evident, and keeping them focusable buried the 60 cells that say
+  something behind 89 tab stops. Hover still shows the definition.
+- **P3 — the gate was fault-injected, not assumed.** Three drifts were
+  introduced and each was caught: a tag upgraded in the JSON only, a rendered
+  cell claiming more than the data, and a `dev` pill smuggled into a cell.
+- **P3 — `site.yml` runs both gates plus a third-party-asset grep.** The
+  Pages deploy itself is still P6.

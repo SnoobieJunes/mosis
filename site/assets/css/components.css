@@ -1055,3 +1055,277 @@
   font-stretch: normal;
   color: var(--sig);
 }
+
+/* ── Capability matrix (§4.3.4) ──────────────────────────────────────────
+ * A real <table>: semantic, keyboard-navigable, sticky header row and first
+ * column. Hairlines, no zebra stripes — the colour in this table means
+ * evidence strength, and nothing else is allowed to compete with it. */
+
+.matrix-wrap {
+  margin-block-start: var(--s-5);
+  overflow: auto;
+  max-block-size: min(78vh, 900px);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+}
+
+.matrix-wrap:focus-visible {
+  outline: 2px solid var(--sig);
+  outline-offset: 2px;
+}
+
+.matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  inline-size: 100%;
+  font-size: var(--t-small);
+}
+
+.matrix th,
+.matrix td {
+  padding: var(--s-2) var(--s-3);
+  text-align: start;
+  vertical-align: top;
+  border-block-end: var(--hair) solid var(--rail);
+  border-inline-end: var(--hair) solid var(--rail);
+}
+
+/* Cells wrap; only the pill itself refuses to break. A nowrap cell made long
+ * notes overlap their own tag. */
+.matrix td {
+  min-inline-size: 10ch;
+  line-height: 1.5;
+}
+
+.matrix tr:last-child th,
+.matrix tr:last-child td {
+  border-block-end: 0;
+}
+
+.matrix th:last-child,
+.matrix td:last-child {
+  border-inline-end: 0;
+}
+
+/* Sticky header row and first column. Both need an opaque ground of their
+ * own or the cells scroll through them. */
+.matrix thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.matrix tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--ink-2);
+  font-weight: 500;
+  font-size: var(--t-small);
+  white-space: normal;
+  border-inline-end: var(--hair) solid var(--rail-2);
+}
+
+/* The capability column is the row's name; without a floor the table layout
+ * squeezes it to its longest word while the nowrap tag columns take the room. */
+.matrix tbody th,
+.matrix thead th:first-child {
+  min-inline-size: min(26ch, 42vw);
+}
+
+.matrix thead th:first-child {
+  z-index: 3;
+  inset-inline-start: 0;
+  background: var(--ink-3);
+}
+
+.cell__note {
+  color: var(--muted);
+  font-size: var(--t-mono);
+  font-family: var(--font-mono);
+}
+
+/* The README bolds a handful of cells — the ones whose tag alone would
+ * mislead. Carry that emphasis through instead of flattening it. */
+.cell__note--strong {
+  color: var(--text);
+}
+
+/* Footnote reference: small, mono, superscript, and a real link. */
+.fn {
+  font-family: var(--font-mono);
+  font-size: 0.68em;
+  vertical-align: super;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--muted);
+  border-block-end: var(--hair) solid var(--rail-2);
+}
+
+.fn:hover,
+.fn:focus-visible {
+  color: var(--sig);
+}
+
+/* A cell the tooltip would push off the top of the scroll container opens
+ * downward instead. */
+.matrix tbody tr:first-child .tag::after,
+.matrix tbody tr:nth-child(2) .tag::after {
+  inset-block-end: auto;
+  inset-block-start: calc(100% + var(--s-1));
+}
+
+.matrix td:last-child .tag::after,
+.matrix td:nth-last-child(2) .tag::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+/* ── Matrix filters ──────────────────────────────────────────────────────
+ * Platform toggles are checkboxes plus CSS, so they work with JavaScript
+ * disabled. The capability search needs script, so it stays hidden until
+ * matrix.js can run it. */
+
+.matrix-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: var(--s-5);
+}
+
+.colfilter {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.chipbox {
+  display: inline-block;
+  padding: var(--s-1) var(--s-3);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease);
+}
+
+.colfilter:checked + .chipbox {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+.colfilter:focus-visible + .chipbox {
+  outline: 2px solid var(--sig);
+  outline-offset: 3px;
+}
+
+.matrix-search input {
+  padding: var(--s-1) var(--s-3);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius-pill);
+  background: var(--ink-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  inline-size: 22ch;
+}
+
+.matrix-count {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+}
+
+.matrix-empty {
+  margin-block-start: var(--s-4);
+  color: var(--muted);
+}
+
+.matrix tr[hidden] {
+  display: none;
+}
+
+/* ── Legend with counts, footnote list ──────────────────────────────────── */
+
+.legend__n {
+  display: inline-block;
+  margin-inline-start: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--inert);
+  white-space: nowrap;
+}
+
+.footnotes {
+  display: grid;
+  gap: var(--s-3);
+  margin: 0;
+  padding-inline-start: var(--s-5);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.footnotes li {
+  max-width: 78ch;
+  padding-inline-start: var(--s-2);
+}
+
+.footnotes li::marker {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  color: var(--sig);
+}
+
+.footnotes li:target {
+  color: var(--text);
+}
+
+.counter__of {
+  color: var(--muted);
+  font-size: 0.42em;
+  letter-spacing: -0.02em;
+}
+
+.figures--wide dd {
+  text-align: end;
+  max-inline-size: 46ch;
+}
+
+@media (max-width: 640px) {
+  .figures--wide div {
+    display: grid;
+    gap: var(--s-1);
+  }
+
+  .figures--wide dd {
+    text-align: start;
+  }
+}
+
+/* Column toggles, in CSS so they work with JavaScript disabled. One rule per
+ * platform; the slug matches the checkbox id emitted for that column. */
+.matrix-tools:has(#col-macos:not(:checked)) ~ .matrix-wrap [data-col='1'],
+.matrix-tools:has(#col-ios-ipados:not(:checked)) ~ .matrix-wrap [data-col='2'],
+.matrix-tools:has(#col-tvos:not(:checked)) ~ .matrix-wrap [data-col='3'],
+.matrix-tools:has(#col-android:not(:checked)) ~ .matrix-wrap [data-col='4'],
+.matrix-tools:has(#col-linux:not(:checked)) ~ .matrix-wrap [data-col='5'],
+.matrix-tools:has(#col-windows:not(:checked)) ~ .matrix-wrap [data-col='6'] {
+  display: none;
+}

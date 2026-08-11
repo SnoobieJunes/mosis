@@ -1,0 +1,619 @@
+{
+  "$comment": "GENERATED — do not hand-edit. Run: node tools/site/check-matrix.mjs --write. CI fails if this drifts from the README table or from site/status.html.",
+  "source": "README.md — Capability × platform matrix",
+  "platforms": [
+    {
+      "name": "macOS"
+    },
+    {
+      "name": "iOS/iPadOS"
+    },
+    {
+      "name": "tvOS"
+    },
+    {
+      "name": "Android"
+    },
+    {
+      "name": "Linux"
+    },
+    {
+      "name": "Windows",
+      "fn": [
+        2
+      ]
+    }
+  ],
+  "rows": [
+    {
+      "capability": "Discover + pair (code + word pair, TOFU)",
+      "capabilityRaw": "Discover + pair (code + word pair, TOFU)",
+      "cells": [
+        {
+          "raw": "E2E",
+          "tag": "E2E"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "smoke³",
+          "tag": "smoke",
+          "fn": [
+            3
+          ]
+        },
+        {
+          "raw": "E2E⁴",
+          "tag": "E2E",
+          "fn": [
+            4
+          ]
+        },
+        {
+          "raw": "E2E⁴",
+          "tag": "E2E",
+          "fn": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "capability": "File transfer (chunked, resumable, SHA-256)",
+      "capabilityRaw": "File transfer (chunked, resumable, SHA-256)",
+      "cells": [
+        {
+          "raw": "E2E",
+          "tag": "E2E"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "smoke³",
+          "tag": "smoke",
+          "fn": [
+            3
+          ]
+        },
+        {
+          "raw": "E2E⁴",
+          "tag": "E2E",
+          "fn": [
+            4
+          ]
+        },
+        {
+          "raw": "E2E⁴",
+          "tag": "E2E",
+          "fn": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "capability": "Clipboard (both directions, explicit)",
+      "capabilityRaw": "Clipboard (both directions, explicit)",
+      "cells": [
+        {
+          "raw": "E2E",
+          "tag": "E2E"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "smoke³",
+          "tag": "smoke",
+          "fn": [
+            3
+          ]
+        },
+        {
+          "raw": "E2E⁴",
+          "tag": "E2E",
+          "fn": [
+            4
+          ]
+        },
+        {
+          "raw": "E2E⁴",
+          "tag": "E2E",
+          "fn": [
+            4
+          ]
+        }
+      ]
+    },
+    {
+      "capability": "Input — send (drive a peer)",
+      "capabilityRaw": "Input — send (drive a peer)",
+      "cells": [
+        {
+          "raw": "E2E",
+          "tag": "E2E"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "bld",
+          "tag": "bld"
+        },
+        {
+          "raw": "E2E*¹³",
+          "tag": "E2E*",
+          "fn": [
+            13
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Input — receive (be driven)",
+      "capabilityRaw": "Input — receive (be driven)",
+      "cells": [
+        {
+          "raw": "E2E* fake injector⁵",
+          "tag": "E2E*",
+          "note": "fake injector",
+          "fn": [
+            5
+          ]
+        },
+        {
+          "raw": "wall",
+          "tag": "wall"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "bld⁶",
+          "tag": "bld",
+          "fn": [
+            6
+          ]
+        },
+        {
+          "raw": "bld (uinput)",
+          "tag": "bld",
+          "note": "(uinput)"
+        },
+        {
+          "raw": "bld (SendInput)",
+          "tag": "bld",
+          "note": "(SendInput)"
+        }
+      ]
+    },
+    {
+      "capability": "Screen — source (be watched)",
+      "capabilityRaw": "Screen — source (be watched)",
+      "cells": [
+        {
+          "raw": "E2E* synthetic capturer⁷",
+          "tag": "E2E*",
+          "note": "synthetic capturer",
+          "fn": [
+            7
+          ]
+        },
+        {
+          "raw": "bld (ReplayKit ext)",
+          "tag": "bld",
+          "note": "(ReplayKit ext)"
+        },
+        {
+          "raw": "wall",
+          "tag": "wall"
+        },
+        {
+          "raw": "bld (MediaProjection)",
+          "tag": "bld",
+          "note": "(MediaProjection)"
+        },
+        {
+          "raw": "E2E*¹³",
+          "tag": "E2E*",
+          "fn": [
+            13
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Screen — view a peer",
+      "capabilityRaw": "Screen — view a peer",
+      "cells": [
+        {
+          "raw": "E2E",
+          "tag": "E2E"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "bld⁸",
+          "tag": "bld",
+          "fn": [
+            8
+          ]
+        },
+        {
+          "raw": "E2E*¹³",
+          "tag": "E2E*",
+          "fn": [
+            13
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Watch and drive, one surface (ADR 0015 absolute pointing)",
+      "capabilityRaw": "Watch **and** drive, one surface (ADR 0015 absolute pointing)",
+      "cells": [
+        {
+          "raw": "E2E*",
+          "tag": "E2E*"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "bld",
+          "tag": "bld"
+        },
+        {
+          "raw": "E2E*¹³",
+          "tag": "E2E*",
+          "fn": [
+            13
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Push-share + cast to any browser (HLS + QR)",
+      "capabilityRaw": "Push-share + cast to any browser (HLS + QR)",
+      "cells": [
+        {
+          "raw": "E2E (real HTTP) ⁹",
+          "tag": "E2E",
+          "note": "(real HTTP)",
+          "fn": [
+            9
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "(browser plays it)",
+          "tag": null,
+          "note": "(browser plays it)"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Multi-viewer, per-peer view-only/control, live revoke",
+      "capabilityRaw": "Multi-viewer, per-peer view-only/control, live revoke",
+      "cells": [
+        {
+          "raw": "E2E",
+          "tag": "E2E"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Notifications (source → display)",
+      "capabilityRaw": "Notifications (source → display)",
+      "cells": [
+        {
+          "raw": "E2E (display)",
+          "tag": "E2E",
+          "note": "(display)"
+        },
+        {
+          "raw": "bld¹",
+          "tag": "bld",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "bld (listener svc)",
+          "tag": "bld",
+          "note": "(listener svc)"
+        },
+        {
+          "raw": "code¹⁰",
+          "tag": "code",
+          "fn": [
+            10
+          ]
+        },
+        {
+          "raw": "code¹⁰",
+          "tag": "code",
+          "fn": [
+            10
+          ]
+        }
+      ]
+    },
+    {
+      "capability": "Phone as Bluetooth HID peripheral",
+      "capabilityRaw": "Phone as Bluetooth HID peripheral",
+      "cells": [
+        {
+          "raw": "wall",
+          "tag": "wall"
+        },
+        {
+          "raw": "wall",
+          "tag": "wall"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "bld (needs 2 devices)",
+          "tag": "bld",
+          "note": "(needs 2 devices)"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Wi-Fi Aware (link with no router)",
+      "capabilityRaw": "Wi-Fi Aware (link with no router)",
+      "cells": [
+        {
+          "raw": "wall",
+          "tag": "wall"
+        },
+        {
+          "raw": "**bld — flag ON, zero runtime**¹¹",
+          "tag": "bld",
+          "note": "— flag ON, zero runtime",
+          "fn": [
+            11
+          ],
+          "bold": true
+        },
+        {
+          "raw": "wall",
+          "tag": "wall"
+        },
+        {
+          "raw": "code¹²",
+          "tag": "code",
+          "fn": [
+            12
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Contexts / Routines / on-device suggestions",
+      "capabilityRaw": "Contexts / Routines / on-device suggestions",
+      "cells": [
+        {
+          "raw": "unit",
+          "tag": "unit"
+        },
+        {
+          "raw": "unit¹ (triggers device-gated)",
+          "tag": "unit",
+          "note": "(triggers device-gated)",
+          "fn": [
+            1
+          ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        }
+      ]
+    },
+    {
+      "capability": "Extra monitor (virtual display)",
+      "capabilityRaw": "Extra monitor (virtual display)",
+      "cells": [
+        {
+          "raw": "code (`unsupported/`, never compiled)",
+          "tag": "code",
+          "note": "(`unsupported/`, never compiled)"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
+        },
+        {
+          "raw": "code (evdi, unwired)",
+          "tag": "code",
+          "note": "(evdi, unwired)"
+        },
+        {
+          "raw": "code (IddCx, unsigned)",
+          "tag": "code",
+          "note": "(IddCx, unsigned)"
+        }
+      ]
+    }
+  ],
+  "footnotes": {
+    "1": "Shared `ConduitKit` core: the logic runs in the loopback E2E suite on macOS; the iOS/tvOS app targets build unsigned (`make apple-apps`, four `** BUILD SUCCEEDED **` re-verified today) but no session has run on an iOS/tvOS device with the current code.",
+    "2": "Windows: daemon logic only; new Windows work is **on hold** per [plan 08](docs/plans/08-direct-link-transport.md).",
+    "3": "JVM in-process smoke proves the session code with real Ed25519 + pairing math. **No Android device has ever completed pairing** — the gate everything Android waits behind. Per-capability detail: [`android/README.md`](android/README.md).",
+    "4": "Go daemon logic proven over loopback on a macOS host (Go↔Go pair+transfer test, plus the live Swift↔Go interop suite). The Linux/Windows binaries cross-compile but **have never been executed on those OSes**.",
+    "5": "The real macOS `CGEvent` injector compiles and is wired (needs Accessibility, non-sandboxed app — ADR 0005) but has never moved a real cursor post-fixes.",
+    "6": "Android input receive is an AccessibilityService; keyboard support is a narrow, documented subset — unsupported keys are refused out loud ([`android/README.md`](android/README.md)).",
+    "7": "Real ScreenCaptureKit capture is device-gated (Screen Recording grant).",
+    "8": "Decoder + `SurfaceView` exist; **no frame has ever been decoded on an Android device.**",
+    "9": "Includes the browser watch page over real HTTP GETs. AirPlay endpoint is built-in; Google Cast / Matter Casting are real code behind their SDKs (SDK-gated, unvalidated — ADR 0011). HLS runs seconds behind: for watching, not controlling.",
+    "10": "The Go→Swift notification path is E2E-tested on host; the OS hooks (Linux D-Bus / Windows WinRT sources) are stubs.",
+    "11": "Implemented today (2026-07-26): entitlement granted, `_mosis-aware._tcp` published/subscribed over the iOS 26 Network API, same pinned mutual TLS, OS-level `WAPairedDevice` pairing UI in the app, flag ON for iOS with runtime self-gating. **Compile-verified only** — not one Aware byte has ever flowed; needs two Aware-capable iPhones/iPads. Aware-only sessions would carry video on the control-lane fallback (~2.5 Mbps) until plan 08 lands QUIC.",
+    "12": "Android's `WifiAwareBackend` was rewritten to be capable of working (2026-07-26) but nothing instantiates it ([`docs/interop-status.md`](docs/interop-status.md)).",
+    "13": "Linux via the Go core (`core/screencast/` + `conduitview`, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have **never executed on a Linux box** — per-row ledger in [plan 09](docs/plans/09-linux-screen-and-control.md), runbook in [`docs/linux.md`](docs/linux.md)."
+  },
+  "totals": {
+    "rows": 15,
+    "platforms": 6,
+    "cells": 90,
+    "claimed": 54
+  }
+}
