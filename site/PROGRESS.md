@@ -13,6 +13,7 @@ with a reason.
 - Screenshots at 390 / 834 / 1440 px in **both** themes, for every page touched, looked at.
 - `node tools/site/check-contrast.mjs` — every text-on-surface pair clears WCAG AA in both themes.
 - From P3: `node tools/site/check-matrix.mjs` — `site/data/matrix.json` matches the README table exactly.
+- From P5: `node tools/site/check-commands.mjs` — every shell command on the site is in `README.md` verbatim.
 - Every page loads with JavaScript disabled with all content present.
 - No horizontal overflow at **any** of 390 / 834 / 1440 — checking one width is not checking.
 - Zero third-party requests; zero dependencies; zero build step.
@@ -77,11 +78,11 @@ with a reason.
 
 ## P5 — `/protocol` + `/build`
 
-- [ ] Wire format at a glance, sourced from `docs/protocol.md`.
-- [ ] **Three-impl seal** — Swift · Go · Kotlin with vector counts, one frozen vector set; repeated in the footer.
-- [ ] Write-a-client CTA pointing at `docs/IMPLEMENTORS.md`.
-- [ ] `/build` quickstart per platform, copy buttons that degrade to selectable text with JS off.
-- [ ] Device-gated steps flagged as such on every platform that has them.
+- [x] Wire format at a glance, sourced from `docs/protocol.md`.
+- [x] **Three-impl seal** — Swift · Go · Kotlin with vector counts, one frozen vector set; repeated in the footer.
+- [x] Write-a-client CTA pointing at `docs/IMPLEMENTORS.md`.
+- [x] `/build` quickstart per platform, copy buttons that degrade to selectable text with JS off.
+- [x] Device-gated steps flagged as such on every platform that has them.
 
 ## P6 — Ship
 
@@ -183,3 +184,23 @@ with a reason.
   omitted. Redactions hold by not quoting them.
 - **P4 — one headline was walked back during self-review.** "Five things this
   will never do" contradicted its own fourth item, which says *today*.
+- **P5 — the three headline figures are now gated, everywhere they appear.**
+  `data-fig="swift|go|kotlin"` markers are checked against the README's own
+  re-verification line by `check-matrix.mjs`; there are 15 of them across the
+  seal, the home band, the quickstart headings and the status ledger. Proven
+  by fault injection.
+- **P5 — `check-commands.mjs` is now a repo tool and a CI step**, as P2 said it
+  should become here. 28 commands in 9 blocks, all verbatim. Only blocks marked
+  `data-source="readme"` are checked, so `/protocol` can show wire-format
+  specimens without tripping it.
+- **P5 — the seal labels its units rather than following §4.3.7 literally.**
+  The spec says "Swift · Go · Kotlin with their vector counts", but Swift's
+  headline number is 126 *tests*, not vectors — the shared vector set is 52.
+  The seal therefore reads "Swift 126 tests · Go 52 vectors · Kotlin 70
+  vectors", which is what the README says.
+- **P5 — `docs/protocol.md` still says "Two implementations pass these
+  vectors byte-for-byte."** Kotlin is the third and is conformance-tested, per
+  the README. The site says three and links to that doc, so a reader who
+  clicks through hits the contradiction. **Not fixed here — it is outside
+  `site/`, and CONTRIBUTING's rule is that the protocol doc moves with the
+  wire. Auston's call.**

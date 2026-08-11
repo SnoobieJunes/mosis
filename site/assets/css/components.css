@@ -1599,3 +1599,224 @@
 .rungs span:not(.mark) {
   color: var(--muted);
 }
+
+/* ── Three-impl seal (§4.3.7) ────────────────────────────────────────────
+ * Swift · Go · Kotlin against one frozen vector set. Small, dense, and in
+ * the footer of every page — it is the single most load-bearing fact about
+ * this protocol, so it never scrolls out of reach. */
+
+.seal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-5);
+  max-width: none;
+  padding-block: var(--s-3);
+  border-block-end: var(--hair) solid var(--rail);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+}
+
+.seal__impl {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.seal__impl b {
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.seal__impl em {
+  font-style: normal;
+  color: var(--sig);
+}
+
+.seal__note {
+  margin-inline-start: auto;
+}
+
+/* The same fact, at hero scale, on /protocol. */
+.seal--lg {
+  display: grid;
+  gap: var(--s-4);
+  border-block-end: 0;
+  padding-block: 0;
+  margin-block-start: var(--s-6);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .seal--lg {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+
+  .seal--lg .seal__impl {
+    padding-inline: var(--s-5);
+    border-inline-start: var(--hair) solid var(--rail);
+  }
+
+  .seal--lg .seal__impl:first-child {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+}
+
+.seal--lg .seal__impl {
+  display: block;
+  padding-block-start: var(--s-4);
+  border-block-start: 2px solid var(--sig);
+}
+
+.seal--lg .seal__impl b {
+  display: block;
+  margin-block-end: var(--s-2);
+}
+
+.seal--lg .seal__impl em {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: clamp(2.6rem, 1.6rem + 3vw, 4rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
+.seal--lg .seal__impl i {
+  display: block;
+  font-style: normal;
+  margin-block-start: var(--s-2);
+  color: var(--muted);
+}
+
+/* ── Copy button ─────────────────────────────────────────────────────────
+ * An enhancement over selectable text, so it stays hidden until copy.js can
+ * make it work. The commands are readable and selectable either way. */
+
+.codeblock {
+  position: relative;
+}
+
+.copy {
+  position: absolute;
+  inset-block-start: var(--s-2);
+  inset-inline-end: var(--s-2);
+  padding: 2px var(--s-2);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease),
+    border-color var(--dur-ui) var(--ease);
+}
+
+.copy[hidden] {
+  display: none;
+}
+
+.codeblock:hover .copy,
+.copy:focus-visible,
+.copy[data-done] {
+  opacity: 1;
+}
+
+.copy:hover {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+.copy[data-done] {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+/* Keyboard users never hover, so the button has to be reachable without it. */
+@media (hover: none) {
+  .copy {
+    opacity: 1;
+  }
+}
+
+/* ── Device-gated step ───────────────────────────────────────────────────
+ * Every command on /build either ran on 2026-07-26 or is flagged here. */
+
+.step {
+  max-width: none;
+  padding-block: var(--s-5);
+  border-block-start: var(--hair) solid var(--rail);
+}
+
+.step__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+  margin-block-end: var(--s-3);
+}
+
+.step__head h3 {
+  margin: 0;
+}
+
+.step > p {
+  margin-block: var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.gated {
+  border-inline-start: 2px solid var(--partial);
+  padding: var(--s-3) 0 var(--s-3) var(--s-4);
+  margin-block-start: var(--s-5);
+}
+
+.gated p {
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+/* ── Spec blocks (/protocol) ─────────────────────────────────────────────── */
+
+.spec {
+  display: grid;
+  gap: var(--s-6);
+  margin-block-start: var(--s-6);
+}
+
+@media (min-width: 900px) {
+  .spec {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-7) var(--s-6);
+  }
+}
+
+.spec > div {
+  min-width: 0;
+}
+
+.spec h3 {
+  padding-block-end: var(--s-2);
+  border-block-end: var(--hair) solid var(--rail-2);
+  margin-block-end: var(--s-3);
+}
+
+.spec p {
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.spec .code {
+  margin-block-start: var(--s-3);
+}

@@ -12,8 +12,6 @@
     <link rel="stylesheet" href="assets/css/tokens.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
-    <!-- Applies a stored theme choice before first paint. Three lines, no
-         dependency: prefers-color-scheme covers everyone without it. -->
     <script>
       try {
         var t = localStorage.getItem('mosis-theme');
@@ -60,15 +58,221 @@
       <div class="wrap page-head">
         <span class="label">/build</span>
         <h1>Run the provable core in one&nbsp;command.</h1>
-        <p class="lede">The protocol, crypto and session layers are provable from a checkout — Swift, Go and Kotlin each in one command. Everything that needs real hardware is flagged device-gated, because none of it has been verified there yet.</p>
-        <p class="pending" style="margin-block-start: var(--s-6)">
-          <b>scaffold</b> this page is built in P5 — site/PROGRESS.md
+        <p class="lede">
+          Everything on this page except the last section ran on 2026-07-26
+          (macOS 26.5, Xcode 26.6, Go 1.26.5). Anything that needs real hardware
+          is flagged device-gated, because none of it has been verified there.
         </p>
       </div>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>Three implementations, three&nbsp;commands.</h2>
+        <p>
+          Each checks itself against the same frozen vectors on one machine. No
+          second device, no account, no network.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step__head">
+              <h3>Swift — the full end-to-end suite</h3>
+              <span class="mark mark--done">ran 2026-07-26</span>
+            </div>
+            <div class="codeblock">
+              <pre class="code" data-source="readme"><code>cd apple/ConduitKit
+swift test --disable-sandbox</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the Swift test commands">copy</button>
+            </div>
+            <p>
+              The flag is required, not optional: the macOS sandbox
+              <em>hangs</em> the Network, PKCS#12 and VideoToolbox paths rather
+              than failing them. The 4-test broadcast suite self-skips while the
+              screen is locked.
+            </p>
+          </div>
+
+          <div class="step">
+            <div class="step__head">
+              <h3>Go — core, daemon and conformance</h3>
+              <span class="mark mark--done">ran 2026-07-26</span>
+            </div>
+            <div class="codeblock">
+              <pre class="code" data-source="readme"><code>cd core
+go test ./...
+go run ./cmd/conformance ../proto/vectors</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the Go test commands">copy</button>
+            </div>
+            <p>
+              The conformance runner reports 52 vectors, 0 failed. The set is
+              append-only, so a run that passes stays passing.
+            </p>
+          </div>
+
+          <div class="step">
+            <div class="step__head">
+              <h3>Kotlin — the third implementation, pure JVM</h3>
+              <span class="mark mark--done">ran 2026-07-26</span>
+            </div>
+            <div class="codeblock">
+              <pre class="code" data-source="readme"><code>export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+export PATH="$JAVA_HOME/bin:$PATH"
+cd android/core
+kotlinc $(find src/main/kotlin -name '*.kt') -include-runtime -d /tmp/conduit-core.jar
+java -cp /tmp/conduit-core.jar org.conduit.core.Conformance ../../proto/vectors
+java -cp /tmp/conduit-core.jar org.conduit.core.SessionSmoke</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the Kotlin conformance commands">copy</button>
+            </div>
+            <p>
+              No Android SDK needed — any JDK 17 or newer will do. The session
+              smoke runs real Ed25519 and real pairing maths in one process.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>The apps and the daemon build&nbsp;unsigned.</h2>
+        <p>
+          Four Apple targets and the Android APK assemble from a clean checkout.
+          Building is not running — none of these has held a session on hardware
+          with the current code.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step__head">
+              <h3>macOS, iOS and tvOS apps</h3>
+              <span class="mark mark--done">builds</span>
+            </div>
+            <div class="codeblock">
+              <pre class="code" data-source="readme"><code>make apple-apps
+open apple/AppleApps/ConduitApps.xcodeproj</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the Apple apps commands">copy</button>
+            </div>
+            <p>
+              Requires Xcode 26+ on macOS 26+. Never
+              <code>xcodebuild -target</code> — the legacy path cannot resolve
+              SwiftPM dependencies under Xcode 26 and dies inside swift-crypto.
+              Regenerating with <code>xcodegen</code> rewrites the entitlements
+              files, so mirror any new capability into
+              <code>project.yml</code> first.
+            </p>
+          </div>
+
+          <div class="step">
+            <div class="step__head">
+              <h3>The Go daemon</h3>
+              <span class="mark mark--done">builds</span>
+              <span class="mark mark--part">runs on macOS only</span>
+            </div>
+            <div class="codeblock">
+              <pre class="code" data-source="readme"><code>cd core
+go build -o conduitd ./cmd/conduitd
+./conduitd run --pair</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the Go daemon commands">copy</button>
+            </div>
+            <p>
+              Prints its listen port, device id, active input backend and
+              <code>ACCEPTING</code> while it waits. It cross-compiles for Linux
+              and Windows but has only ever been executed on macOS.
+            </p>
+          </div>
+
+          <div class="step">
+            <div class="step__head">
+              <h3>Android</h3>
+              <span class="mark mark--done">APK assembles</span>
+            </div>
+            <div class="codeblock">
+              <pre class="code" data-source="readme"><code>cd android
+echo "sdk.dir=$HOME/Library/Android/sdk" &gt; local.properties
+export JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home"
+./gradlew :app:assembleDebug</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the Android build commands">copy</button>
+            </div>
+            <p>
+              Interim honesty: an Android tablet can watch a Mac's screen today
+              with no Android app at all — Show My Screen, then any browser,
+              because Chrome plays the HLS stream natively.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>Everything past this point is&nbsp;device-gated.</h2>
+        <p>
+          None of the steps below has been run to completion with the current
+          code. They are written down so the first person to try has a script,
+          not so the site can imply they work.
+        </p>
+
+        <div class="steps">
+          <div class="step">
+            <div class="step__head">
+              <h3>Pair two devices</h3>
+              <span class="mark mark--part">device-gated</span>
+            </div>
+            <p>
+              Enable <em>Accept pairing</em> on one device, tap the other under
+              <em>Nearby</em>, compare the six digits and the word pair, confirm
+              on both. Android has never completed this step.
+            </p>
+          </div>
+
+          <div class="step">
+            <div class="step__head">
+              <h3>Grant Accessibility and Screen Recording</h3>
+              <span class="mark mark--part">device-gated</span>
+            </div>
+            <p>
+              Input injection needs Accessibility and a non-sandboxed app;
+              capture needs Screen Recording. The real
+              <code>CGEvent</code> injector compiles and is wired, and has never
+              moved a real cursor since the fixes.
+            </p>
+          </div>
+
+          <div class="step">
+            <div class="step__head">
+              <h3>ReplayKit broadcast, and Wi-Fi Aware</h3>
+              <span class="mark mark--part">device-gated</span>
+            </div>
+            <p>
+              iPhone-to-Mac broadcast needs a real device; Wi-Fi Aware needs two
+              Aware-capable iPhones or iPads. The Aware entitlement is granted
+              and the code is written — not one byte has flowed over it.
+            </p>
+          </div>
+        </div>
+
+        <div class="gated">
+          <p>
+            The scripted session, with the expected output at each step, is
+            <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/DEVICE_CHECKLIST.md">DEVICE_CHECKLIST.md</a>. When
+            one of these completes for real, the counter on
+            <a href="status.html">/status</a> stops reading zero.
+          </p>
+        </div>
+      </section>
     </main>
 
     <footer class="site-foot">
       <hr class="rail" />
+      <div class="wrap">
+        <p class="seal">
+          <span class="seal__impl"><b>Swift</b> <em data-fig="swift">126</em> tests</span>
+          <span class="seal__impl"><b>Go</b> <em data-fig="go">52</em> vectors</span>
+          <span class="seal__impl"><b>Kotlin</b> <em data-fig="kotlin">70</em> vectors</span>
+          <span class="seal__note">one frozen vector set · byte-exact</span>
+        </p>
+      </div>
       <div class="wrap site-foot__grid">
         <div>
           <h2>MOSIS</h2>
@@ -104,5 +308,6 @@
 
     <script type="module" src="assets/js/theme.js"></script>
     <script type="module" src="assets/js/lanes.js"></script>
+    <script type="module" src="assets/js/copy.js"></script>
   </body>
 </html>

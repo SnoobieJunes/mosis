@@ -103,6 +103,20 @@ function parseReadme() {
     definitions[tag.replace(/`/g, '')] = meaning.replace(/\*\*/g, '');
   }
 
+  // The three headline figures, from the README's own re-verification line.
+  // Collapse whitespace first — that sentence wraps across source lines.
+  const flat = readme.replace(/\s+/g, ' ');
+  const figures = {};
+  for (const [key, re] of [
+    ['swift', /(\d+)\/\d+ Swift tests/],
+    ['go', /(\d+)\/\d+ Go vectors/],
+    ['kotlin', /(\d+)\/\d+ Kotlin vectors/],
+  ]) {
+    const m = flat.match(re);
+    if (!m) throw new Error(`README.md: could not find the ${key} figure`);
+    figures[key] = Number(m[1]);
+  }
+
   const counts = {};
   let claimed = 0;
   for (const r of rows) {
@@ -116,6 +130,7 @@ function parseReadme() {
   }
 
   return {
+    figures,
     matrix: {
       $comment:
         'GENERATED — do not hand-edit. Run: node tools/site/check-matrix.mjs --write. CI fails if this drifts from the README table or from site/status.html.',
@@ -257,6 +272,19 @@ for (const page of ['index', 'status', 'story', 'protocol', 'roadmap', 'build'])
     if (want === undefined) fail(`site/${page}.html: data-total="${key}" is not a known total`);
     else if (shown !== String(want)) fail(`site/${page}.html says ${key} is ${shown}; matrix.json says ${want}`);
   }
+  for (const m of src.matchAll(/data-fig="(\w+)">([^<]*)</g)) {
+    const [, key, shown] = m;
+    const want = fresh.figures[key];
+    if (want === undefined) fail(`site/${page}.html: data-fig="${key}" is not a known figure`);
+    else if (shown !== String(want)) fail(`site/${page}.html says ${key} is ${shown}; README says ${want}`);
+  }
+}
+
+// The seal is the load-bearing fact of the whole protocol claim, so it has to
+// be on every page, not just the one that talks about it.
+for (const page of ['index', 'status', 'story', 'protocol', 'roadmap', 'build']) {
+  const src = readFileSync(path.join(ROOT, `site/${page}.html`), 'utf8');
+  if (!/<p class="seal"/.test(src)) fail(`site/${page}.html has no three-impl seal in its footer`);
 }
 
 /* ── report ────────────────────────────────────────────────────────────── */
@@ -272,6 +300,8 @@ console.log(
       .join(' · '),
 );
 console.log(`  ${t.claimed} cells name an implementation and could one day turn dev; ${c.dev ?? 0} have.`);
+const f = fresh.figures;
+console.log(`  seal: Swift ${f.swift} tests · Go ${f.go} vectors · Kotlin ${f.kotlin} vectors`);
 
 if (problems.length) {
   console.error('\nmatrix gate FAILED:');

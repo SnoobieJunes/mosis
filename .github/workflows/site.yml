@@ -31,6 +31,9 @@ jobs:
       - name: Matrix — README, matrix.json, evidence.json and status.html agree
         run: node tools/site/check-matrix.mjs
 
+      - name: Commands — every shell command appears verbatim in the README
+        run: node tools/site/check-commands.mjs
+
       - name: No third-party requests
         run: |
           if grep -rInE '(src|href)="https?://(?!github\.com/SnoobieJunes)' site/ \
