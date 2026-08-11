@@ -1,7 +1,7 @@
 /* MOSIS — components.
- * §4.3 signature components land here phase by phase. P0 ships the shell:
- * the lane rail (static; its packet arrives in P1), header, nav, theme
- * toggle, footer. */
+ * The §4.3 signature components, plus the shell they sit in. Nothing here is
+ * borrowed from a component library: the grammar is the protocol's own —
+ * rails, packets, tags, hatches. */
 
 /* ── Lane rail (§4.3.1) ──────────────────────────────────────────────────
  * MOSIS multiplexes three lanes over one link: control, bulk, video. The
@@ -29,6 +29,186 @@
 .rail--flush {
   margin-inline: calc(var(--gutter) * -1);
   width: auto;
+}
+
+/* The packet. lanes.js adds .is-live when the rail scrolls into view; it rides
+ * the middle (bulk) lane once and stops. Enhancement only — with JS off the
+ * rail is still a rail, and under prefers-reduced-motion lanes.js never arms. */
+.rail::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 0;
+  width: 92px;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--sig));
+  transform: translateX(-92px);
+  opacity: 0;
+}
+
+.rail.is-live::after {
+  animation: packet var(--dur-packet) var(--ease) forwards;
+}
+
+@keyframes packet {
+  0% {
+    transform: translateX(-92px);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(100vw + 92px));
+    opacity: 0;
+  }
+}
+
+/* ── Evidence tag (§4.3.2) ───────────────────────────────────────────────
+ * The vocabulary a reader learns once and then reads everywhere: inline in
+ * prose and in every matrix cell. Colour is the evidence strength, straight
+ * from §4.1. Hairline, never filled — §4.4 forbids the box soup.
+ *
+ * The definition shows on hover *and* on keyboard focus, with no JavaScript:
+ * it is rendered from data-def by ::after. Assistive tech gets the same string
+ * from the page's tag legend via aria-describedby. */
+
+.tag {
+  position: relative;
+  display: inline-block;
+  padding: 1px var(--s-2) 2px;
+  border: var(--hair) solid currentColor;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  line-height: 1.5;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: help;
+  color: var(--inert);
+}
+
+.tag--e2e {
+  color: var(--sig);
+}
+
+.tag--e2e-fake,
+.tag--smoke,
+.tag--unit {
+  color: var(--partial);
+}
+
+.tag--bld,
+.tag--code {
+  color: var(--inert);
+}
+
+.tag--wall {
+  color: var(--wall);
+  /* 45° hairline hatch: a platform limit reads as architecture, not failure. */
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--wall) 30%, transparent) 0 1px,
+    transparent 1px 5px
+  );
+}
+
+.tag--none {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+/* dev is defined and unused. When the first device session lands it lights up
+ * on its own — until then the site never renders one. */
+.tag--dev {
+  color: var(--dev);
+  box-shadow: var(--dev-glow);
+}
+
+.tag::after {
+  content: attr(data-def);
+  position: absolute;
+  inset-block-end: calc(100% + var(--s-2));
+  inset-inline-start: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(38ch, 78vw);
+  padding: var(--s-2) var(--s-3);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  color: var(--text);
+  font-size: var(--t-mono);
+  letter-spacing: 0;
+  line-height: 1.45;
+  white-space: normal;
+  text-transform: none;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity var(--dur-ui) var(--ease);
+}
+
+.tag:hover::after,
+.tag:focus-visible::after {
+  opacity: 1;
+  visibility: visible;
+}
+
+/* Near the right edge the tooltip flips its anchor rather than overflowing. */
+.tag--flip::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+/* ── Tag legend ─────────────────────────────────────────────────────────
+ * One definition list per page that uses tags. It is the aria-describedby
+ * target, so the tooltip text and the announced text are the same sentence. */
+
+.legend {
+  display: grid;
+  gap: var(--s-3) var(--s-4);
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .legend {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.legend dt {
+  margin: 0;
+}
+
+.legend dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-small);
+  max-width: 60ch;
+}
+
+/* ── Wall hatch (§4.3.6) ─────────────────────────────────────────────────
+ * The same 45° hairline fill at surface scale, for matrix cells and panels. */
+
+.hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--wall) 26%, transparent) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+.hatch--inert {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--inert) 26%, transparent) 0 1px,
+    transparent 1px 7px
+  );
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
@@ -299,4 +479,327 @@
   text-transform: uppercase;
   color: var(--muted);
   max-width: 22ch;
+}
+
+/* ── Pairing chip (§4.3.3) ───────────────────────────────────────────────
+ * The trust model in three seconds: the same six digits and the same word
+ * pair on two screens, confirmed on both, after which the link is pinned.
+ *
+ * Built on two checkboxes, so it is fully interactive with JavaScript
+ * disabled. No dead controls, no video, no GIF. */
+
+.chip {
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  padding: var(--s-4);
+}
+
+.chip__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.chip__grid {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+@media (min-width: 620px) {
+  .chip__grid {
+    /* No column gap: the link is the gap, and it has to touch both devices. */
+    grid-template-columns: 1fr minmax(72px, 0.35fr) 1fr;
+    column-gap: 0;
+    align-items: center;
+  }
+}
+
+.chip__side {
+  display: grid;
+  gap: var(--s-3);
+  justify-items: start;
+  padding: var(--s-3);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink);
+}
+
+.chip__device {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chip__code {
+  font-family: var(--font-mono);
+  font-size: clamp(1.6rem, 1.1rem + 1.8vw, 2.3rem);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.chip__words {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--sig);
+}
+
+.chip__confirm {
+  display: inline-block;
+  padding: var(--s-2) var(--s-4);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease);
+}
+
+.chip__confirm:hover {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+.chip__confirm::before {
+  content: 'confirm';
+}
+
+/* ── The link between the two sides ─────────────────────────────────────
+ * Dashed while the code is unverified; solid, pinned and traversed by one
+ * packet once both sides have confirmed. */
+
+.chip__link {
+  position: relative;
+  display: block;
+  block-size: 2px;
+  inline-size: 100%;
+  min-inline-size: 96px;
+  border-block-start: 2px dashed var(--rail-2);
+  align-self: center;
+}
+
+@media (max-width: 619px) {
+  .chip__link {
+    block-size: 28px;
+    inline-size: 2px;
+    min-inline-size: 0;
+    margin-inline-start: var(--s-6);
+    border-block-start: 0;
+    border-inline-start: 2px dashed var(--rail-2);
+  }
+}
+
+/* The state line is real text in the DOM, not generated content: a CSS ::before
+ * is invisible to a screen reader, and this sentence is the whole point of the
+ * component. Exactly one of the three is displayed. */
+.chip__state {
+  margin-block-start: var(--s-4);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  max-width: none;
+}
+
+.chip__state > span {
+  display: none;
+}
+
+.chip__state > .state-none {
+  display: inline;
+}
+
+.chip:has(.chip__input:checked) .chip__state > .state-none {
+  display: none;
+}
+
+.chip:has(.chip__input:checked) .chip__state > .state-half {
+  display: inline;
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__state > .state-half {
+  display: none;
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__state > .state-paired {
+  display: inline;
+}
+
+/* Both confirmed. The handshake runs left to right: a --sig packet crosses the
+ * dashed line and lays a solid one behind it. That *is* "dashed to solid" —
+ * the animation shows the trust being established, not just its result.
+ * Under prefers-reduced-motion --dur-packet is 1ms, so it snaps to solid. */
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::before {
+  content: '';
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  block-size: 2px;
+  background: var(--sig);
+  transform-origin: left center;
+  animation: link-zip var(--dur-packet) var(--ease) forwards;
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::after {
+  content: '';
+  position: absolute;
+  inset-block-start: -4px;
+  inset-inline-start: 0;
+  inline-size: 8px;
+  block-size: 6px;
+  background: var(--text);
+  animation: packet-head var(--dur-packet) var(--ease) forwards;
+}
+
+@keyframes link-zip {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Percentages in translate resolve against the packet's own 8px, not the wire —
+ * so the head travels on inset-inline-start instead. */
+@keyframes packet-head {
+  from {
+    inset-inline-start: 0;
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  to {
+    inset-inline-start: calc(100% - 8px);
+    opacity: 0;
+  }
+}
+
+/* Stacked layout: the link runs vertically, so the handshake does too. */
+@media (max-width: 619px) {
+  .chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::before {
+    inset-block-start: 0;
+    inset-inline-start: -2px;
+    inline-size: 2px;
+    block-size: 100%;
+    transform-origin: center top;
+    animation-name: link-zip-y;
+  }
+
+  .chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::after {
+    display: none;
+  }
+}
+
+@keyframes link-zip-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__state {
+  color: var(--sig);
+}
+
+/* A confirmed side reads as confirmed. */
+.chip:has(#pair-a:checked) label[for='pair-a'],
+.chip:has(#pair-b:checked) label[for='pair-b'] {
+  border-color: var(--sig);
+  color: var(--sig);
+  cursor: default;
+}
+
+.chip:has(#pair-a:checked) label[for='pair-a']::before,
+.chip:has(#pair-b:checked) label[for='pair-b']::before {
+  content: '✓ confirmed';
+}
+
+/* The checkbox is off-screen, so its focus ring has to land on the label. */
+#pair-a:focus-visible ~ .chip__grid label[for='pair-a'],
+#pair-b:focus-visible ~ .chip__grid label[for='pair-b'] {
+  outline: 2px solid var(--sig);
+  outline-offset: 3px;
+}
+
+/* ── Kitchen sink (dev reference page only) ─────────────────────────────── */
+
+.ks-note {
+  border-inline-start: 2px solid var(--partial);
+  padding: var(--s-2) 0 var(--s-2) var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.swatches {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.swatch {
+  max-width: none;
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.swatch__chip {
+  block-size: 56px;
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+.swatch__meta {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0;
+}
+
+.swatch__meta b {
+  font-weight: 400;
+  color: var(--text);
+}
+
+.swatch__meta span {
+  color: var(--muted);
+}
+
+.specimen {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+  /* Headroom for the tooltip, which opens upward. */
+  padding-block-start: var(--s-5);
 }

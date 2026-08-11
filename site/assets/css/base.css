@@ -88,6 +88,16 @@ li {
   text-wrap: pretty;
 }
 
+/* Flow spacing. Zero-specificity so any component can override it without an
+ * arms race. A headline states the claim; the block under it needs air. */
+:where(h1, h2, h3) + * {
+  margin-block-start: var(--s-4);
+}
+
+:where(p, ul, ol, dl, pre, figure, blockquote) + :where(p, ul, ol, dl, pre, figure, blockquote) {
+  margin-block-start: var(--s-3);
+}
+
 .lede {
   font-size: clamp(1.1rem, 1rem + 0.55vw, 1.35rem);
   line-height: 1.5;

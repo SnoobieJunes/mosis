@@ -35,13 +35,13 @@ with a reason.
 
 ## P1 — Components
 
-- [ ] **Lane rail** — three stacked hairlines at 1/2/1px with a `--sig` packet that traverses on scroll-into-view; replaces every `<hr>`.
-- [ ] **Evidence tag** — mono pill for `E2E` `E2E*` `unit` `smoke` `bld` `code` `wall` `dev`, colored per §4.1, definition on hover **and** focus.
-- [ ] **Pairing chip** — `418 302` + `otter · maple` shown twice; confirming both animates the link from dashed to solid.
-- [ ] **Wall hatch** — 45° hairline hatch fill for `wall` cells.
-- [ ] `site/kitchen-sink.html` demos every component; unlinked from nav, excluded from the sitemap.
-- [ ] All motion is packet-traversal or link-handshake only, and disabled under `prefers-reduced-motion: reduce`.
-- [ ] Every component's content is present and legible with JS off.
+- [x] **Lane rail** — three stacked hairlines at 1/2/1px with a `--sig` packet that traverses on scroll-into-view; replaces every `<hr>`.
+- [x] **Evidence tag** — mono pill for `E2E` `E2E*` `unit` `smoke` `bld` `code` `wall` `dev`, colored per §4.1, definition on hover **and** focus.
+- [x] **Pairing chip** — `418 302` + `otter · maple` shown twice; confirming both animates the link from dashed to solid.
+- [x] **Wall hatch** — 45° hairline hatch fill for `wall` cells.
+- [x] `site/kitchen-sink.html` demos every component; unlinked from nav, excluded from the sitemap.
+- [x] All motion is packet-traversal or link-handshake only, and disabled under `prefers-reduced-motion: reduce`.
+- [x] Every component's content is present and legible with JS off.
 
 ## P2 — `/` home
 
@@ -108,3 +108,18 @@ with a reason.
 - **P0 — tooling note.** Screenshots are taken with `playwright-core` driving
   the system Chrome from outside the repo. `/opt/pw-browsers` does not exist on
   this machine, and the repo stays dependency-free.
+- **P1 — `unit` is mapped to `--partial`, a derived decision.** §4.1 maps
+  `E2E`, `E2E*`/`smoke`, `bld`/`code`, `wall` and `dev`, but not `unit`. It is
+  runtime evidence that is not a session, which puts it with `smoke` rather
+  than with `bld`. Flagged because it is an interpretation, not a spec value.
+- **P1 — the `dev` pill is rendered once, on `kitchen-sink.html`.** §4.3.2
+  lists `dev` as one of the tag variants to build, so the component reference
+  shows it; its own definition reads "appears nowhere on the site yet", and a
+  check asserts no other page renders one. If that still reads as claiming too
+  much, delete the specimen — nothing else depends on it.
+- **P1 — the kitchen sink ships but is unlinked and `noindex`.** Whether it is
+  excluded from the Pages upload is a P6 decision; there is no sitemap yet to
+  exclude it from.
+- **P1 — the tooltip string is duplicated** in `data-def` and in the legend
+  `<dd>`, and a check fails the phase if they drift. In P3 both come from
+  `evidence.json` through one renderer and the duplication disappears.
