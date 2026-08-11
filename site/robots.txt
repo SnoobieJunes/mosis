@@ -1,0 +1,7 @@
+# The site itself makes no third-party requests; this file makes no demands.
+User-agent: *
+Allow: /
+Disallow: /kitchen-sink.html
+Disallow: /PROGRESS.md
+
+Sitemap: https://snoobiejunes.github.io/conduit/sitemap.xml

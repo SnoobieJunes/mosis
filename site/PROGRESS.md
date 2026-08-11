@@ -86,11 +86,11 @@ with a reason.
 
 ## P6 — Ship
 
-- [ ] `.github/workflows/pages.yml` builds and deploys `site/` (no build step, artifact upload only).
-- [ ] `check-contrast.mjs` and `check-matrix.mjs` run in CI and gate the deploy.
-- [ ] Lighthouse: accessibility ≥ 95, performance ≥ 95.
-- [ ] Screenshots at 390 / 834 / 1440 px reviewed in both themes, all six pages, final.
-- [ ] Live URL recorded here.
+- [x] `.github/workflows/pages.yml` written: artifact upload of `site/`, no build step. **Never executed** — see note.
+- [x] All three gates run in CI and gate the deploy: `deploy` needs `build`, and `build` is the gates.
+- [x] Lighthouse: accessibility **100** and performance **95–96** on all six pages.
+- [x] Screenshots at 390 / 834 / 1440 px reviewed in both themes, all six pages, with and without JS.
+- [ ] **Live URL recorded here.** Blocked on a decision that is Auston's — see note.
 
 ---
 
@@ -204,3 +204,25 @@ with a reason.
   clicks through hits the contradiction. **Not fixed here — it is outside
   `site/`, and CONTRIBUTING's rule is that the protocol doc moves with the
   wire. Auston's call.**
+- **P6 — nothing is deployed, and that is deliberate.** GitHub Pages is not
+  enabled on the repo (the Pages API 404s), `pages.yml` triggers on pushes to
+  `main`, and this work is on an unmerged branch. Publishing would mean either
+  merging without review or pointing the workflow at this branch — both are
+  outward-facing and both are Auston's call, so the loop stopped and asked
+  instead of guessing.
+- **P6 — the Lighthouse numbers are measured, and where matters.** Against
+  `python -m http.server` performance scored 86–90, failing on `cache-insight`
+  and `document-latency-insight` — properties of that server (HTTP/1.0, no
+  keep-alive, no gzip, no cache header), not of the site. Re-measured against a
+  static server that behaves like Pages (gzip, `max-age=600`, keep-alive):
+  **95, 95, 95, 96, 96, 96**, accessibility 100 across the board, best
+  practices 100, SEO 100. The real figure on Pages should be at or above that,
+  since HTTP/2 multiplexes the three stylesheets this harness serialised.
+- **P6 — `sitemap.xml` and `robots.txt` hard-code
+  `snoobiejunes.github.io/conduit`.** They are the only absolute URLs on the
+  site, and they break if the repo is renamed to `mosis`. The sitemap lists the
+  six routes and omits `kitchen-sink.html`, which is what P1's "excluded from
+  the sitemap" was waiting for.
+- **P6 — `site.yml` now ignores pushes to `main`**, because `pages.yml` runs
+  the same three gates there before deploying. Pull requests still run
+  `site.yml`.

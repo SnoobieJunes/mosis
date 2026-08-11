@@ -5,6 +5,8 @@ name: site
 # they exist to catch is the README moving and the site quietly not.
 on:
   push:
+    # main is covered by pages.yml, which runs the same gates before deploying.
+    branches-ignore: [main]
     paths: ['site/**', 'tools/site/**', 'README.md', '.github/workflows/site.yml']
   pull_request:
     paths: ['site/**', 'tools/site/**', 'README.md', '.github/workflows/site.yml']
