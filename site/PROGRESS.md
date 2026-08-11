@@ -157,5 +157,6 @@ with a reason.
 - **P3 — the gate was fault-injected, not assumed.** Three drifts were
   introduced and each was caught: a tag upgraded in the JSON only, a rendered
   cell claiming more than the data, and a `dev` pill smuggled into a cell.
-- **P3 — `site.yml` runs both gates plus a third-party-asset grep.** The
-  Pages deploy itself is still P6.
+- **P3 — `site.yml` runs both gates plus a third-party-asset grep.** It ran on
+  GitHub for the P3 push (`0f2961a`) and passed in 21s — verified on the
+  runner, not just locally. The Pages deploy job itself is still P6.
