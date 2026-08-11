@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Build — MOSIS</title>
+    <meta name="description" content="Copy-paste quickstart per platform, with every device-gated step flagged as unverified." />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#070b0a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f7f5" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/components.css" />
+    <!-- Applies a stored theme choice before first paint. Three lines, no
+         dependency: prefers-color-scheme covers everyone without it. -->
+    <script>
+      try {
+        var t = localStorage.getItem('mosis-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-head">
+      <div class="wrap site-head__bar">
+        <a class="brand" href="index.html">
+          <svg class="brand__mark" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <g fill="currentColor" opacity=".5">
+              <rect x="1" y="6" width="20" height="1"/>
+              <rect x="1" y="10" width="20" height="2"/>
+              <rect x="1" y="15" width="20" height="1"/>
+            </g>
+            <rect x="12" y="9" width="5" height="4" fill="var(--sig)"/>
+          </svg>
+          <span class="brand__name">MOSIS</span>
+          <span class="brand__sub mono">local-first</span>
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="status.html">Status</a></li>
+          <li><a href="story.html">Story</a></li>
+          <li><a href="protocol.html">Protocol</a></li>
+          <li><a href="roadmap.html">Roadmap</a></li>
+          <li><a href="build.html" aria-current="page">Build</a></li>
+          </ul>
+        </nav>
+        <button class="theme-toggle" type="button" hidden>
+          <span class="theme-toggle__dot" aria-hidden="true"></span>
+          <span class="theme-toggle__text">light</span>
+        </button>
+      </div>
+      <hr class="rail" />
+    </header>
+
+    <main id="main">
+      <div class="wrap page-head">
+        <span class="label">/build</span>
+        <h1>Run the provable core in one&nbsp;command.</h1>
+        <p class="lede">The protocol, crypto and session layers are provable from a checkout — Swift, Go and Kotlin each in one command. Everything that needs real hardware is flagged device-gated, because none of it has been verified there yet.</p>
+        <p class="pending" style="margin-block-start: var(--s-6)">
+          <b>scaffold</b> this page is built in P5 — site/PROGRESS.md
+        </p>
+      </div>
+    </main>
+
+    <footer class="site-foot">
+      <hr class="rail" />
+      <div class="wrap site-foot__grid">
+        <div>
+          <h2>MOSIS</h2>
+          <p class="foot-note">
+            Mobile Operating System Integrated Solutions. Open, local-first,
+            cross-device connectivity. Apache-2.0.
+          </p>
+          <p class="counter">
+            <span class="counter__n">0</span>
+            <span class="counter__what">device-verified sessions with the current code</span>
+          </p>
+        </div>
+        <div>
+          <h2>Repo</h2>
+          <ul>
+            <li><a href="https://github.com/SnoobieJunes/conduit">Source</a></li>
+            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/protocol.md">Wire protocol</a></li>
+            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/IMPLEMENTORS.md">Write a client</a></li>
+            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/LICENSE">License</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Ledgers</h2>
+          <ul>
+            <li><a href="status.html">Capability matrix</a></li>
+            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/TESTING_PLAN.md">Testing plan</a></li>
+            <li><a href="https://github.com/SnoobieJunes/conduit/tree/main/docs/adr">Decisions</a></li>
+            <li><a href="https://github.com/SnoobieJunes/conduit/tree/main/docs/plans">Plans</a></li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="assets/js/theme.js"></script>
+  </body>
+</html>

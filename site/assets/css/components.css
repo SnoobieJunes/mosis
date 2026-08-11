@@ -1,0 +1,302 @@
+/* MOSIS — components.
+ * §4.3 signature components land here phase by phase. P0 ships the shell:
+ * the lane rail (static; its packet arrives in P1), header, nav, theme
+ * toggle, footer. */
+
+/* ── Lane rail (§4.3.1) ──────────────────────────────────────────────────
+ * MOSIS multiplexes three lanes over one link: control, bulk, video. The
+ * divider *is* those lanes — 1px, 2px, 1px, hairline-separated. It replaces
+ * every <hr> on the site. */
+
+.rail {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  margin: 0;
+  overflow: hidden;
+  background-image: linear-gradient(
+    to bottom,
+    var(--rail) 0 1px,
+    transparent 1px 2px,
+    var(--rail-2) 2px 4px,
+    transparent 4px 5px,
+    var(--rail) 5px 6px
+  );
+}
+
+.rail--flush {
+  margin-inline: calc(var(--gutter) * -1);
+  width: auto;
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.site-head {
+  position: relative;
+  background: var(--ink);
+}
+
+.site-head__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  padding-block: var(--s-3);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text);
+  text-decoration: none;
+  margin-inline-end: auto;
+}
+
+.brand:hover {
+  color: var(--text);
+}
+
+.brand__mark {
+  display: block;
+  flex: none;
+}
+
+.brand__name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.brand__sub {
+  color: var(--muted);
+  border-inline-start: var(--hair) solid var(--rail);
+  padding-inline-start: var(--s-2);
+  margin-inline-start: var(--s-1);
+}
+
+@media (max-width: 560px) {
+  .brand__sub {
+    display: none;
+  }
+}
+
+/* ── Nav ────────────────────────────────────────────────────────────────
+ * No hamburger, no JS: the bar wraps to a second row on narrow screens. */
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav a {
+  display: inline-block;
+  position: relative;
+  padding-block: var(--s-1);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.nav a:hover {
+  color: var(--text);
+}
+
+.nav a[aria-current='page'] {
+  color: var(--text);
+}
+
+.nav a[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -3px;
+  height: 2px;
+  background: var(--sig);
+}
+
+.nav li {
+  max-width: none;
+}
+
+/* Below the point where brand + nav + toggle stop fitting on one line, drop the
+ * nav to its own full-width row rather than orphaning the toggle onto a third. */
+@media (max-width: 900px) {
+  .site-head__bar > nav {
+    order: 1;
+    flex-basis: 100%;
+  }
+}
+
+/* ── Theme toggle ───────────────────────────────────────────────────────
+ * Hidden until theme.js can make it work — a control that does nothing with
+ * JS off is worse than no control. prefers-color-scheme still delivers both
+ * themes without it. */
+
+.theme-toggle[hidden] {
+  display: none;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-2);
+  background: transparent;
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease);
+}
+
+.theme-toggle:hover {
+  border-color: var(--rail-2);
+  color: var(--text);
+}
+
+.theme-toggle__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--sig);
+}
+
+/* ── Page head ──────────────────────────────────────────────────────────── */
+
+.page-head {
+  padding-block: clamp(var(--s-6), 8vw, var(--s-9)) clamp(var(--s-5), 5vw, var(--s-7));
+}
+
+.page-head .label {
+  display: block;
+  margin-block-end: var(--s-3);
+}
+
+.page-head .lede {
+  margin-block-start: var(--s-4);
+}
+
+/* ── Pending marker — scaffold only, removed as each page lands ─────────── */
+
+.pending {
+  display: inline-block;
+  text-align: start;
+  padding: var(--s-2) var(--s-3);
+  border: var(--hair) dashed var(--rail-2);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+}
+
+.pending b {
+  color: var(--inert);
+  font-weight: 400;
+  text-transform: uppercase;
+  margin-inline-end: var(--s-2);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
+.site-foot {
+  margin-block-start: var(--s-8);
+  background: var(--ink);
+}
+
+.site-foot__grid {
+  display: grid;
+  gap: var(--s-5);
+  padding-block: var(--s-6) var(--s-7);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .site-foot__grid {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+}
+
+.site-foot h2 {
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-stretch: normal;
+  color: var(--muted);
+  margin-block-end: var(--s-3);
+}
+
+.site-foot ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s-2);
+}
+
+.site-foot li {
+  max-width: none;
+}
+
+.site-foot a {
+  font-size: var(--t-small);
+}
+
+.foot-note {
+  color: var(--muted);
+  font-size: var(--t-small);
+  max-width: 46ch;
+}
+
+/* The honesty readout. It says zero because it is zero — plan 10 §8.1. */
+.counter {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  margin-block-start: var(--s-4);
+}
+
+.counter__n {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--text);
+}
+
+.counter__what {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  color: var(--muted);
+  max-width: 22ch;
+}
