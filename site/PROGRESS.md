@@ -45,13 +45,13 @@ with a reason.
 
 ## P2 — `/` home
 
-- [ ] Thesis headline: "Your devices, talking directly. No cloud in the path."
-- [ ] Pairing chip in the hero, interactive, teaching the trust model without a video.
-- [ ] The four claims (open protocol · proven three ways · local-first · honest by construction), each one headline + ≤3 sentences.
-- [ ] Honest-status band: zero device-verified sessions, stated on the homepage, not buried.
-- [ ] Matrix teaser linking to `/status`.
-- [ ] Quickstart block that matches the README commands verbatim.
-- [ ] Renders complete with JS off; ≤120 KB uncompressed.
+- [x] Thesis headline: "Your devices, talking directly. No cloud in the path."
+- [x] Pairing chip in the hero, interactive, teaching the trust model without a video.
+- [x] The four claims (open protocol · proven three ways · local-first · honest by construction), each one headline + ≤3 sentences.
+- [x] Honest-status band: zero device-verified sessions, stated on the homepage, not buried.
+- [x] Matrix teaser linking to `/status` — vocabulary and counter, no cells yet (see note).
+- [x] Quickstart block that matches the README commands verbatim.
+- [x] Renders complete with JS off; ≤120 KB uncompressed.
 
 ## P3 — `/status`
 
@@ -123,3 +123,18 @@ with a reason.
 - **P1 — the tooltip string is duplicated** in `data-def` and in the legend
   `<dd>`, and a check fails the phase if they drift. In P3 both come from
   `evidence.json` through one renderer and the duplication disappears.
+- **P2 — the matrix teaser carries no capability cells.** A README cell is only
+  honest next to its footnote (`E2E⁴` for Linux means *proven on a macOS host,
+  never executed on Linux*), and cells are not under `check-matrix.mjs` until
+  P3. Rather than hand-copy a slice that could out-claim the repo for one
+  phase, the teaser teaches the tag vocabulary and links out. P3 renders it
+  from `matrix.json`.
+- **P2 — the quickstart is verified verbatim, by a script outside the repo.**
+  It unwraps shell line-continuations, drops trailing comments, and requires
+  each command to appear in `README.md`; all eight match. P5 is command-heavy,
+  so promoting it to `tools/site/check-commands.mjs` belongs there.
+- **P2 — three sentences were corrected during self-review, not after.** The
+  teaser claimed every cell has a footnote (not true) and that five tags are
+  the whole vocabulary (there are nine); the quickstart said all three
+  implementations check themselves "against the same frozen vectors", which
+  undersells `swift test` — 126 tests, not only a vector run.

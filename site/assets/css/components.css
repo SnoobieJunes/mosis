@@ -803,3 +803,255 @@
   /* Headroom for the tooltip, which opens upward. */
   padding-block-start: var(--s-5);
 }
+
+/* ── Home: hero ─────────────────────────────────────────────────────────── */
+
+.hero {
+  padding-block: clamp(var(--s-6), 8vw, var(--s-9)) clamp(var(--s-6), 6vw, var(--s-8));
+}
+
+.hero .label {
+  display: block;
+  margin-block-end: var(--s-3);
+}
+
+.hero .chip {
+  margin-block-start: clamp(var(--s-5), 5vw, var(--s-7));
+}
+
+/* The spec strip: four facts, hairline-separated, mono. Not a feature list. */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) 0;
+  margin: var(--s-5) 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: none;
+}
+
+.facts li {
+  max-width: none;
+  padding-inline: var(--s-3);
+  border-inline-start: var(--hair) solid var(--rail);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.facts li:first-child {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+
+@media (max-width: 619px) {
+  .facts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .facts li {
+    padding: var(--s-2) var(--s-3) var(--s-2) 0;
+    border-inline-start: 0;
+    border-block-start: var(--hair) solid var(--rail);
+  }
+}
+
+/* ── Home: the honest-status band ────────────────────────────────────────
+ * Second thing on the page, deliberately. Plan 10 §8.1: the counter is a
+ * feature, and this sentence is not something to bury below the fold. */
+
+.band {
+  background: var(--ink-2);
+}
+
+.band__grid {
+  display: grid;
+  gap: var(--s-6);
+  padding-block: clamp(var(--s-6), 6vw, var(--s-8));
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .band__grid {
+    grid-template-columns: 1.15fr 1fr;
+    gap: var(--s-8);
+    align-items: start;
+  }
+}
+
+.counter--lg {
+  display: block;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+}
+
+.counter--lg .counter__n {
+  display: block;
+  font-size: clamp(5rem, 16vw, 9rem);
+  line-height: 0.8;
+  letter-spacing: -0.05em;
+}
+
+.counter--lg .counter__what {
+  display: block;
+  margin-block-start: var(--s-3);
+  max-width: 30ch;
+}
+
+/* Three implementations, three real numbers, one date. */
+.figures {
+  display: grid;
+  gap: 0;
+  margin-block-start: var(--s-5);
+  padding-block-start: var(--s-4);
+  border-block-start: var(--hair) solid var(--rail);
+}
+
+.figures div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block: var(--s-2);
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+.figures dt {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.figures dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-small);
+  color: var(--text);
+  text-align: end;
+}
+
+.dateline {
+  display: block;
+  margin-block-start: var(--s-3);
+  color: var(--muted);
+}
+
+/* ── Home: the four claims ──────────────────────────────────────────────── */
+
+.claims {
+  display: grid;
+  gap: var(--s-5);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 760px) {
+  .claims {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-7) var(--s-6);
+  }
+}
+
+.claim {
+  max-width: none;
+  padding-block-start: var(--s-3);
+  border-block-start: 2px solid var(--rail-2);
+}
+
+.claim__n {
+  display: block;
+  color: var(--sig);
+  margin-block-end: var(--s-2);
+}
+
+.claim h3 + p {
+  margin-block-start: var(--s-2);
+}
+
+.claim p {
+  color: var(--muted);
+}
+
+/* ── Call to action ─────────────────────────────────────────────────────── */
+
+.cta {
+  margin-block-start: var(--s-5);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+}
+
+.cta a {
+  text-decoration: none;
+  border-block-end: var(--hair) solid color-mix(in srgb, var(--sig) 45%, transparent);
+  padding-block-end: 2px;
+}
+
+.cta a:hover {
+  border-block-end-color: currentColor;
+}
+
+/* ── Code blocks ────────────────────────────────────────────────────────── */
+
+.code {
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  overflow-x: auto;
+  line-height: 1.75;
+  max-width: none;
+}
+
+.code .c {
+  color: var(--muted);
+}
+
+.quickstart {
+  display: grid;
+  gap: var(--s-5);
+  margin-block-start: var(--s-6);
+}
+
+@media (min-width: 980px) {
+  .quickstart {
+    grid-template-columns: repeat(3, 1fr);
+    align-items: start;
+  }
+}
+
+/* Without this a long command line widens its own column instead of
+ * scrolling inside the <pre>. */
+.quickstart > * {
+  min-width: 0;
+}
+
+.quickstart h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block-end: var(--s-2);
+  border-block-end: var(--hair) solid var(--rail);
+  margin-block-end: var(--s-3);
+}
+
+.quickstart h3 small {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  font-weight: 400;
+  letter-spacing: var(--track-mono);
+  font-stretch: normal;
+  color: var(--sig);
+}

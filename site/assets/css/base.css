@@ -131,6 +131,13 @@ pre,
   color: var(--muted);
 }
 
+/* Mono inside a display headline has to scale with it, or `dev` in a 3rem
+ * headline reads as a typo. */
+:where(h1, h2, h3) code {
+  font-size: 0.68em;
+  letter-spacing: 0.01em;
+}
+
 a {
   color: var(--sig);
   text-decoration-thickness: 1px;
