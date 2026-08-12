@@ -102,6 +102,11 @@
             <span class="state-paired">paired — pinned mutual TLS from here on</span>
           </p>
         </div>
+        <p class="small" style="color: var(--muted); margin-block-start: var(--s-4); max-width: 62ch">
+          It does not have to be your device. Anyone in the room can pair, because
+          the trust is the code on both screens — walk up to the conference Mac,
+          compare six digits, present.
+        </p>
       </section>
 
       <hr class="rail" />
@@ -118,32 +123,32 @@
           <li class="cap">
             <div class="cap__head">
               <h3>Screen — view a peer</h3>
-              <abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e"
-                data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
             </div>
             <p>Watch a peer’s display, or a single window, live.</p>
           </li>
           <li class="cap">
             <div class="cap__head">
               <h3>Screen — source</h3>
-              <abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake"
-                data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
             </div>
             <p>Share your own screen the other direction — a display, or one window.</p>
           </li>
           <li class="cap">
             <div class="cap__head">
               <h3>Clipboard</h3>
-              <abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e"
-                data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
             </div>
             <p>Copy here, paste there. Explicit — nothing syncs behind your back.</p>
           </li>
           <li class="cap">
             <div class="cap__head">
               <h3>File transfer</h3>
-              <abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e"
-                data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
             </div>
             <p>Send a file straight across. Resumes, and checks its own hash.</p>
           </li>
@@ -158,8 +163,8 @@
           <li class="cap">
             <div class="cap__head">
               <h3>Push-share + cast to any browser</h3>
-              <abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e"
-                data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
             </div>
             <p>Throw a screen at any browser in the room. Nothing to install.</p>
           </li>
@@ -172,27 +177,32 @@
       <!-- ── The ask ───────────────────────────────────────────────────── -->
       <section class="band">
         <div class="wrap">
-          <h2>We have the Macs. We need everyone&nbsp;else.</h2>
+          <h2>Verified on an iPhone and a Mac. We need everyone&nbsp;else.</h2>
           <p>
-            The protocol core is proven three ways and macOS, iPhone and the
-            browser viewer have been run by hand. Four platforms in the matrix
-            have never run on real hardware, and that is not a code problem —
-            it is a hardware problem, which makes it the one thing an outsider
-            can actually fix.
+            <span data-total="verified">15</span> cells are
+            device-verified on real hardware — pairing, files, clipboard, the
+            phone driving the Mac as a trackpad, screen sharing both ways, and
+            the browser watch page. Five columns have never run on a device, and
+            that is not a code problem but a hardware one, which makes it the
+            thing an outsider can actually fix.
           </p>
         <ul class="coverage">
           <li class="cov cov--run">
             <span class="cov__name">macOS</span>
-            <span class="cov__state">Sessions run by hand</span>
+            <span class="cov__state">Device-verified: 7 cells</span>
           </li>
           <li class="cov cov--run">
-            <span class="cov__name">iOS / iPadOS</span>
-            <span class="cov__state">iPhone ↔ Mac run by hand; iPad untried</span>
-            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
+            <span class="cov__name">iPhone</span>
+            <span class="cov__state">Device-verified: 6 cells</span>
           </li>
           <li class="cov cov--run">
             <span class="cov__name">Browser</span>
-            <span class="cov__state">Watch page used over real HTTP</span>
+            <span class="cov__state">Device-verified: watch page, real HTTP</span>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">iPad</span>
+            <span class="cov__state">Never tried — should behave like iPhone</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
           </li>
           <li class="cov cov--open">
             <span class="cov__name">Android</span>
@@ -279,8 +289,8 @@
           <span data-total="rows">15</span> capabilities across
           <span data-total="platforms">7</span> columns, each cell naming the
           strongest evidence that exists for it and footnoted with what was
-          actually run. These five tags cover most of them; the full vocabulary
-          lives on the status page.
+          actually run — including <span data-total="verified">15</span> now
+          marked <code>dev</code>, which means verified on hardware.
         </p>
 
         <dl class="legend" style="margin-block-start: var(--s-6)">
@@ -294,6 +304,8 @@
           <dd id="def-bld">compiles / APK assembles — no runtime evidence</dd>
           <dt><span class="tag tag--wall">wall</span></dt>
           <dd id="def-wall">the platform forbids it (documented, not a TODO)</dd>
+          <dt><span class="tag tag--dev">dev</span></dt>
+          <dd id="def-dev">device-verified on real hardware — see ¹⁵ for what was run</dd>
         </dl>
 
         <p class="cta"><a href="status.html">Read the full matrix →</a></p>
@@ -365,9 +377,9 @@ java -cp /tmp/conduit-core.jar \
             cross-device connectivity. Apache-2.0.
           </p>
           <p class="foot-status">
-            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
-            hand. Android, Linux, tvOS and Windows have never run on a device.
-            No cell in the matrix carries a <code>dev</code> tag yet.
+            <b>Hardware so far:</b> 15 of 56
+            cells device-verified, on one iPhone and one Mac. iPad, Android,
+            Linux, tvOS and Windows have never run on a device.
           </p>
         </div>
         <div>

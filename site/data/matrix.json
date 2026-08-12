@@ -33,14 +33,17 @@
       "capabilityRaw": "Discover + pair (code + word pair, TOFU)",
       "cells": [
         {
-          "raw": "E2E",
-          "tag": "E2E"
+          "raw": "dev¹⁵",
+          "tag": "dev",
+          "fn": [
+            15
+          ]
         },
         {
-          "raw": "bld¹",
-          "tag": "bld",
+          "raw": "dev¹⁵",
+          "tag": "dev",
           "fn": [
-            1
+            15
           ]
         },
         {
@@ -82,14 +85,17 @@
       "capabilityRaw": "File transfer (chunked, resumable, SHA-256)",
       "cells": [
         {
-          "raw": "E2E",
-          "tag": "E2E"
+          "raw": "dev¹⁵",
+          "tag": "dev",
+          "fn": [
+            15
+          ]
         },
         {
-          "raw": "bld¹",
-          "tag": "bld",
+          "raw": "dev¹⁵",
+          "tag": "dev",
           "fn": [
-            1
+            15
           ]
         },
         {
@@ -128,14 +134,17 @@
       "capabilityRaw": "Clipboard (both directions, explicit)",
       "cells": [
         {
-          "raw": "E2E",
-          "tag": "E2E"
+          "raw": "dev¹⁵",
+          "tag": "dev",
+          "fn": [
+            15
+          ]
         },
         {
-          "raw": "bld¹",
-          "tag": "bld",
+          "raw": "dev¹⁵",
+          "tag": "dev",
           "fn": [
-            1
+            15
           ]
         },
         {
@@ -178,10 +187,10 @@
           "tag": "E2E"
         },
         {
-          "raw": "bld¹",
-          "tag": "bld",
+          "raw": "dev¹⁵",
+          "tag": "dev",
           "fn": [
-            1
+            15
           ]
         },
         {
@@ -214,11 +223,10 @@
       "capabilityRaw": "Input — receive (be driven)",
       "cells": [
         {
-          "raw": "E2E* fake injector⁵",
-          "tag": "E2E*",
-          "note": "fake injector",
+          "raw": "dev¹⁵",
+          "tag": "dev",
           "fn": [
-            5
+            15
           ]
         },
         {
@@ -257,17 +265,19 @@
       "capabilityRaw": "Screen — source (be watched)",
       "cells": [
         {
-          "raw": "E2E* synthetic capturer⁷",
-          "tag": "E2E*",
-          "note": "synthetic capturer",
+          "raw": "dev¹⁵",
+          "tag": "dev",
           "fn": [
-            7
+            15
           ]
         },
         {
-          "raw": "bld (ReplayKit ext)",
-          "tag": "bld",
-          "note": "(ReplayKit ext)"
+          "raw": "dev (ReplayKit ext)¹⁵",
+          "tag": "dev",
+          "note": "(ReplayKit ext)",
+          "fn": [
+            15
+          ]
         },
         {
           "raw": "wall",
@@ -300,14 +310,17 @@
       "capabilityRaw": "Screen — view a peer",
       "cells": [
         {
-          "raw": "E2E",
-          "tag": "E2E"
+          "raw": "dev¹⁵",
+          "tag": "dev",
+          "fn": [
+            15
+          ]
         },
         {
-          "raw": "bld¹",
-          "tag": "bld",
+          "raw": "dev¹⁵",
+          "tag": "dev",
           "fn": [
-            1
+            15
           ]
         },
         {
@@ -336,11 +349,12 @@
           "tag": "—"
         },
         {
-          "raw": "E2E (push only)¹⁴",
-          "tag": "E2E",
+          "raw": "dev (push only)¹⁴ ¹⁵",
+          "tag": "dev",
           "note": "(push only)",
           "fn": [
-            14
+            14,
+            15
           ]
         }
       ]
@@ -390,11 +404,12 @@
       "capabilityRaw": "Push-share + cast to any browser (HLS + QR)",
       "cells": [
         {
-          "raw": "E2E (real HTTP) ⁹",
-          "tag": "E2E",
+          "raw": "dev (real HTTP)⁹ ¹⁵",
+          "tag": "dev",
           "note": "(real HTTP)",
           "fn": [
-            9
+            9,
+            15
           ]
         },
         {
@@ -419,10 +434,11 @@
           "tag": "—"
         },
         {
-          "raw": "E2E¹⁴",
-          "tag": "E2E",
+          "raw": "dev¹⁴ ¹⁵",
+          "tag": "dev",
           "fn": [
-            14
+            14,
+            15
           ]
         }
       ]
@@ -666,25 +682,27 @@
     }
   ],
   "footnotes": {
-    "1": "Shared `ConduitKit` core: the logic runs in the loopback E2E suite on macOS; the iOS/tvOS app targets build unsigned (`make apple-apps`, four `** BUILD SUCCEEDED **` re-verified today) but no session has run on an iOS/tvOS device with the current code.",
+    "1": "Shared `ConduitKit` core: the logic runs in the loopback E2E suite on macOS; the iOS/tvOS app targets build unsigned (`make apple-apps`, four `** BUILD SUCCEEDED **` re-verified today). No session has run on a **tvOS** device, and any iOS cell not marked `dev` has not been exercised on hardware.",
     "2": "Windows: daemon logic only; new Windows work is **on hold** per [plan 08](docs/plans/08-direct-link-transport.md).",
     "3": "JVM in-process smoke proves the session code with real Ed25519 + pairing math. **No Android device has ever completed pairing** — the gate everything Android waits behind. Per-capability detail: [`android/README.md`](android/README.md).",
     "4": "Go daemon logic proven over loopback on a macOS host (Go↔Go pair+transfer test, plus the live Swift↔Go interop suite). The Linux/Windows binaries cross-compile but **have never been executed on those OSes**.",
-    "5": "The real macOS `CGEvent` injector compiles and is wired (needs Accessibility, non-sandboxed app — ADR 0005) but has never moved a real cursor post-fixes.",
+    "5": "The real macOS `CGEvent` injector needs Accessibility and a non-sandboxed app (ADR 0005). It has now moved a real cursor — see ¹⁵.",
     "6": "Android input receive is an AccessibilityService; keyboard support is a narrow, documented subset — unsupported keys are refused out loud ([`android/README.md`](android/README.md)).",
-    "7": "Real ScreenCaptureKit capture is device-gated (Screen Recording grant).",
+    "7": "Real ScreenCaptureKit capture needs the Screen Recording grant. It has now run with that grant — see ¹⁵.",
     "8": "Decoder + `SurfaceView` exist; **no frame has ever been decoded on an Android device.**",
     "9": "Includes the browser watch page over real HTTP GETs. AirPlay endpoint is built-in; Google Cast / Matter Casting are real code behind their SDKs (SDK-gated, unvalidated — ADR 0011). HLS runs seconds behind: for watching, not controlling.",
     "10": "The Go→Swift notification path is E2E-tested on host; the OS hooks (Linux D-Bus / Windows WinRT sources) are stubs.",
     "11": "Implemented today (2026-07-26): entitlement granted, `_mosis-aware._tcp` published/subscribed over the iOS 26 Network API, same pinned mutual TLS, OS-level `WAPairedDevice` pairing UI in the app, flag ON for iOS with runtime self-gating. **Compile-verified only** — not one Aware byte has ever flowed; needs two Aware-capable iPhones/iPads. Aware-only sessions would carry video on the control-lane fallback (~2.5 Mbps) until plan 08 lands QUIC.",
     "12": "Android's `WifiAwareBackend` was rewritten to be capable of working (2026-07-26) but nothing instantiates it ([`docs/interop-status.md`](docs/interop-status.md)).",
     "13": "Linux via the Go core (`core/screencast/` + `conduitview`, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have **never executed on a Linux box** — per-row ledger in [plan 09](docs/plans/09-linux-screen-and-control.md), runbook in [`docs/linux.md`](docs/linux.md).",
-    "14": "**Browser** is not a platform port — there is no browser client. It is what a plain web browser can do with no MOSIS app installed: watch a screen a Mac pushes to it (HLS over real HTTP, URL + QR), and nothing else. It cannot pair, cannot initiate a pull, and cannot send anything back."
+    "14": "**Browser** is not a platform port — there is no browser client. It is what a plain web browser can do with no MOSIS app installed: watch a screen a Mac pushes to it (HLS over real HTTP, URL + QR), and nothing else. It cannot pair, cannot initiate a pull, and cannot send anything back.",
+    "15": "**Device-verified 2026-08-11**, hands-on by the author on one real iPhone and one real Mac: pairing, file transfer, clipboard, the iPhone driving the Mac's pointer and keyboard as a trackpad, and screen sharing **both** directions — so the real `CGEvent` injector moved a real cursor and real ScreenCaptureKit capture ran, neither of which had happened before. The browser watch page was used over real HTTP from another device. This was hands-on use, **not** a full [`DEVICE_CHECKLIST.md`](docs/DEVICE_CHECKLIST.md) walk. **iPad has not been tried** (iPhone only), and nothing here touches Android, Linux, tvOS or Windows."
   },
   "totals": {
     "rows": 15,
     "platforms": 7,
     "cells": 105,
-    "claimed": 56
+    "claimed": 56,
+    "verified": 15
   }
 }

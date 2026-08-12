@@ -72,27 +72,32 @@
       <!-- ── The ask ───────────────────────────────────────────────────── -->
       <section class="band">
         <div class="wrap">
-          <h2>The tags are conservative on purpose. Help us raise&nbsp;them.</h2>
+          <h2>15 cells verified on hardware.
+          41 still&nbsp;waiting.</h2>
           <p>
-            A cell turns <code>dev</code> when someone walks
-            <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/DEVICE_CHECKLIST.md">the scripted
-            session</a> on real hardware and reports what happened. macOS,
-            iPhone and the browser viewer have been run by hand; four columns
-            have never run on a device at all.
+            A cell turns <code>dev</code> when someone runs it on a real device
+            and reports what happened — the script is
+            <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/DEVICE_CHECKLIST.md">DEVICE_CHECKLIST.md</a>.
+            One iPhone and one Mac account for every <code>dev</code> tag below;
+            five columns have never run on a device at all.
           </p>
         <ul class="coverage">
           <li class="cov cov--run">
             <span class="cov__name">macOS</span>
-            <span class="cov__state">Sessions run by hand</span>
+            <span class="cov__state">Device-verified: 7 cells</span>
           </li>
           <li class="cov cov--run">
-            <span class="cov__name">iOS / iPadOS</span>
-            <span class="cov__state">iPhone ↔ Mac run by hand; iPad untried</span>
-            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
+            <span class="cov__name">iPhone</span>
+            <span class="cov__state">Device-verified: 6 cells</span>
           </li>
           <li class="cov cov--run">
             <span class="cov__name">Browser</span>
-            <span class="cov__state">Watch page used over real HTTP</span>
+            <span class="cov__state">Device-verified: watch page, real HTTP</span>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">iPad</span>
+            <span class="cov__state">Never tried — should behave like iPhone</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
           </li>
           <li class="cov cov--open">
             <span class="cov__name">Android</span>
@@ -171,8 +176,8 @@
             <tbody>
           <tr data-cap="discover + pair (code + word pair, tofu)">
             <th scope="row">Discover + pair (code + word pair, TOFU)</th>
-            <td data-col="1" data-tag="E2E" data-fn=""><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr></td>
-            <td data-col="2" data-tag="bld" data-fn="1"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-1" aria-label="footnote 1">1</a></td>
+            <td data-col="1" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
+            <td data-col="2" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="3" data-tag="bld" data-fn="1"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-1" aria-label="footnote 1">1</a></td>
             <td data-col="4" data-tag="smoke" data-fn="3"><abbr class="tag tag--smoke" tabindex="0" aria-describedby="def-smoke" data-def="Kotlin/JVM in-process session smoke (real crypto, no Android)">smoke</abbr> <a class="fn" href="#fn-3" aria-label="footnote 3">3</a></td>
             <td data-col="5" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
@@ -181,8 +186,8 @@
           </tr>
           <tr data-cap="file transfer (chunked, resumable, sha-256)">
             <th scope="row">File transfer (chunked, resumable, SHA-256)</th>
-            <td data-col="1" data-tag="E2E" data-fn=""><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr></td>
-            <td data-col="2" data-tag="bld" data-fn="1"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-1" aria-label="footnote 1">1</a></td>
+            <td data-col="1" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
+            <td data-col="2" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="3" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="4" data-tag="smoke" data-fn="3"><abbr class="tag tag--smoke" tabindex="0" aria-describedby="def-smoke" data-def="Kotlin/JVM in-process session smoke (real crypto, no Android)">smoke</abbr> <a class="fn" href="#fn-3" aria-label="footnote 3">3</a></td>
             <td data-col="5" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
@@ -191,8 +196,8 @@
           </tr>
           <tr data-cap="clipboard (both directions, explicit)">
             <th scope="row">Clipboard (both directions, explicit)</th>
-            <td data-col="1" data-tag="E2E" data-fn=""><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr></td>
-            <td data-col="2" data-tag="bld" data-fn="1"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-1" aria-label="footnote 1">1</a></td>
+            <td data-col="1" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
+            <td data-col="2" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="3" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="4" data-tag="smoke" data-fn="3"><abbr class="tag tag--smoke" tabindex="0" aria-describedby="def-smoke" data-def="Kotlin/JVM in-process session smoke (real crypto, no Android)">smoke</abbr> <a class="fn" href="#fn-3" aria-label="footnote 3">3</a></td>
             <td data-col="5" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
@@ -202,7 +207,7 @@
           <tr data-cap="input — send (drive a peer)">
             <th scope="row">Input — send (drive a peer)</th>
             <td data-col="1" data-tag="E2E" data-fn=""><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr></td>
-            <td data-col="2" data-tag="bld" data-fn="1"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-1" aria-label="footnote 1">1</a></td>
+            <td data-col="2" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="3" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="4" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr></td>
             <td data-col="5" data-tag="E2E*" data-fn="13"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <a class="fn" href="#fn-13" aria-label="footnote 13">13</a></td>
@@ -211,7 +216,7 @@
           </tr>
           <tr data-cap="input — receive (be driven)">
             <th scope="row">Input — receive (be driven)</th>
-            <td data-col="1" data-tag="E2E*" data-fn="5"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <span class="cell__note">fake injector</span> <a class="fn" href="#fn-5" aria-label="footnote 5">5</a></td>
+            <td data-col="1" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="2" data-tag="wall" data-fn="" class="hatch"><abbr class="tag tag--wall" tabindex="0" aria-describedby="def-wall" data-def="the platform forbids it (documented, not a TODO)">wall</abbr></td>
             <td data-col="3" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="4" data-tag="bld" data-fn="6"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-6" aria-label="footnote 6">6</a></td>
@@ -221,8 +226,8 @@
           </tr>
           <tr data-cap="screen — source (be watched)">
             <th scope="row">Screen — source (be watched)</th>
-            <td data-col="1" data-tag="E2E*" data-fn="7"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <span class="cell__note">synthetic capturer</span> <a class="fn" href="#fn-7" aria-label="footnote 7">7</a></td>
-            <td data-col="2" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <span class="cell__note">(ReplayKit ext)</span></td>
+            <td data-col="1" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
+            <td data-col="2" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <span class="cell__note">(ReplayKit ext)</span> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="3" data-tag="wall" data-fn="" class="hatch"><abbr class="tag tag--wall" tabindex="0" aria-describedby="def-wall" data-def="the platform forbids it (documented, not a TODO)">wall</abbr></td>
             <td data-col="4" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <span class="cell__note">(MediaProjection)</span></td>
             <td data-col="5" data-tag="E2E*" data-fn="13"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <a class="fn" href="#fn-13" aria-label="footnote 13">13</a></td>
@@ -231,13 +236,13 @@
           </tr>
           <tr data-cap="screen — view a peer">
             <th scope="row">Screen — view a peer</th>
-            <td data-col="1" data-tag="E2E" data-fn=""><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr></td>
-            <td data-col="2" data-tag="bld" data-fn="1"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-1" aria-label="footnote 1">1</a></td>
+            <td data-col="1" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
+            <td data-col="2" data-tag="dev" data-fn="15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="3" data-tag="bld" data-fn="1"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-1" aria-label="footnote 1">1</a></td>
             <td data-col="4" data-tag="bld" data-fn="8"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-8" aria-label="footnote 8">8</a></td>
             <td data-col="5" data-tag="E2E*" data-fn="13"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <a class="fn" href="#fn-13" aria-label="footnote 13">13</a></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
-            <td data-col="7" data-tag="E2E" data-fn="14"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <span class="cell__note">(push only)</span> <a class="fn" href="#fn-14" aria-label="footnote 14">14</a></td>
+            <td data-col="7" data-tag="dev" data-fn="14,15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <span class="cell__note">(push only)</span> <a class="fn" href="#fn-14" aria-label="footnote 14">14</a> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
           </tr>
           <tr data-cap="watch and drive, one surface (adr 0015 absolute pointing)">
             <th scope="row">Watch <strong>and</strong> drive, one surface (ADR 0015 absolute pointing)</th>
@@ -251,13 +256,13 @@
           </tr>
           <tr data-cap="push-share + cast to any browser (hls + qr)">
             <th scope="row">Push-share + cast to any browser (HLS + QR)</th>
-            <td data-col="1" data-tag="E2E" data-fn="9"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <span class="cell__note">(real HTTP)</span> <a class="fn" href="#fn-9" aria-label="footnote 9">9</a></td>
+            <td data-col="1" data-tag="dev" data-fn="9,15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <span class="cell__note">(real HTTP)</span> <a class="fn" href="#fn-9" aria-label="footnote 9">9</a> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
             <td data-col="2" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="3" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="4" data-tag="" data-fn=""><span class="cell__note">(browser plays it)</span></td>
             <td data-col="5" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
-            <td data-col="7" data-tag="E2E" data-fn="14"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-14" aria-label="footnote 14">14</a></td>
+            <td data-col="7" data-tag="dev" data-fn="14,15"><abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev" data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr> <a class="fn" href="#fn-14" aria-label="footnote 14">14</a> <a class="fn" href="#fn-15" aria-label="footnote 15">15</a></td>
           </tr>
           <tr data-cap="multi-viewer, per-peer view-only/control, live revoke">
             <th scope="row">Multi-viewer, per-peer view-only/control, live revoke</th>
@@ -336,15 +341,15 @@
         </p>
         <dl class="legend legend--counted" style="margin-block-start: var(--s-6)">
           <dt><span class="tag tag--e2e">E2E</span></dt>
-          <dd id="def-e2e">automated end-to-end over real TLS sockets, same host (loopback) <span class="legend__n">16 cells</span></dd>
+          <dd id="def-e2e">automated end-to-end over real TLS sockets, same host (loopback) <span class="legend__n">9 cells</span></dd>
           <dt><span class="tag tag--e2e-fake">E2E*</span></dt>
-          <dd id="def-e2e-fake">E2E with a fake at the hardware seam (fake injector / synthetic capturer) <span class="legend__n">7 cells</span></dd>
+          <dd id="def-e2e-fake">E2E with a fake at the hardware seam (fake injector / synthetic capturer) <span class="legend__n">5 cells</span></dd>
           <dt><span class="tag tag--unit">unit</span></dt>
           <dd id="def-unit">unit-tested logic <span class="legend__n">2 cells</span></dd>
           <dt><span class="tag tag--smoke">smoke</span></dt>
           <dd id="def-smoke">Kotlin/JVM in-process session smoke (real crypto, no Android) <span class="legend__n">3 cells</span></dd>
           <dt><span class="tag tag--bld">bld</span></dt>
-          <dd id="def-bld">compiles / APK assembles — no runtime evidence <span class="legend__n">22 cells</span></dd>
+          <dd id="def-bld">compiles / APK assembles — no runtime evidence <span class="legend__n">16 cells</span></dd>
           <dt><span class="tag tag--code">code</span></dt>
           <dd id="def-code">written but unreachable or uninstantiated — weaker than <code>bld</code> <span class="legend__n">6 cells</span></dd>
           <dt><span class="tag tag--wall">wall</span></dt>
@@ -352,7 +357,7 @@
           <dt><span class="tag tag--none">—</span></dt>
           <dd id="def-none">not implemented <span class="legend__n">42 cells</span></dd>
           <dt><span class="tag tag--dev">dev</span></dt>
-          <dd id="def-dev">device-verified on real hardware — this tag appears nowhere yet <span class="legend__n">0 cells</span></dd>
+          <dd id="def-dev">device-verified on real hardware — see ¹⁵ for what was run <span class="legend__n">15 cells</span></dd>
         </dl>
       </section>
 
@@ -385,16 +390,16 @@
         <h2>Every footnote is the README's, word for&nbsp;word.</h2>
         <p>
           They are where a cell stops being a colour and starts being something
-          you can go and check. 14 of them, unedited.
+          you can go and check. 15 of them, unedited.
         </p>
         <ol class="footnotes" style="margin-block-start: var(--s-5)">
-          <li id="fn-1" value="1">Shared <code>ConduitKit</code> core: the logic runs in the loopback E2E suite on macOS; the iOS/tvOS app targets build unsigned (<code>make apple-apps</code>, four <code><strong> BUILD SUCCEEDED </strong></code> re-verified today) but no session has run on an iOS/tvOS device with the current code.</li>
+          <li id="fn-1" value="1">Shared <code>ConduitKit</code> core: the logic runs in the loopback E2E suite on macOS; the iOS/tvOS app targets build unsigned (<code>make apple-apps</code>, four <code><strong> BUILD SUCCEEDED </strong></code> re-verified today). No session has run on a <strong>tvOS</strong> device, and any iOS cell not marked <code>dev</code> has not been exercised on hardware.</li>
           <li id="fn-2" value="2">Windows: daemon logic only; new Windows work is <strong>on hold</strong> per <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/08-direct-link-transport.md">plan 08</a>.</li>
           <li id="fn-3" value="3">JVM in-process smoke proves the session code with real Ed25519 + pairing math. <strong>No Android device has ever completed pairing</strong> — the gate everything Android waits behind. Per-capability detail: <a href="https://github.com/SnoobieJunes/conduit/blob/main/android/README.md"><code>android/README.md</code></a>.</li>
           <li id="fn-4" value="4">Go daemon logic proven over loopback on a macOS host (Go↔Go pair+transfer test, plus the live Swift↔Go interop suite). The Linux/Windows binaries cross-compile but <strong>have never been executed on those OSes</strong>.</li>
-          <li id="fn-5" value="5">The real macOS <code>CGEvent</code> injector compiles and is wired (needs Accessibility, non-sandboxed app — ADR 0005) but has never moved a real cursor post-fixes.</li>
+          <li id="fn-5" value="5">The real macOS <code>CGEvent</code> injector needs Accessibility and a non-sandboxed app (ADR 0005). It has now moved a real cursor — see ¹⁵.</li>
           <li id="fn-6" value="6">Android input receive is an AccessibilityService; keyboard support is a narrow, documented subset — unsupported keys are refused out loud (<a href="https://github.com/SnoobieJunes/conduit/blob/main/android/README.md"><code>android/README.md</code></a>).</li>
-          <li id="fn-7" value="7">Real ScreenCaptureKit capture is device-gated (Screen Recording grant).</li>
+          <li id="fn-7" value="7">Real ScreenCaptureKit capture needs the Screen Recording grant. It has now run with that grant — see ¹⁵.</li>
           <li id="fn-8" value="8">Decoder + <code>SurfaceView</code> exist; <strong>no frame has ever been decoded on an Android device.</strong></li>
           <li id="fn-9" value="9">Includes the browser watch page over real HTTP GETs. AirPlay endpoint is built-in; Google Cast / Matter Casting are real code behind their SDKs (SDK-gated, unvalidated — ADR 0011). HLS runs seconds behind: for watching, not controlling.</li>
           <li id="fn-10" value="10">The Go→Swift notification path is E2E-tested on host; the OS hooks (Linux D-Bus / Windows WinRT sources) are stubs.</li>
@@ -402,6 +407,7 @@
           <li id="fn-12" value="12">Android's <code>WifiAwareBackend</code> was rewritten to be capable of working (2026-07-26) but nothing instantiates it (<a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/interop-status.md"><code>docs/interop-status.md</code></a>).</li>
           <li id="fn-13" value="13">Linux via the Go core (<code>core/screencast/</code> + <code>conduitview</code>, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have <strong>never executed on a Linux box</strong> — per-row ledger in <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/09-linux-screen-and-control.md">plan 09</a>, runbook in <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/linux.md"><code>docs/linux.md</code></a>.</li>
           <li id="fn-14" value="14"><strong>Browser</strong> is not a platform port — there is no browser client. It is what a plain web browser can do with no MOSIS app installed: watch a screen a Mac pushes to it (HLS over real HTTP, URL + QR), and nothing else. It cannot pair, cannot initiate a pull, and cannot send anything back.</li>
+          <li id="fn-15" value="15"><strong>Device-verified 2026-08-11</strong>, hands-on by the author on one real iPhone and one real Mac: pairing, file transfer, clipboard, the iPhone driving the Mac's pointer and keyboard as a trackpad, and screen sharing <strong>both</strong> directions — so the real <code>CGEvent</code> injector moved a real cursor and real ScreenCaptureKit capture ran, neither of which had happened before. The browser watch page was used over real HTTP from another device. This was hands-on use, <strong>not</strong> a full <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/DEVICE_CHECKLIST.md"><code>DEVICE_CHECKLIST.md</code></a> walk. <strong>iPad has not been tried</strong> (iPhone only), and nothing here touches Android, Linux, tvOS or Windows.</li>
         </ol>
       </section>
     </main>
@@ -424,9 +430,9 @@
             cross-device connectivity. Apache-2.0.
           </p>
           <p class="foot-status">
-            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
-            hand. Android, Linux, tvOS and Windows have never run on a device.
-            No cell in the matrix carries a <code>dev</code> tag yet.
+            <b>Hardware so far:</b> 15 of 56
+            cells device-verified, on one iPhone and one Mac. iPad, Android,
+            Linux, tvOS and Windows have never run on a device.
           </p>
         </div>
         <div>

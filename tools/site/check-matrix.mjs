@@ -35,8 +35,9 @@ function footnotesOf(text) {
   return (text.match(SUP_RE) || []).map((run) => Number([...run].map((c) => SUP[c]).join('')));
 }
 
-// Longest tag first: `E2E*` has to win over `E2E`.
-const TAGS = ['E2E*', 'E2E', 'unit', 'smoke', 'bld', 'code', 'wall', '—'];
+// Longest tag first: `E2E*` has to win over `E2E`. `dev` was absent from this
+// list while it was unreachable; it is reachable now.
+const TAGS = ['E2E*', 'E2E', 'unit', 'smoke', 'bld', 'code', 'dev', 'wall', '—'];
 
 function parseCell(raw) {
   const bold = /^\*\*.*\*\*/.test(raw.replace(SUP_RE, ''));
@@ -143,6 +144,7 @@ function parseReadme() {
         platforms: platforms.length,
         cells: rows.length * platforms.length,
         claimed,
+        verified: counts.dev ?? 0,
       },
     },
     evidence: {
@@ -234,30 +236,55 @@ else {
   }
 }
 
-// 4. The guardrail, enforced rather than remembered.
-if (fresh.evidence.deviceVerified !== 0) {
-  fail(`README now has ${fresh.evidence.deviceVerified} dev cell(s) — the site's zero counter is stale, update it deliberately`);
-}
-// A `dev` pill is allowed in exactly one place: a legend, where it is a
-// definition sitting next to the count 0. Anywhere else — above all in a
-// table cell — it would be a claim, which is what §8.1 forbids.
+// 4. `dev` is the tag that matters most, so it is counted, not trusted.
+const DEV = fresh.evidence.counts.dev ?? 0;
+const macTag = (cap) => {
+  const hits = fresh.matrix.rows.filter(
+    (r) => r.capability === cap || r.capability.startsWith(cap + ' ('),
+  );
+  return hits.length === 1 ? (hits[0].cells[0].tag ?? '') : null;
+};
+
 for (const page of ['index', 'status', 'story', 'protocol', 'roadmap', 'build']) {
   const src = readFileSync(path.join(ROOT, `site/${page}.html`), 'utf8');
 
-  for (const cell of src.match(/<td[\s\S]*?<\/td>/g) ?? []) {
-    if (/\btag--dev\b/.test(cell)) fail(`site/${page}.html: a table cell renders a dev tag`);
+  // The matrix renders exactly as many dev cells as the README earns.
+  const cells = src.match(/<td[\s\S]*?<\/td>/g) ?? [];
+  const inCells = cells.filter((c) => /\btag--dev\b/.test(c)).length;
+  if (page === 'status' && inCells !== DEV) {
+    fail(`site/status.html renders ${inCells} dev cell(s); README has ${DEV}`);
+  }
+  if (page !== 'status' && inCells) {
+    fail(`site/${page}.html renders a dev tag in a table cell; only the matrix may`);
   }
 
-  const legends = (src.match(/<dl class="legend[\s\S]*?<\/dl>/g) ?? []).join('');
-  const outside = src.replace(/<dl class="legend[\s\S]*?<\/dl>/g, '');
-  if (/\btag--dev\b/.test(outside)) fail(`site/${page}.html renders a dev tag outside a legend`);
-
-  // And the legend entry has to keep saying zero.
-  if (/\btag--dev\b/.test(legends)) {
-    const entry = legends.match(/<dd id="def-dev"[^>]*>([\s\S]*?)<\/dd>/)?.[1] ?? '';
-    if (/\bcell\b/.test(entry) && !/>0 cells</.test(entry)) {
-      fail(`site/${page}.html: the dev legend entry does not read "0 cells"`);
+  // The home page's capability cards carry the macOS tag for that capability.
+  // Checking every card, not just the dev ones, is what makes a dev pill there
+  // trustworthy at all.
+  for (const card of src.match(/<li class="cap">[\s\S]*?<\/li>/g) ?? []) {
+    const name = card.match(/<h3>([^<]*)<\/h3>/)?.[1]?.trim();
+    const tag = card.match(/<abbr class="tag tag--[\w-]+"[^>]*>([^<]*)<\/abbr>/)?.[1]?.trim();
+    if (!name || !tag) {
+      fail(`site/${page}.html: a capability card is missing its name or tag`);
+      continue;
     }
+    const want = macTag(name);
+    if (want === null) fail(`site/${page}.html: capability card "${name}" matches no single matrix row`);
+    else if (want !== tag) fail(`site/${page}.html: card "${name}" shows ${tag}; macOS cell is ${want}`);
+  }
+
+  // Anywhere else, a dev pill would be an unbacked claim.
+  const stripped = src
+    .replace(/<dl class="legend[\s\S]*?<\/dl>/g, '')
+    .replace(/<td[\s\S]*?<\/td>/g, '')
+    .replace(/<li class="cap">[\s\S]*?<\/li>/g, '');
+  if (/\btag--dev\b/.test(stripped)) {
+    fail(`site/${page}.html renders a dev tag outside a matrix cell, a card and a legend`);
+  }
+
+  const shown = src.match(/<dd id="def-dev"[^>]*>[\s\S]*?>(\d+) cells?</)?.[1];
+  if (shown !== undefined && Number(shown) !== DEV) {
+    fail(`site/${page}.html: the dev legend reads ${shown} cells; README has ${DEV}`);
   }
 }
 
@@ -299,7 +326,7 @@ console.log(
       .concat(c.none ? [`untagged ${c.none}`] : [])
       .join(' · '),
 );
-console.log(`  ${t.claimed} cells name an implementation and could one day turn dev; ${c.dev ?? 0} have.`);
+console.log(`  ${t.claimed} cells name an implementation and could carry dev; ${c.dev ?? 0} do.`);
 const f = fresh.figures;
 console.log(`  seal: Swift ${f.swift} tests · Go ${f.go} vectors · Kotlin ${f.kotlin} vectors`);
 

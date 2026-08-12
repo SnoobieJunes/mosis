@@ -77,14 +77,13 @@
             <div>
               <h3>Device truth</h3>
               <p>
-                Every capability tag turns <code>dev</code> when someone walks
-                the device checklist on real hardware. macOS, iPhone and the
-                browser viewer have been run by hand;
-                <span data-total="claimed">56</span> cells could
-                carry the tag once the checklist is walked.
+                <span data-total="verified">15</span> of
+                <span data-total="claimed">56</span> cells carry
+                <code>dev</code>, all of them on one iPhone and one Mac. The
+                rest need hardware nobody on this project owns.
               </p>
             </div>
-            <span class="mark mark--part"><span data-total="claimed">56</span> cells to walk</span>
+            <span class="mark mark--part"><span data-total="verified">15</span> / <span data-total="claimed">56</span> verified</span>
           </li>
           <li class="horizon">
             <span class="horizon__n">Horizon 2</span>
@@ -93,11 +92,12 @@
               <p>
                 QUIC as the primary transport, plus the direct-link ladder below,
                 so two devices can link with no router at all. Both decisions are
-                accepted as design; every claim in them is intent until the
-                spikes pass.
+                accepted as design, and the ladder's second rung is already
+                exercised on hardware. Soft-AP and manual hotspot are intent
+                until their spikes pass.
               </p>
             </div>
-            <span class="mark mark--gone">design accepted</span>
+            <span class="mark mark--part">2 of 4 rungs proven</span>
           </li>
           <li class="horizon">
             <span class="horizon__n">Horizon 3</span>
@@ -117,10 +117,11 @@
       <hr class="rail" />
 
       <section class="wrap">
-        <h2>The link ladder: only the first rung is&nbsp;proven.</h2>
+        <h2>The link ladder: two rungs down, two to&nbsp;go.</h2>
         <p>
-          When there is no shared network, MOSIS should walk down to whatever
-          still works. The rail below is lit exactly as far as the evidence goes.
+          When there is no shared network, MOSIS walks down to whatever still
+          works. The rail below is lit exactly as far as the evidence goes — and
+          it now reaches the rung that needs no router.
         </p>
         <ol class="ladder">
           <li class="rung rung--proven">
@@ -129,11 +130,11 @@
             <span class="mark mark--done">proven</span>
             <p>The status quo. mDNS discovery, direct dial, pinned mutual TLS — every session today runs here.</p>
           </li>
-          <li class="rung">
+          <li class="rung rung--proven">
             <span class="rung__n">02</span>
             <h3>Same-vendor P2P</h3>
-            <span class="mark mark--part">spike pending</span>
-            <p>Apple↔Apple over AWDL, iPhone↔iPad over Wi-Fi Aware. The Aware backend is written and compile-verified; no byte has flowed.</p>
+            <span class="mark mark--done">proven</span>
+            <p>Apple↔Apple over AWDL has been exercised on real hardware. The Wi-Fi Aware half — iPhone↔iPad — is written and compile-verified; no byte has flowed over it.</p>
           </li>
           <li class="rung">
             <span class="rung__n">03</span>
@@ -266,9 +267,9 @@
             cross-device connectivity. Apache-2.0.
           </p>
           <p class="foot-status">
-            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
-            hand. Android, Linux, tvOS and Windows have never run on a device.
-            No cell in the matrix carries a <code>dev</code> tag yet.
+            <b>Hardware so far:</b> 15 of 56
+            cells device-verified, on one iPhone and one Mac. iPad, Android,
+            Linux, tvOS and Windows have never run on a device.
           </p>
         </div>
         <div>

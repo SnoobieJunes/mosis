@@ -268,5 +268,36 @@ quote for the benefits of peer-to-peer, add a Browser column.
 2. **AWDL.** You said it was tested. That would move path-ladder rung 2 off
    "spike pending", and possibly more. I did not act on it, because I cannot
    tell from here what was exercised or on what. What did you run?
-3. **iPad.** You said it "should work the same" as iPhone. The coverage panel
-   says "iPad untried" — the conservative reading. Correct?
+### Answered, and acted on (2026-08-11)
+
+1. **Pairing is not restricted to your own devices.** The `/story` section
+   claiming "presenting to a device you don't own" was a gap was simply wrong,
+   and it came from plan 06's gap analysis. Anyone in the room can pair —
+   the trust is the six digits and the word pair on both screens. That section
+   now says the 2013 demo's hardest promise works, and the pairing chip on `/`
+   says so too. **Plan 06 §"The real gaps" items 1 and 2 should be corrected or
+   struck; the site no longer agrees with them.**
+2. **15 cells now carry `dev`**, from the iPhone ↔ Mac session: pairing, file
+   transfer, clipboard, iPhone-drives-Mac, screen sharing both ways, and the
+   browser watch page. Marked as macOS ×7, iOS ×6, Browser ×2 — the exact list
+   is in the commit message and in README footnote ¹⁵. Two long-standing fakes
+   are retired with it: footnote ⁵ (the `CGEvent` injector had never moved a
+   real cursor) and footnote ⁷ (real ScreenCaptureKit capture was device-gated).
+3. **AWDL moved past design.** Path-ladder rung 2 reads *proven* for the
+   Apple↔Apple half; the Wi-Fi Aware half (iPhone↔iPad) is still written-only.
+   README's plan-08 bullet says the same. **ADR 0017 and plan 08 still describe
+   the whole ladder as design — they are outside `site/` and are yours to
+   update.**
+4. **iPad is listed as untried**, in its own coverage tile with an "I have one"
+   link.
+
+### Still open
+
+- **`Watch and drive, one surface` was not marked `dev`.** You listed screen
+  sharing and the trackpad separately; ADR 0015's absolute-pointing surface is
+  a distinct capability and I did not assume it. If you drove the Mac *while*
+  watching it, say so and it turns.
+- **Multi-viewer likewise stayed at `E2E`** — more than one viewer at once was
+  not in your list.
+- **`docs/protocol.md` still says "Two implementations pass these vectors
+  byte-for-byte."** Kotlin is the third. Unchanged from before; still yours.

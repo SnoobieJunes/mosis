@@ -20,18 +20,19 @@
     "code": "written but unreachable or uninstantiated — weaker than `bld`",
     "wall": "the platform forbids it (documented, not a TODO)",
     "—": "not implemented",
-    "dev": "device-verified on real hardware — this tag appears nowhere yet"
+    "dev": "device-verified on real hardware — see ¹⁵ for what was run"
   },
   "counts": {
-    "E2E": 16,
-    "bld": 22,
+    "dev": 15,
+    "bld": 16,
     "smoke": 3,
+    "E2E": 9,
     "—": 42,
-    "E2E*": 7,
+    "E2E*": 5,
     "wall": 6,
     "none": 1,
     "code": 6,
     "unit": 2
   },
-  "deviceVerified": 0
+  "deviceVerified": 15
 }
