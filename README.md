@@ -31,8 +31,8 @@ Decisions: [`docs/adr/`](docs/adr). Working plans: [`docs/plans/`](docs/plans).
 
 ## Status, honestly
 
-**Nothing in this repo is device-verified as of 2026-07-26.** That sentence is
-the most important one in this README. What *is* true:
+**The protocol core is proven three ways; hardware coverage is uneven, and
+that is where help is wanted.** What is true:
 
 - The wire protocol, crypto, pairing, TLS identity, and codec pipeline are
   proven by **three independent implementations** (Swift, Go, Kotlin) that are
@@ -43,12 +43,18 @@ the most important one in this README. What *is* true:
 - Every end-to-end test runs over **real TLS sockets on the same host**, with
   fakes at exactly two hardware seams (screen capturer, input injector) — the
   fakes are named wherever they stand in.
-- **No current build has completed a session on physical hardware.** An
-  earlier build did pair and hold an iPhone↔Mac session — that session is what
-  exposed the broken screen/input paths the recent work fixed — but the fixes
-  themselves, the partial rename, and everything Android have not been run on
-  any device. Android has never completed a device session at all, including
-  pairing.
+- **15 cells are device-verified** on one real iPhone and one real Mac
+  (2026-08-11, footnote ¹⁵): pairing, files, clipboard, the iPhone driving the
+  Mac as a trackpad, screen sharing both directions, and the browser watch
+  page. That run retired the two long-standing fakes — the real `CGEvent`
+  injector moved a real cursor, and real ScreenCaptureKit capture ran. It was
+  hands-on use, not a full
+  [`DEVICE_CHECKLIST.md`](docs/DEVICE_CHECKLIST.md) walk.
+- **Nobody has run Android, Linux, Windows or tvOS on hardware at all**, and
+  Android has never completed a pairing. iPad has not been tried either. If
+  you own one of those, a single completed `DEVICE_CHECKLIST.md` run is the
+  most valuable contribution available to this project right now — see
+  [CONTRIBUTING.md](CONTRIBUTING.md).
 
 This project once shipped three broken headline features under a fully green
 test suite, because every E2E ran same-process over loopback with fakes and CI
@@ -59,9 +65,9 @@ names its verification method — is why the matrix below has a tag in every
 cell. [`docs/TESTING_PLAN.md`](docs/TESTING_PLAN.md) is the full
 what-is-proven-vs-gated ledger.
 
-There is no demo GIF yet, deliberately: it waits for a real device session
-([plan 02](docs/plans/02-device-truth-beta.md)), not a screen recording of a
-test harness.
+There is no demo GIF yet, deliberately: it waits for a checklist-verified
+device session ([plan 02](docs/plans/02-device-truth-beta.md)), not a screen
+recording of a test harness.
 
 ## Capability × platform matrix
 
@@ -77,30 +83,30 @@ How to read a cell — the tag is the **strongest evidence that exists**:
 | `code` | written but unreachable or uninstantiated — weaker than `bld` |
 | `wall` | the platform forbids it (documented, not a TODO) |
 | `—` | not implemented |
-| `dev` | device-verified on real hardware — **this tag appears nowhere yet** |
+| `dev` | device-verified on real hardware — see ¹⁵ for what was run |
 
-| Capability | macOS | iOS/iPadOS | tvOS | Android | Linux | Windows² |
-|---|---|---|---|---|---|---|
-| Discover + pair (code + word pair, TOFU) | E2E | bld¹ | bld¹ | smoke³ | E2E⁴ | E2E⁴ |
-| File transfer (chunked, resumable, SHA-256) | E2E | bld¹ | — | smoke³ | E2E⁴ | E2E⁴ |
-| Clipboard (both directions, explicit) | E2E | bld¹ | — | smoke³ | E2E⁴ | E2E⁴ |
-| Input — send (drive a peer) | E2E | bld¹ | — | bld | E2E*¹³ | — |
-| Input — receive (be driven) | E2E* fake injector⁵ | wall | — | bld⁶ | bld (uinput) | bld (SendInput) |
-| Screen — source (be watched) | E2E* synthetic capturer⁷ | bld (ReplayKit ext) | wall | bld (MediaProjection) | E2E*¹³ | — |
-| Screen — view a peer | E2E | bld¹ | bld¹ | bld⁸ | E2E*¹³ | — |
-| Watch **and** drive, one surface (ADR 0015 absolute pointing) | E2E* | bld¹ | — | bld | E2E*¹³ | — |
-| Push-share + cast to any browser (HLS + QR) | E2E (real HTTP) ⁹ | — | — | (browser plays it) | — | — |
-| Multi-viewer, per-peer view-only/control, live revoke | E2E | bld¹ | bld¹ | — | — | — |
-| Notifications (source → display) | E2E (display) | bld¹ | — | bld (listener svc) | code¹⁰ | code¹⁰ |
-| Phone as Bluetooth HID peripheral | wall | wall | — | bld (needs 2 devices) | — | — |
-| Wi-Fi Aware (link with no router) | wall | **bld — flag ON, zero runtime**¹¹ | wall | code¹² | — | — |
-| Contexts / Routines / on-device suggestions | unit | unit¹ (triggers device-gated) | — | — | — | — |
-| Extra monitor (virtual display) | code (`unsupported/`, never compiled) | — | — | — | code (evdi, unwired) | code (IddCx, unsigned) |
+| Capability | macOS | iOS/iPadOS | tvOS | Android | Linux | Windows² | Browser |
+|---|---|---|---|---|---|---|---|
+| Discover + pair (code + word pair, TOFU) | dev¹⁵ | dev¹⁵ | bld¹ | smoke³ | E2E⁴ | E2E⁴ | — |
+| File transfer (chunked, resumable, SHA-256) | dev¹⁵ | dev¹⁵ | — | smoke³ | E2E⁴ | E2E⁴ | — |
+| Clipboard (both directions, explicit) | dev¹⁵ | dev¹⁵ | — | smoke³ | E2E⁴ | E2E⁴ | — |
+| Input — send (drive a peer) | E2E | dev¹⁵ | — | bld | E2E*¹³ | — | — |
+| Input — receive (be driven) | dev¹⁵ | wall | — | bld⁶ | bld (uinput) | bld (SendInput) | — |
+| Screen — source (be watched) | dev¹⁵ | dev (ReplayKit ext)¹⁵ | wall | bld (MediaProjection) | E2E*¹³ | — | — |
+| Screen — view a peer | dev¹⁵ | dev¹⁵ | bld¹ | bld⁸ | E2E*¹³ | — | dev (push only)¹⁴ ¹⁵ |
+| Watch **and** drive, one surface (ADR 0015 absolute pointing) | E2E* | bld¹ | — | bld | E2E*¹³ | — | — |
+| Push-share + cast to any browser (HLS + QR) | dev (real HTTP)⁹ ¹⁵ | — | — | (browser plays it) | — | — | dev¹⁴ ¹⁵ |
+| Multi-viewer, per-peer view-only/control, live revoke | E2E | bld¹ | bld¹ | — | — | — | — |
+| Notifications (source → display) | E2E (display) | bld¹ | — | bld (listener svc) | code¹⁰ | code¹⁰ | — |
+| Phone as Bluetooth HID peripheral | wall | wall | — | bld (needs 2 devices) | — | — | — |
+| Wi-Fi Aware (link with no router) | wall | **bld — flag ON, zero runtime**¹¹ | wall | code¹² | — | — | — |
+| Contexts / Routines / on-device suggestions | unit | unit¹ (triggers device-gated) | — | — | — | — | — |
+| Extra monitor (virtual display) | code (`unsupported/`, never compiled) | — | — | — | code (evdi, unwired) | code (IddCx, unsigned) | — |
 
 ¹ Shared `ConduitKit` core: the logic runs in the loopback E2E suite on macOS;
 the iOS/tvOS app targets build unsigned (`make apple-apps`, four
-`** BUILD SUCCEEDED **` re-verified today) but no session has run on an
-iOS/tvOS device with the current code.
+`** BUILD SUCCEEDED **` re-verified today). No session has run on a **tvOS**
+device, and any iOS cell not marked `dev` has not been exercised on hardware.
 ² Windows: daemon logic only; new Windows work is **on hold** per
 [plan 08](docs/plans/08-direct-link-transport.md).
 ³ JVM in-process smoke proves the session code with real Ed25519 + pairing
@@ -109,12 +115,13 @@ Android waits behind. Per-capability detail: [`android/README.md`](android/READM
 ⁴ Go daemon logic proven over loopback on a macOS host (Go↔Go pair+transfer
 test, plus the live Swift↔Go interop suite). The Linux/Windows binaries
 cross-compile but **have never been executed on those OSes**.
-⁵ The real macOS `CGEvent` injector compiles and is wired (needs Accessibility,
-non-sandboxed app — ADR 0005) but has never moved a real cursor post-fixes.
+⁵ The real macOS `CGEvent` injector needs Accessibility and a non-sandboxed
+app (ADR 0005). It has now moved a real cursor — see ¹⁵.
 ⁶ Android input receive is an AccessibilityService; keyboard support is a
 narrow, documented subset — unsupported keys are refused out loud
 ([`android/README.md`](android/README.md)).
-⁷ Real ScreenCaptureKit capture is device-gated (Screen Recording grant).
+⁷ Real ScreenCaptureKit capture needs the Screen Recording grant. It has now
+run with that grant — see ¹⁵.
 ⁸ Decoder + `SurfaceView` exist; **no frame has ever been decoded on an
 Android device.**
 ⁹ Includes the browser watch page over real HTTP GETs. AirPlay endpoint is
@@ -131,6 +138,21 @@ needs two Aware-capable iPhones/iPads. Aware-only sessions would carry video
 on the control-lane fallback (~2.5 Mbps) until plan 08 lands QUIC.
 ¹² Android's `WifiAwareBackend` was rewritten to be capable of working
 (2026-07-26) but nothing instantiates it ([`docs/interop-status.md`](docs/interop-status.md)).
+¹⁵ **Device-verified 2026-08-11**, hands-on by the author on one real iPhone
+and one real Mac: pairing, file transfer, clipboard, the iPhone driving the
+Mac's pointer and keyboard as a trackpad, and screen sharing **both**
+directions — so the real `CGEvent` injector moved a real cursor and real
+ScreenCaptureKit capture ran, neither of which had happened before. The
+browser watch page was used over real HTTP from another device. This was
+hands-on use, **not** a full [`DEVICE_CHECKLIST.md`](docs/DEVICE_CHECKLIST.md)
+walk. **iPad has not been tried** (iPhone only), and nothing here touches
+Android, Linux, tvOS or Windows.
+
+¹⁴ **Browser** is not a platform port — there is no browser client. It is
+what a plain web browser can do with no MOSIS app installed: watch a screen a
+Mac pushes to it (HLS over real HTTP, URL + QR), and nothing else. It cannot
+pair, cannot initiate a pull, and cannot send anything back.
+
 ¹³ Linux via the Go core (`core/screencast/` + `conduitview`, landed
 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the
 codec seam, synthetic frames at the capture seam; lane promotion and
@@ -146,8 +168,10 @@ have **never executed on a Linux box** — per-row ledger in
   ([ADR 0016](docs/adr/0016-quic-primary-transport.md): QUIC primary transport,
   TCP+TLS universal fallback; [ADR 0017](docs/adr/0017-direct-link-path-ladder.md):
   LAN → same-vendor P2P → soft-AP → manual hotspot, so two devices link with
-  **no shared network at all**). Both ADRs are accepted *as design* — every
-  claim in them is intent until the P0 spikes pass.
+  **no shared network at all**). ADR 0016 is accepted *as design*. ADR 0017's
+  second rung is past design: **Apple↔Apple AWDL peer-to-peer has been
+  exercised on real hardware** (2026-08-11). Soft-AP and manual hotspot are
+  still intent until their spikes pass.
 - **[Plan 09 — Linux screen-source + viewer/control](docs/plans/09-linux-screen-and-control.md)**
   landed 2026-07-26 (with [`docs/linux.md`](docs/linux.md)): Linux joins screen
   sharing and remote control over today's lanes — loopback-proven on a macOS

@@ -1,0 +1,154 @@
+/* MOSIS design tokens — "Lanes"
+ * Normative source: docs/plans/10-project-website.md §4.1.
+ *
+ * The palette is not decorative. Every accent maps to an evidence tag, so the
+ * site's colour scale and the repo's truth ledger are the same object:
+ *
+ *   --sig      E2E            proven over real sockets      (signature colour)
+ *   --partial  E2E* / smoke   proven with a named fake
+ *   --inert    bld / code     compiles, no runtime evidence
+ *   --wall     wall           the platform forbids it
+ *   --dev      dev            device-verified — UNUSED, and that is the point
+ *
+ * Annotations drive tools/site/check-contrast.mjs. Every colour declaration
+ * must carry one:
+ *   @surface  a background that text is set on
+ *   @text     a foreground used for text
+ *   @line     hairline / rail / hatch — graphic only, no text sits in it
+ * The script fails if a colour is unannotated, if any @text × @surface pair
+ * drops below WCAG AA, or if the two light blocks below ever drift apart.
+ *
+ * Theme resolution is three-state and works with JavaScript disabled:
+ *   1. dark is the base palette on :root
+ *   2. prefers-color-scheme: light swaps it, unless data-theme="dark" is set
+ *   3. data-theme="light" swaps it regardless of the OS setting
+ */
+
+/* THEME dark */
+:root {
+  color-scheme: dark;
+
+  /* @surface */ --ink: #070b0a;      /* page ground — near-black, green cast */
+  /* @surface */ --ink-2: #0e1614;    /* raised surface */
+  /* @surface */ --ink-3: #131f1c;    /* sticky matrix header, inset wells */
+  /* @line    */ --rail: #1e2c29;     /* hairlines, lane rails */
+  /* @line    */ --rail-2: #2c403c;   /* hover / active hairline */
+  /* @text    */ --text: #e6f0ec;     /* body */
+  /* @text    */ --muted: #7f948e;    /* secondary */
+  /* @text    */ --sig: #b8ff2e;      /* E2E */
+  /* @text    */ --sig-dim: #7fc21e;  /* E2E, hover / press */
+  /* @text    */ --partial: #ffb020;  /* E2E* / smoke */
+  /* @text    */ --inert: #7c8d89;    /* bld / code — see note A */
+  /* @text    */ --wall: #ff5c7a;     /* wall */
+  /* @text    */ --dev: #ffffff;      /* dev — unused on purpose */
+
+  --dev-glow: 0 0 0 1px #ffffff, 0 0 18px -4px #ffffff;
+  --selection: color-mix(in srgb, var(--sig) 28%, transparent);
+}
+
+/* Genuine inversion, not a tint. The two light blocks must stay byte-identical;
+ * check-contrast.mjs enforces it. */
+
+/* THEME light-media */
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) {
+    color-scheme: light;
+
+    /* @surface */ --ink: #f4f7f5;
+    /* @surface */ --ink-2: #ffffff;
+    /* @surface */ --ink-3: #e8eeea;
+    /* @line    */ --rail: #c7d2cd;
+    /* @line    */ --rail-2: #a9b8b2;
+    /* @text    */ --text: #0c1513;
+    /* @text    */ --muted: #4a5955;
+    /* @text    */ --sig: #457000;
+    /* @text    */ --sig-dim: #375c00;
+    /* @text    */ --partial: #8a5800;
+    /* @text    */ --inert: #5c6c67;
+    /* @text    */ --wall: #c01e3c;
+    /* @text    */ --dev: #0f1a17;
+
+    --dev-glow: 0 0 0 1px #0f1a17, 0 0 18px -6px #0f1a17;
+    --selection: color-mix(in srgb, var(--sig) 22%, transparent);
+  }
+}
+
+/* THEME light-attr */
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* @surface */ --ink: #f4f7f5;
+  /* @surface */ --ink-2: #ffffff;
+  /* @surface */ --ink-3: #e8eeea;
+  /* @line    */ --rail: #c7d2cd;
+  /* @line    */ --rail-2: #a9b8b2;
+  /* @text    */ --text: #0c1513;
+  /* @text    */ --muted: #4a5955;
+  /* @text    */ --sig: #457000;
+  /* @text    */ --sig-dim: #375c00;
+  /* @text    */ --partial: #8a5800;
+  /* @text    */ --inert: #5c6c67;
+  /* @text    */ --wall: #c01e3c;
+  /* @text    */ --dev: #0f1a17;
+
+  --dev-glow: 0 0 0 1px #0f1a17, 0 0 18px -6px #0f1a17;
+  --selection: color-mix(in srgb, var(--sig) 22%, transparent);
+}
+
+/* THEME none — nothing below this marker is part of a colour palette. */
+
+/* ── Type (§4.2) ─────────────────────────────────────────────────────────
+ * System-stacked only. Web fonts would be self-hosted or nothing: an
+ * offline-first project must not phone home from its own homepage. */
+:root {
+  --font-display: 'SF Compact Display', 'Helvetica Neue Condensed',
+    'HelveticaNeue-CondensedBold', 'Roboto Condensed', 'Archivo Narrow',
+    'Arial Narrow', ui-sans-serif, system-ui, sans-serif;
+  --font-body: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+    'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, 'SF Mono', SFMono-Regular, Menlo,
+    'Cascadia Mono', 'Roboto Mono', Consolas, monospace;
+
+  --t-display: clamp(2.75rem, 1.4rem + 6vw, 6rem);
+  --t-h2: clamp(1.9rem, 1.1rem + 2.6vw, 3.1rem);
+  --t-h3: clamp(1.2rem, 1rem + 0.7vw, 1.55rem);
+  --t-body: 1.05rem;
+  --t-small: 0.9rem;
+  --t-mono: 0.78rem;
+  --track-display: -0.03em;
+  --track-mono: 0.06em;
+  --measure: 68ch;
+}
+
+/* ── Space, line, motion ─────────────────────────────────────────────────
+ * 8px grid. Hairlines over boxes: no drop shadows, no gradient blobs, no
+ * glassmorphism, no rounded-2xl card soup. */
+:root {
+  --s-1: 4px;
+  --s-2: 8px;
+  --s-3: 16px;
+  --s-4: 24px;
+  --s-5: 32px;
+  --s-6: 48px;
+  --s-7: 64px;
+  --s-8: 96px;
+  --s-9: 128px;
+  --s-10: 192px;
+
+  --hair: 1px;
+  --radius: 2px;
+  --radius-pill: 999px;
+  --page: 1200px;
+  --gutter: clamp(var(--s-3), 4vw, var(--s-7));
+
+  --dur-packet: 1400ms;
+  --dur-ui: 160ms;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --dur-packet: 1ms;
+    --dur-ui: 1ms;
+  }
+}

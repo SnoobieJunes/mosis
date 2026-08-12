@@ -1,0 +1,58 @@
+name: pages
+
+# Deploys site/ to GitHub Pages. There is no build step — the artifact is the
+# directory, byte for byte, which is the site's own test of being static.
+#
+# The three honesty gates run first and gate the deploy: if the README moves
+# and the matrix, the figures or a command do not move with it, nothing ships.
+on:
+  push:
+    branches: [main]
+    paths: ['site/**', 'tools/site/**', 'README.md', '.github/workflows/pages.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# One deploy at a time; let a run in flight finish rather than cancelling it
+# half-published.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Contrast — every text-on-surface pair clears AA in both themes
+        run: node tools/site/check-contrast.mjs
+
+      - name: Matrix — README, matrix.json, evidence.json and status.html agree
+        run: node tools/site/check-matrix.mjs
+
+      - name: Commands — every shell command appears verbatim in the README
+        run: node tools/site/check-commands.mjs
+
+      - uses: actions/configure-pages@v5
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

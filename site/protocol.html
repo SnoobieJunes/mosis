@@ -1,0 +1,279 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Protocol — MOSIS</title>
+    <meta name="description" content="One documented wire format, implemented independently in Swift, Go and Kotlin, byte-exact against one frozen golden vector set." />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#070b0a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f7f5" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/components.css" />
+    <!-- Applies a stored theme choice before first paint. Three lines, no
+         dependency: prefers-color-scheme covers everyone without it. -->
+    <script>
+      try {
+        var t = localStorage.getItem('mosis-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-head">
+      <div class="wrap site-head__bar">
+        <a class="brand" href="index.html">
+          <svg class="brand__mark" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <g fill="currentColor" opacity=".5">
+              <rect x="1" y="6" width="20" height="1"/>
+              <rect x="1" y="10" width="20" height="2"/>
+              <rect x="1" y="15" width="20" height="1"/>
+            </g>
+            <rect x="12" y="9" width="5" height="4" fill="var(--sig)"/>
+          </svg>
+          <span class="brand__name">MOSIS</span>
+          <span class="brand__sub mono">local-first</span>
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav">
+          <li><a href="index.html">Home</a></li>
+          <li><a href="status.html">Status</a></li>
+          <li><a href="story.html">Story</a></li>
+          <li><a href="protocol.html" aria-current="page">Protocol</a></li>
+          <li><a href="roadmap.html">Roadmap</a></li>
+          <li><a href="build.html">Build</a></li>
+          </ul>
+        </nav>
+        <button class="theme-toggle" type="button" hidden>
+          <span class="theme-toggle__dot" aria-hidden="true"></span>
+          <span class="theme-toggle__text">light</span>
+        </button>
+      </div>
+      <hr class="rail" />
+    </header>
+
+    <main id="main">
+      <div class="wrap page-head">
+        <span class="label">/protocol</span>
+        <h1>One wire format. Three implementations that&nbsp;agree.</h1>
+        <p class="lede">
+          Swift, Go and Kotlin each implement the protocol independently and
+          produce identical bytes against the same frozen vectors. A fourth
+          client can be written from the document alone — if you need to read
+          our code, that is a documentation bug.
+        </p>
+
+        <p class="seal seal--lg">
+          <span class="seal__impl">
+            <b>Swift</b><em data-fig="swift">126</em><i>tests, unit and end-to-end</i>
+          </span>
+          <span class="seal__impl">
+            <b>Go</b><em data-fig="go">52</em><i>golden vectors, byte-exact</i>
+          </span>
+          <span class="seal__impl">
+            <b>Kotlin</b><em data-fig="kotlin">70</em><i>vectors, plus a JVM session smoke</i>
+          </span>
+        </p>
+      </div>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>The whole wire is four&nbsp;ideas.</h2>
+        <p>
+          Frames carry either canonical JSON or file chunks. Every control
+          message wears the same envelope, identity is an Ed25519 key, and TLS
+          is pinned to it.
+        </p>
+
+        <div class="spec">
+          <div>
+            <h3>Framing</h3>
+            <p>
+              Type-length-value, two kinds. An unknown kind is skipped by its
+              length and logged, never fatal — that is the forward-compatibility
+              rule.
+            </p>
+            <div class="codeblock">
+              <pre class="code"><code>frame = kind:u8 | length:u32be | payload
+
+0x01 control → canonical JSON      (≤ 1 MiB)
+0x02 chunk   → file_id uuid(16)
+             | seq u64be
+             | flags u8            (bit0 = last)
+             | data                (≤ 2 MiB)</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the framing commands">copy</button>
+            </div>
+          </div>
+
+          <div>
+            <h3>Envelope</h3>
+            <p>
+              Frozen shape, sorted keys, no added whitespace. Decoders must
+              accept any valid JSON; encoders must emit the canonical form the
+              vectors pin.
+            </p>
+            <div class="codeblock">
+              <pre class="code"><code>{"version":"0.2","type":"HELLO",
+ "session_id":"&lt;opaque&gt;","seq":0,
+ "payload":{…}}</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the envelope commands">copy</button>
+            </div>
+          </div>
+
+          <div>
+            <h3>Identity</h3>
+            <p>
+              The device ID is the hash of its public key, so an identity cannot
+              be claimed without the key. The TLS key is signed into the same
+              identity, which is what defeats a TLS-terminating middle-man.
+            </p>
+            <div class="codeblock">
+              <pre class="code"><code>identity    = hex(SHA256(ed25519_pubkey))
+tls_pin     = SHA256(cert pubkey, X9.63)
+binding_sig = Ed25519_sign(
+                "conduit-tls-binding-v1"
+                ‖ tls_pin)</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the identity commands">copy</button>
+            </div>
+          </div>
+
+          <div>
+            <h3>Pairing</h3>
+            <p>
+              Both sides derive the same six digits and word pair from both
+              public keys, and a human confirms on both screens. Substituted
+              keys produce different codes; a substituted TLS key fails the
+              binding check before anyone is asked anything.
+            </p>
+            <div class="codeblock">
+              <pre class="code"><code>material = SHA256("conduit-pairing-v1"
+             ‖ min(pubA,pubB)
+             ‖ max(pubA,pubB))
+
+code  = u32be(material[0..4]) % 1e6
+words = wordlist[material[4]],
+        wordlist[material[5]]</code></pre>
+              <button class="copy" type="button" hidden aria-label="Copy the pairing commands">copy</button>
+            </div>
+          </div>
+        </div>
+
+        <p class="cta"><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/protocol.md">The full wire protocol →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>Verification is pinning only. No chain is ever&nbsp;consulted.</h2>
+        <p>
+          There is no plaintext path, including in debug builds. Certificates
+          are self-signed carriers for a pinned key, and an unpinned key is
+          accepted only while pairing mode is on — such a connection may carry
+          nothing but the ceremony.
+        </p>
+        <p class="cta"><a href="https://github.com/SnoobieJunes/mosis/blob/main/SECURITY.md">Security policy →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>A partial client is a legitimate&nbsp;client.</h2>
+        <p>
+          Capabilities are negotiated strings, so a peer that never advertises
+          <code>screen</code> is simply never asked. You implement the tier you
+          want and stop.
+        </p>
+
+        <table class="tbl">
+          <caption class="sr-only">What each implementation tier costs and what it buys.</caption>
+          <thead>
+            <tr>
+              <th scope="col">Tier</th>
+              <th scope="col">You implement</th>
+              <th scope="col">You get</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr><th scope="row">1</th><td>Framing, envelope, canonical JSON</td><td>Vectors pass; nothing talks yet</td></tr>
+            <tr><th scope="row">2</th><td>Ed25519 identity, mutual TLS 1.3 with pinning, pairing derivation</td><td>You can pair and hold a session</td></tr>
+            <tr><th scope="row">3</th><td>HELLO negotiation, ping and RTT</td><td>A live peer that shows up and stays up</td></tr>
+            <tr><th scope="row">4</th><td>Clipboard and file transfer</td><td>The weekend client — genuinely useful</td></tr>
+            <tr><th scope="row">5</th><td>Screen viewer, or input sender</td><td>Feature-parity territory</td></tr>
+          </tbody>
+        </table>
+
+        <p class="cta"><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/IMPLEMENTORS.md">Write a client — the one-pager →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <section class="wrap">
+        <h2>The gate is the vectors, and they are&nbsp;append-only.</h2>
+        <p>
+          Four files pin the bytes: messages, chunk frames, screen frames, and
+          the pairing derivation with the SHA-256 of the frozen 256-word list.
+          Bring any client — if it reproduces them and completes a handshake, it
+          interoperates.
+        </p>
+        <p>
+          There is no blessed SDK and no registration. Changes travel as a pull
+          request against the spec, all three implementations, and new vectors.
+        </p>
+        <p class="cta"><a href="https://github.com/SnoobieJunes/mosis/tree/main/proto/vectors">The golden vectors →</a></p>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <hr class="rail" />
+      <div class="wrap">
+        <p class="seal">
+          <span class="seal__impl"><b>Swift</b> <em data-fig="swift">126</em> tests</span>
+          <span class="seal__impl"><b>Go</b> <em data-fig="go">52</em> vectors</span>
+          <span class="seal__impl"><b>Kotlin</b> <em data-fig="kotlin">70</em> vectors</span>
+          <span class="seal__note">one frozen vector set · byte-exact</span>
+        </p>
+      </div>
+      <div class="wrap site-foot__grid">
+        <div>
+          <h2>MOSIS</h2>
+          <p class="foot-note">
+            Mobile Operating System Integrated Solutions. Open, local-first,
+            cross-device connectivity. Apache-2.0.
+          </p>
+          <p class="foot-status">
+            <b>Hardware so far:</b> 15 of 56
+            cells device-verified, on one iPhone and one Mac. iPad, Android,
+            Linux, tvOS and Windows have never run on a device.
+          </p>
+        </div>
+        <div>
+          <h2>Repo</h2>
+          <ul>
+            <li><a href="https://github.com/SnoobieJunes/mosis">Source</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/protocol.md">Wire protocol</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/IMPLEMENTORS.md">Write a client</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/LICENSE">License</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Ledgers</h2>
+          <ul>
+            <li><a href="status.html">Capability matrix</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/TESTING_PLAN.md">Testing plan</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/tree/main/docs/adr">Decisions</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/tree/main/docs/plans">Plans</a></li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="assets/js/theme.js"></script>
+    <script type="module" src="assets/js/lanes.js"></script>
+    <script type="module" src="assets/js/copy.js"></script>
+  </body>
+</html>

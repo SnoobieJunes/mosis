@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Kitchen sink — MOSIS design system</title>
+    <meta
+      name="description"
+      content="Reference page for the MOSIS design system: palette, type scale, lane rail, evidence tags, pairing chip and wall hatch. Not part of the site."
+    />
+    <meta name="robots" content="noindex, nofollow" />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#070b0a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f7f5" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/components.css" />
+    <script>
+      try {
+        var t = localStorage.getItem('mosis-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-head">
+      <div class="wrap site-head__bar">
+        <a class="brand" href="index.html">
+          <svg class="brand__mark" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <g fill="currentColor" opacity=".5">
+              <rect x="1" y="6" width="20" height="1" />
+              <rect x="1" y="10" width="20" height="2" />
+              <rect x="1" y="15" width="20" height="1" />
+            </g>
+            <rect x="12" y="9" width="5" height="4" fill="var(--sig)" />
+          </svg>
+          <span class="brand__name">MOSIS</span>
+          <span class="brand__sub mono">design system</span>
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav">
+            <li><a href="index.html">Back to the site</a></li>
+          </ul>
+        </nav>
+        <button class="theme-toggle" type="button" hidden>
+          <span class="theme-toggle__dot" aria-hidden="true"></span>
+          <span class="theme-toggle__text">light</span>
+        </button>
+      </div>
+      <hr class="rail" />
+    </header>
+
+    <main id="main">
+      <div class="wrap page-head">
+        <span class="label">/kitchen-sink</span>
+        <h1>Every component, on one&nbsp;page.</h1>
+        <p class="lede">
+          The reference for the design system in plan 10 §4. Not linked from the
+          site and not indexed — it exists so a component can be checked in both
+          themes without hunting for a page that uses it.
+        </p>
+      </div>
+
+      <hr class="rail" />
+
+      <!-- ── Palette ──────────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>Colour is the honesty ledger.</h2>
+        <p>
+          Every accent maps to an evidence tag, so the palette and the repo's
+          truth ledger are the same object. Two values are deepened from the
+          spec's literals to clear AA; the mapping is unchanged.
+        </p>
+
+        <ul class="swatches" style="margin-block-start: var(--s-5)">
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--sig)"></div>
+            <div class="swatch__meta"><b>--sig</b><span>E2E · real sockets</span></div>
+          </li>
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--partial)"></div>
+            <div class="swatch__meta"><b>--partial</b><span>E2E* · smoke · unit</span></div>
+          </li>
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--inert)"></div>
+            <div class="swatch__meta"><b>--inert</b><span>bld · code</span></div>
+          </li>
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--wall)"></div>
+            <div class="swatch__meta"><b>--wall</b><span>platform forbids it</span></div>
+          </li>
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--dev)"></div>
+            <div class="swatch__meta"><b>--dev</b><span>unused — that's the point</span></div>
+          </li>
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--ink-2)"></div>
+            <div class="swatch__meta"><b>--ink-2</b><span>raised surface</span></div>
+          </li>
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--ink-3)"></div>
+            <div class="swatch__meta"><b>--ink-3</b><span>sticky header, wells</span></div>
+          </li>
+          <li class="swatch">
+            <div class="swatch__chip" style="background: var(--rail)"></div>
+            <div class="swatch__meta"><b>--rail</b><span>hairlines, lane rails</span></div>
+          </li>
+        </ul>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Lane rail ────────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>The divider is the link.</h2>
+        <p>
+          Three stacked hairlines at 1 / 2 / 1 px — control, bulk, video. A
+          packet rides the bulk lane once when the rail scrolls into view. It
+          replaces every <code>&lt;hr&gt;</code> on the site.
+        </p>
+        <div style="margin-block-start: var(--s-5)">
+          <hr class="rail" />
+        </div>
+        <p class="ks-note" style="margin-block-start: var(--s-4)">
+          With JavaScript off the rail is still a rail; the packet simply never
+          fires. Under <code>prefers-reduced-motion: reduce</code>, lanes.js does
+          not arm at all.
+        </p>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Evidence tags ────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>One tag per claim, colour-coded by strength.</h2>
+        <p>
+          Hover or focus any tag for its definition. The same vocabulary appears
+          inline in prose and in every matrix cell, so a reader learns it once.
+        </p>
+
+        <p class="tag-row">
+          <abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e"
+            data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr>
+          <abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake"
+            data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr>
+          <abbr class="tag tag--unit" tabindex="0" aria-describedby="def-unit"
+            data-def="unit-tested logic">unit</abbr>
+          <abbr class="tag tag--smoke" tabindex="0" aria-describedby="def-smoke"
+            data-def="Kotlin/JVM in-process session smoke (real crypto, no Android)">smoke</abbr>
+          <abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld"
+            data-def="compiles / APK assembles — no runtime evidence">bld</abbr>
+          <abbr class="tag tag--code" tabindex="0" aria-describedby="def-code"
+            data-def="written but unreachable or uninstantiated — weaker than bld">code</abbr>
+          <abbr class="tag tag--wall" tabindex="0" aria-describedby="def-wall"
+            data-def="the platform forbids it (documented, not a TODO)">wall</abbr>
+          <abbr class="tag tag--none tag--flip" tabindex="0" aria-describedby="def-none"
+            data-def="not implemented">—</abbr>
+          <abbr class="tag tag--dev tag--flip" tabindex="0" aria-describedby="def-dev"
+            data-def="device-verified on real hardware — this tag appears nowhere on the site yet">dev</abbr>
+        </p>
+
+        <p class="ks-note" style="margin-block-start: var(--s-5)">
+          <code>dev</code> is shown here because this page is the component
+          reference. It is rendered on no other page, and the counter reads 0.
+        </p>
+
+        <h3 style="margin-block-start: var(--s-6)">Legend</h3>
+        <dl class="legend" style="margin-block-start: var(--s-4)">
+          <dt><span class="tag tag--e2e">E2E</span></dt>
+          <dd id="def-e2e">automated end-to-end over real TLS sockets, same host (loopback)</dd>
+          <dt><span class="tag tag--e2e-fake">E2E*</span></dt>
+          <dd id="def-e2e-fake">E2E with a fake at the hardware seam (fake injector / synthetic capturer)</dd>
+          <dt><span class="tag tag--unit">unit</span></dt>
+          <dd id="def-unit">unit-tested logic</dd>
+          <dt><span class="tag tag--smoke">smoke</span></dt>
+          <dd id="def-smoke">Kotlin/JVM in-process session smoke (real crypto, no Android)</dd>
+          <dt><span class="tag tag--bld">bld</span></dt>
+          <dd id="def-bld">compiles / APK assembles — no runtime evidence</dd>
+          <dt><span class="tag tag--code">code</span></dt>
+          <dd id="def-code">written but unreachable or uninstantiated — weaker than bld</dd>
+          <dt><span class="tag tag--wall">wall</span></dt>
+          <dd id="def-wall">the platform forbids it (documented, not a TODO)</dd>
+          <dt><span class="tag tag--none">—</span></dt>
+          <dd id="def-none">not implemented</dd>
+          <dt><span class="tag tag--dev">dev</span></dt>
+          <dd id="def-dev">device-verified on real hardware — this tag appears nowhere on the site yet</dd>
+        </dl>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Pairing chip ─────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>The trust model, in one interaction.</h2>
+        <p>
+          The same six digits and the same word pair appear on both screens.
+          Confirm on both and the link goes solid — pinned mutual TLS from then
+          on. No account, no server, nothing to sign up for.
+        </p>
+
+        <div class="chip" style="margin-block-start: var(--s-5)">
+          <input class="chip__input" type="checkbox" id="pair-a" />
+          <input class="chip__input" type="checkbox" id="pair-b" />
+          <div class="chip__grid">
+            <div class="chip__side">
+              <span class="chip__device">this mac</span>
+              <span class="chip__code">418&nbsp;302</span>
+              <span class="chip__words">otter · maple</span>
+              <label class="chip__confirm" for="pair-a">
+                <span class="sr-only">Confirm the pairing code on this Mac</span>
+              </label>
+            </div>
+            <span class="chip__link" aria-hidden="true"></span>
+            <div class="chip__side">
+              <span class="chip__device">iphone</span>
+              <span class="chip__code">418&nbsp;302</span>
+              <span class="chip__words">otter · maple</span>
+              <label class="chip__confirm" for="pair-b">
+                <span class="sr-only">Confirm the pairing code on the iPhone</span>
+              </label>
+            </div>
+          </div>
+          <p class="chip__state">
+            <span class="state-none">unpaired — nothing trusted yet</span>
+            <span class="state-half">one side confirmed — waiting for the other</span>
+            <span class="state-paired">paired — pinned mutual TLS from here on</span>
+          </p>
+        </div>
+
+        <p class="ks-note" style="margin-block-start: var(--s-4)">
+          Two checkboxes and CSS — it works with JavaScript disabled, which is
+          the only honest way to ship an interactive toy on this site.
+        </p>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Wall hatch ───────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>A platform wall is architecture, not failure.</h2>
+        <p>
+          Cells the platform forbids get a 45° hairline hatch instead of a red
+          cross. It reads as terrain: this route is closed, and it is documented
+          why.
+        </p>
+
+        <div
+          class="hatch" id="wall-demo"
+          style="
+            margin-block-start: var(--s-5);
+            border: var(--hair) solid var(--rail);
+            border-radius: var(--radius);
+            padding: var(--s-5);
+            display: grid;
+            gap: var(--s-2);
+            justify-items: start;
+          "
+        >
+          <span class="tag tag--wall">wall</span>
+          <p style="margin: 0">
+            Input injection into iOS. A platform limit, not a TODO — no
+            entitlement exists for it.
+          </p>
+        </div>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Type ─────────────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>Headlines are short, and they are the claim.</h2>
+        <p>
+          Display is a heavy condensed grotesque from the system stack. Body sits
+          at 68ch. Mono is ornament as much as code — tags, lane labels, ports,
+          device ids, pairing codes.
+        </p>
+
+        <div class="specimen" style="margin-block-start: var(--s-5)">
+          <p class="display" style="font-size: var(--t-display)">Display · 6rem max</p>
+          <p class="display" style="font-size: var(--t-h2)">Section heading · 3.1rem max</p>
+          <p class="display" style="font-size: var(--t-h3)">Sub-heading · 1.55rem max</p>
+          <p>
+            Body copy at 1.05rem and 1.6 leading, capped at 68 characters so a
+            line never outruns the eye. Three sentences is the hard limit for any
+            block on this site. Anything longer is a wall of text with better
+            manners.
+          </p>
+          <p class="label">Mono label · uppercase · tracked</p>
+          <p class="mono">mono · 418 302 · otter · maple · :51820 · cndt-7f3a91</p>
+        </div>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Counter ──────────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>A number and its unit, at display scale.</h2>
+        <p>
+          Used where one figure carries a section. The site leads with the
+          capability matrix rather than a single count, so this component is
+          kept here for the cases that want it.
+        </p>
+        <p class="counter">
+          <span class="counter__n">0</span>
+          <span class="counter__what">device-verified sessions with the current code</span>
+        </p>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <hr class="rail" />
+      <div class="wrap">
+        <p class="seal">
+          <span class="seal__impl"><b>Swift</b> <em data-fig="swift">126</em> tests</span>
+          <span class="seal__impl"><b>Go</b> <em data-fig="go">52</em> vectors</span>
+          <span class="seal__impl"><b>Kotlin</b> <em data-fig="kotlin">70</em> vectors</span>
+          <span class="seal__note">one frozen vector set · byte-exact</span>
+        </p>
+      </div>
+      <div class="wrap site-foot__grid">
+        <div>
+          <h2>Kitchen sink</h2>
+          <p class="foot-note">
+            Component reference for the MOSIS site. Unlinked, noindex, and not
+            part of the six pages in plan 10 §5.
+          </p>
+          <p class="foot-status">
+            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
+            hand. Android, Linux, tvOS and Windows have never run on a device.
+            No cell in the matrix carries a <code>dev</code> tag yet.
+          </p>
+        </div>
+        <div>
+          <h2>Source</h2>
+          <ul>
+            <li><a href="index.html">Site home</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/plans/10-project-website.md">Plan 10 §4</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/site/PROGRESS.md">Build ledger</a></li>
+          </ul>
+        </div>
+        <div></div>
+      </div>
+    </footer>
+
+    <script type="module" src="assets/js/theme.js"></script>
+    <script type="module" src="assets/js/lanes.js"></script>
+  </body>
+</html>

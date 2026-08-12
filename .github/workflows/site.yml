@@ -1,0 +1,46 @@
+name: site
+
+# The site's two honesty gates. They run on every change to the site, its
+# tools, or the README the matrix is derived from — because the failure mode
+# they exist to catch is the README moving and the site quietly not.
+on:
+  push:
+    # main is covered by pages.yml, which runs the same gates before deploying.
+    branches-ignore: [main]
+    paths: ['site/**', 'tools/site/**', 'README.md', '.github/workflows/site.yml']
+  pull_request:
+    paths: ['site/**', 'tools/site/**', 'README.md', '.github/workflows/site.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      # No install step: both scripts are dependency-free by design, the same
+      # way the site itself is.
+      - name: Contrast — every text-on-surface pair clears AA in both themes
+        run: node tools/site/check-contrast.mjs
+
+      - name: Matrix — README, matrix.json, evidence.json and status.html agree
+        run: node tools/site/check-matrix.mjs
+
+      - name: Commands — every shell command appears verbatim in the README
+        run: node tools/site/check-commands.mjs
+
+      - name: No third-party requests
+        run: |
+          if grep -rInE '(src|href)="https?://(?!github\.com/SnoobieJunes)' site/ \
+             --include='*.html' --include='*.css' --include='*.js' -P; then
+            echo "::error::a site asset points at a third-party origin"
+            exit 1
+          fi
+          echo "no external asset references"

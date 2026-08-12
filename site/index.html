@@ -1,0 +1,409 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>MOSIS — your devices, talking directly</title>
+    <meta name="description" content="Open, local-first, cross-device connectivity. Pair once, then move files, clipboard, input and screens over a pinned mutual-TLS peer-to-peer link. No cloud, no account, no relay." />
+    <meta name="color-scheme" content="dark light" />
+    <meta name="theme-color" content="#070b0a" media="(prefers-color-scheme: dark)" />
+    <meta name="theme-color" content="#f4f7f5" media="(prefers-color-scheme: light)" />
+    <link rel="icon" href="assets/favicon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="assets/css/tokens.css" />
+    <link rel="stylesheet" href="assets/css/base.css" />
+    <link rel="stylesheet" href="assets/css/components.css" />
+    <!-- Applies a stored theme choice before first paint. Three lines, no
+         dependency: prefers-color-scheme covers everyone without it. -->
+    <script>
+      try {
+        var t = localStorage.getItem('mosis-theme');
+        if (t === 'light' || t === 'dark') document.documentElement.setAttribute('data-theme', t);
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+
+    <header class="site-head">
+      <div class="wrap site-head__bar">
+        <a class="brand" href="index.html">
+          <svg class="brand__mark" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <g fill="currentColor" opacity=".5">
+              <rect x="1" y="6" width="20" height="1"/>
+              <rect x="1" y="10" width="20" height="2"/>
+              <rect x="1" y="15" width="20" height="1"/>
+            </g>
+            <rect x="12" y="9" width="5" height="4" fill="var(--sig)"/>
+          </svg>
+          <span class="brand__name">MOSIS</span>
+          <span class="brand__sub mono">local-first</span>
+        </a>
+        <nav aria-label="Primary">
+          <ul class="nav">
+          <li><a href="index.html" aria-current="page">Home</a></li>
+          <li><a href="status.html">Status</a></li>
+          <li><a href="story.html">Story</a></li>
+          <li><a href="protocol.html">Protocol</a></li>
+          <li><a href="roadmap.html">Roadmap</a></li>
+          <li><a href="build.html">Build</a></li>
+          </ul>
+        </nav>
+        <button class="theme-toggle" type="button" hidden>
+          <span class="theme-toggle__dot" aria-hidden="true"></span>
+          <span class="theme-toggle__text">light</span>
+        </button>
+      </div>
+      <hr class="rail" />
+    </header>
+
+    <main id="main">
+      <!-- ── Thesis + the trust model you can touch ────────────────────── -->
+      <section class="wrap hero">
+        <span class="label">/</span>
+        <h1>Your devices, talking&nbsp;directly. No cloud in the&nbsp;path.</h1>
+        <p class="lede">
+          Pair once with a 6-digit code and a word pair. After that, any two of
+          your devices move files, clipboard, input and screens over a pinned
+          mutual-TLS link on your own network.
+        </p>
+        <ul class="facts">
+          <li>local network only</li>
+          <li>pinned mutual TLS 1.3</li>
+          <li>no account</li>
+          <li>no relay</li>
+        </ul>
+
+        <h2 class="sr-only">How pairing works</h2>
+        <div class="chip">
+          <input class="chip__input" type="checkbox" id="pair-a" />
+          <input class="chip__input" type="checkbox" id="pair-b" />
+          <div class="chip__grid">
+            <div class="chip__side">
+              <span class="chip__device">this mac</span>
+              <span class="chip__code">418&nbsp;302</span>
+              <span class="chip__words">otter · maple</span>
+              <label class="chip__confirm" for="pair-a">
+                <span class="sr-only">Confirm the pairing code on this Mac</span>
+              </label>
+            </div>
+            <span class="chip__link" aria-hidden="true"></span>
+            <div class="chip__side">
+              <span class="chip__device">iphone</span>
+              <span class="chip__code">418&nbsp;302</span>
+              <span class="chip__words">otter · maple</span>
+              <label class="chip__confirm" for="pair-b">
+                <span class="sr-only">Confirm the pairing code on the iPhone</span>
+              </label>
+            </div>
+          </div>
+          <p class="chip__state">
+            <span class="state-none">unpaired — nothing trusted yet</span>
+            <span class="state-half">one side confirmed — waiting for the other</span>
+            <span class="state-paired">paired — pinned mutual TLS from here on</span>
+          </p>
+        </div>
+        <p class="small" style="color: var(--muted); margin-block-start: var(--s-4); max-width: 62ch">
+          It does not have to be your device. Anyone in the room can pair, because
+          the trust is the code on both screens — walk up to the conference Mac,
+          compare six digits, present.
+        </p>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── What it actually does ─────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>Pairing is the handshake. This is the&nbsp;point.</h2>
+        <p>
+          Screens, clipboard, files and input, in both directions, over one
+          link. Each card carries its macOS evidence tag, pulled from the same
+          data the matrix is built from.
+        </p>
+        <ul class="caps">
+          <li class="cap">
+            <div class="cap__head">
+              <h3>Screen — view a peer</h3>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
+            </div>
+            <p>Watch a peer’s display, or a single window, live.</p>
+          </li>
+          <li class="cap">
+            <div class="cap__head">
+              <h3>Screen — source</h3>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
+            </div>
+            <p>Share your own screen the other direction — a display, or one window.</p>
+          </li>
+          <li class="cap">
+            <div class="cap__head">
+              <h3>Clipboard</h3>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
+            </div>
+            <p>Copy here, paste there. Explicit — nothing syncs behind your back.</p>
+          </li>
+          <li class="cap">
+            <div class="cap__head">
+              <h3>File transfer</h3>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
+            </div>
+            <p>Send a file straight across. Resumes, and checks its own hash.</p>
+          </li>
+          <li class="cap">
+            <div class="cap__head">
+              <h3>Input — send</h3>
+              <abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e"
+                data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr>
+            </div>
+            <p>Drive a peer’s pointer, scroll and keyboard from this machine.</p>
+          </li>
+          <li class="cap">
+            <div class="cap__head">
+              <h3>Push-share + cast to any browser</h3>
+              <abbr class="tag tag--dev" tabindex="0" aria-describedby="def-dev"
+                data-def="device-verified on real hardware — see ¹⁵ for what was run">dev</abbr>
+            </div>
+            <p>Throw a screen at any browser in the room. Nothing to install.</p>
+          </li>
+        </ul>
+        <p class="cta"><a href="status.html">Every capability on every platform →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── The ask ───────────────────────────────────────────────────── -->
+      <section class="band">
+        <div class="wrap">
+          <h2>Verified on an iPhone and a Mac. We need everyone&nbsp;else.</h2>
+          <p>
+            <span data-total="verified">15</span> cells are
+            device-verified on real hardware — pairing, files, clipboard, the
+            phone driving the Mac as a trackpad, screen sharing both ways, and
+            the browser watch page. Five columns have never run on a device, and
+            that is not a code problem but a hardware one, which makes it the
+            thing an outsider can actually fix.
+          </p>
+        <ul class="coverage">
+          <li class="cov cov--run">
+            <span class="cov__name">macOS</span>
+            <span class="cov__state">Device-verified: 7 cells</span>
+          </li>
+          <li class="cov cov--run">
+            <span class="cov__name">iPhone</span>
+            <span class="cov__state">Device-verified: 6 cells</span>
+          </li>
+          <li class="cov cov--run">
+            <span class="cov__name">Browser</span>
+            <span class="cov__state">Device-verified: watch page, real HTTP</span>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">iPad</span>
+            <span class="cov__state">Never tried — should behave like iPhone</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">Android</span>
+            <span class="cov__state">Has never completed a pairing</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20Android">I have one →</a>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">Linux</span>
+            <span class="cov__state">Cross-compiles; never executed on Linux</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20Linux">I have one →</a>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">tvOS</span>
+            <span class="cov__state">Builds; never run on an Apple TV</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20tvOS">I have one →</a>
+          </li>
+          <li class="cov cov--hold">
+            <span class="cov__name">Windows</span>
+            <span class="cov__state">Deliberately on hold — plan 08</span>
+          </li>
+        </ul>
+          <p class="cta">
+            <a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/DEVICE_CHECKLIST.md">The scripted session to run →</a>
+          </p>
+        </div>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── The four claims ───────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>Four things make this worth a&nbsp;look.</h2>
+        <ol class="claims">
+          <li class="claim">
+            <span class="claim__n mono">01</span>
+            <h3>An open protocol, not an app.</h3>
+            <p>
+              The wire format is documented well enough to implement from
+              scratch. A fourth client is a reading exercise, not a reverse
+              engineering project.
+            </p>
+          </li>
+          <li class="claim">
+            <span class="claim__n mono">02</span>
+            <h3>Proven three ways, byte for byte.</h3>
+            <p>
+              Swift, Go and Kotlin each implement the protocol independently and
+              produce identical bytes against one frozen golden vector set. A
+              live Swift↔Go session runs over real TLS.
+            </p>
+          </li>
+          <li class="claim">
+            <span class="claim__n mono">03</span>
+            <h3>Local-first, absolutely.</h3>
+            <p>
+              There is no cloud path to switch off, because none was ever built.
+              Cut the internet and your own devices still find each other.
+            </p>
+          </li>
+          <li class="claim">
+            <span class="claim__n mono">04</span>
+            <h3>Honest by construction.</h3>
+            <p>
+              Every capability carries the strongest evidence that actually
+              exists —
+              <abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e"
+                data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr>
+              down to
+              <abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld"
+                data-def="compiles / APK assembles — no runtime evidence">bld</abbr>.
+              CI fails if this site's matrix and the repo's ever disagree.
+            </p>
+          </li>
+        </ol>
+        <p class="cta"><a href="story.html">Why peer-to-peer is worth the trouble →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Matrix teaser ─────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2><span data-total="cells">105</span> cells, each with its&nbsp;receipt.</h2>
+        <p>
+          <span data-total="rows">15</span> capabilities across
+          <span data-total="platforms">7</span> columns, each cell naming the
+          strongest evidence that exists for it and footnoted with what was
+          actually run — including <span data-total="verified">15</span> now
+          marked <code>dev</code>, which means verified on hardware.
+        </p>
+
+        <dl class="legend" style="margin-block-start: var(--s-6)">
+          <dt><span class="tag tag--e2e">E2E</span></dt>
+          <dd id="def-e2e">automated end-to-end over real TLS sockets, same host (loopback)</dd>
+          <dt><span class="tag tag--e2e-fake">E2E*</span></dt>
+          <dd id="def-e2e-fake">E2E with a fake at the hardware seam (fake injector / synthetic capturer)</dd>
+          <dt><span class="tag tag--smoke">smoke</span></dt>
+          <dd id="def-smoke">Kotlin/JVM in-process session smoke (real crypto, no Android)</dd>
+          <dt><span class="tag tag--bld">bld</span></dt>
+          <dd id="def-bld">compiles / APK assembles — no runtime evidence</dd>
+          <dt><span class="tag tag--wall">wall</span></dt>
+          <dd id="def-wall">the platform forbids it (documented, not a TODO)</dd>
+          <dt><span class="tag tag--dev">dev</span></dt>
+          <dd id="def-dev">device-verified on real hardware — see ¹⁵ for what was run</dd>
+        </dl>
+
+        <p class="cta"><a href="status.html">Read the full matrix →</a></p>
+      </section>
+
+      <hr class="rail" />
+
+      <!-- ── Quickstart ────────────────────────────────────────────────── -->
+      <section class="wrap">
+        <h2>Prove the core yourself, one command&nbsp;each.</h2>
+        <p>
+          All three run on one machine against the same frozen vectors, with
+          nothing to install but a toolchain and nothing to sign up for. Every
+          command below ran on 2026-07-26 (macOS 26.5, Xcode 26.6, Go 1.26.5).
+        </p>
+
+        <div class="quickstart">
+          <div>
+            <h3>Swift <small><span data-fig="swift">126</span> tests</small></h3>
+            <pre class="code" data-source="readme"><code>cd apple/ConduitKit
+swift test --disable-sandbox</code></pre>
+            <p class="small" style="color: var(--muted); margin-block-start: var(--s-3)">
+              The flag is required: the macOS sandbox hangs the Network and
+              VideoToolbox paths rather than failing them.
+            </p>
+          </div>
+          <div>
+            <h3>Go <small><span data-fig="go">52</span> vectors</small></h3>
+            <pre class="code" data-source="readme"><code>cd core
+go test ./...
+go run ./cmd/conformance ../proto/vectors</code></pre>
+            <p class="small" style="color: var(--muted); margin-block-start: var(--s-3)">
+              Same golden vectors as Swift and Kotlin. The set is append-only, so
+              a passing run stays passing.
+            </p>
+          </div>
+          <div>
+            <h3>Kotlin <small><span data-fig="kotlin">70</span> vectors</small></h3>
+            <pre class="code" data-source="readme"><code>cd android/core
+kotlinc $(find src/main/kotlin -name '*.kt') \
+  -include-runtime -d /tmp/conduit-core.jar
+java -cp /tmp/conduit-core.jar \
+  org.conduit.core.Conformance ../../proto/vectors</code></pre>
+            <p class="small" style="color: var(--muted); margin-block-start: var(--s-3)">
+              Pure JVM, no Android SDK. Needs any JDK 17 or newer on the path.
+            </p>
+          </div>
+        </div>
+
+        <p class="cta"><a href="build.html">Full quickstart, every platform →</a></p>
+      </section>
+    </main>
+
+    <footer class="site-foot">
+      <hr class="rail" />
+      <div class="wrap">
+        <p class="seal">
+          <span class="seal__impl"><b>Swift</b> <em data-fig="swift">126</em> tests</span>
+          <span class="seal__impl"><b>Go</b> <em data-fig="go">52</em> vectors</span>
+          <span class="seal__impl"><b>Kotlin</b> <em data-fig="kotlin">70</em> vectors</span>
+          <span class="seal__note">one frozen vector set · byte-exact</span>
+        </p>
+      </div>
+      <div class="wrap site-foot__grid">
+        <div>
+          <h2>MOSIS</h2>
+          <p class="foot-note">
+            Mobile Operating System Integrated Solutions. Open, local-first,
+            cross-device connectivity. Apache-2.0.
+          </p>
+          <p class="foot-status">
+            <b>Hardware so far:</b> 15 of 56
+            cells device-verified, on one iPhone and one Mac. iPad, Android,
+            Linux, tvOS and Windows have never run on a device.
+          </p>
+        </div>
+        <div>
+          <h2>Repo</h2>
+          <ul>
+            <li><a href="https://github.com/SnoobieJunes/mosis">Source</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/protocol.md">Wire protocol</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/IMPLEMENTORS.md">Write a client</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/LICENSE">License</a></li>
+          </ul>
+        </div>
+        <div>
+          <h2>Ledgers</h2>
+          <ul>
+            <li><a href="status.html">Capability matrix</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/TESTING_PLAN.md">Testing plan</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/tree/main/docs/adr">Decisions</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/tree/main/docs/plans">Plans</a></li>
+          </ul>
+        </div>
+      </div>
+    </footer>
+
+    <script type="module" src="assets/js/theme.js"></script>
+    <script type="module" src="assets/js/lanes.js"></script>
+  </body>
+</html>

@@ -1,0 +1,2012 @@
+/* MOSIS — components.
+ * The §4.3 signature components, plus the shell they sit in. Nothing here is
+ * borrowed from a component library: the grammar is the protocol's own —
+ * rails, packets, tags, hatches. */
+
+/* ── Lane rail (§4.3.1) ──────────────────────────────────────────────────
+ * MOSIS multiplexes three lanes over one link: control, bulk, video. The
+ * divider *is* those lanes — 1px, 2px, 1px, hairline-separated. It replaces
+ * every <hr> on the site. */
+
+.rail {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 6px;
+  border: 0;
+  margin: 0;
+  overflow: hidden;
+  background-image: linear-gradient(
+    to bottom,
+    var(--rail) 0 1px,
+    transparent 1px 2px,
+    var(--rail-2) 2px 4px,
+    transparent 4px 5px,
+    var(--rail) 5px 6px
+  );
+}
+
+.rail--flush {
+  margin-inline: calc(var(--gutter) * -1);
+  width: auto;
+}
+
+/* The packet. lanes.js adds .is-live when the rail scrolls into view; it rides
+ * the middle (bulk) lane once and stops. Enhancement only — with JS off the
+ * rail is still a rail, and under prefers-reduced-motion lanes.js never arms. */
+.rail::after {
+  content: '';
+  position: absolute;
+  inset-block-start: 2px;
+  inset-inline-start: 0;
+  width: 92px;
+  height: 2px;
+  background: linear-gradient(to right, transparent, var(--sig));
+  transform: translateX(-92px);
+  opacity: 0;
+}
+
+.rail.is-live::after {
+  animation: packet var(--dur-packet) var(--ease) forwards;
+}
+
+@keyframes packet {
+  0% {
+    transform: translateX(-92px);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  88% {
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(calc(100vw + 92px));
+    opacity: 0;
+  }
+}
+
+/* ── Evidence tag (§4.3.2) ───────────────────────────────────────────────
+ * The vocabulary a reader learns once and then reads everywhere: inline in
+ * prose and in every matrix cell. Colour is the evidence strength, straight
+ * from §4.1. Hairline, never filled — §4.4 forbids the box soup.
+ *
+ * The definition shows on hover *and* on keyboard focus, with no JavaScript:
+ * it is rendered from data-def by ::after. Assistive tech gets the same string
+ * from the page's tag legend via aria-describedby. */
+
+.tag {
+  position: relative;
+  display: inline-block;
+  padding: 1px var(--s-2) 2px;
+  border: var(--hair) solid currentColor;
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  line-height: 1.5;
+  white-space: nowrap;
+  text-decoration: none;
+  cursor: help;
+  color: var(--inert);
+}
+
+.tag--e2e {
+  color: var(--sig);
+}
+
+.tag--e2e-fake,
+.tag--smoke,
+.tag--unit {
+  color: var(--partial);
+}
+
+.tag--bld,
+.tag--code {
+  color: var(--inert);
+}
+
+.tag--wall {
+  color: var(--wall);
+  /* 45° hairline hatch: a platform limit reads as architecture, not failure. */
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--wall) 30%, transparent) 0 1px,
+    transparent 1px 5px
+  );
+}
+
+.tag--none {
+  color: var(--muted);
+  border-style: dashed;
+}
+
+/* dev is defined and unused. When the first device session lands it lights up
+ * on its own — until then the site never renders one. */
+.tag--dev {
+  color: var(--dev);
+  box-shadow: var(--dev-glow);
+}
+
+.tag::after {
+  content: attr(data-def);
+  position: absolute;
+  inset-block-end: calc(100% + var(--s-2));
+  inset-inline-start: 0;
+  z-index: 10;
+  width: max-content;
+  max-width: min(38ch, calc(100vw - 2 * var(--gutter)));
+  padding: var(--s-2) var(--s-3);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  color: var(--text);
+  font-size: var(--t-mono);
+  letter-spacing: 0;
+  line-height: 1.45;
+  white-space: normal;
+  text-transform: none;
+  /* display:none, not opacity:0 — a hidden absolutely-positioned child still
+     counts toward the page's scrollable overflow, and 90 of these were making
+     every page scroll sideways. */
+  display: none;
+}
+
+.tag:hover::after,
+.tag:focus-visible::after {
+  display: block;
+}
+
+/* Near the right edge the tooltip flips its anchor rather than overflowing. */
+.tag--flip::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+/* ── Tag legend ─────────────────────────────────────────────────────────
+ * One definition list per page that uses tags. It is the aria-describedby
+ * target, so the tooltip text and the announced text are the same sentence. */
+
+.legend {
+  display: grid;
+  gap: var(--s-3) var(--s-4);
+  margin: 0;
+  padding: 0;
+}
+
+@media (min-width: 640px) {
+  .legend {
+    grid-template-columns: auto 1fr;
+  }
+}
+
+.legend dt {
+  margin: 0;
+}
+
+.legend dd {
+  margin: 0;
+  color: var(--muted);
+  font-size: var(--t-small);
+  max-width: 60ch;
+}
+
+/* ── Wall hatch (§4.3.6) ─────────────────────────────────────────────────
+ * The same 45° hairline fill at surface scale, for matrix cells and panels. */
+
+.hatch {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--wall) 26%, transparent) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+.hatch--inert {
+  background-image: repeating-linear-gradient(
+    45deg,
+    color-mix(in srgb, var(--inert) 26%, transparent) 0 1px,
+    transparent 1px 7px
+  );
+}
+
+/* ── Header ─────────────────────────────────────────────────────────────── */
+
+.site-head {
+  position: relative;
+  background: var(--ink);
+}
+
+.site-head__bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-3) var(--s-5);
+  padding-block: var(--s-3);
+}
+
+.brand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  color: var(--text);
+  text-decoration: none;
+  margin-inline-end: auto;
+}
+
+.brand:hover {
+  color: var(--text);
+}
+
+.brand__mark {
+  display: block;
+  flex: none;
+}
+
+.brand__name {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 1.35rem;
+  letter-spacing: 0.02em;
+  line-height: 1;
+}
+
+.brand__sub {
+  color: var(--muted);
+  border-inline-start: var(--hair) solid var(--rail);
+  padding-inline-start: var(--s-2);
+  margin-inline-start: var(--s-1);
+}
+
+@media (max-width: 560px) {
+  .brand__sub {
+    display: none;
+  }
+}
+
+/* ── Nav ────────────────────────────────────────────────────────────────
+ * No hamburger, no JS: the bar wraps to a second row on narrow screens. */
+
+.nav {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-1) var(--s-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.nav a {
+  display: inline-block;
+  position: relative;
+  padding-block: var(--s-1);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--muted);
+}
+
+.nav a:hover {
+  color: var(--text);
+}
+
+.nav a[aria-current='page'] {
+  color: var(--text);
+}
+
+.nav a[aria-current='page']::after {
+  content: '';
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: -3px;
+  height: 2px;
+  background: var(--sig);
+}
+
+.nav li {
+  max-width: none;
+}
+
+/* Below the point where brand + nav + toggle stop fitting on one line, drop the
+ * nav to its own full-width row rather than orphaning the toggle onto a third. */
+@media (max-width: 900px) {
+  .site-head__bar > nav {
+    order: 1;
+    flex-basis: 100%;
+  }
+}
+
+/* ── Theme toggle ───────────────────────────────────────────────────────
+ * Hidden until theme.js can make it work — a control that does nothing with
+ * JS off is worse than no control. prefers-color-scheme still delivers both
+ * themes without it. */
+
+.theme-toggle[hidden] {
+  display: none;
+}
+
+.theme-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  padding: var(--s-1) var(--s-2);
+  background: transparent;
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease);
+}
+
+.theme-toggle:hover {
+  border-color: var(--rail-2);
+  color: var(--text);
+}
+
+.theme-toggle__dot {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: var(--radius-pill);
+  background: var(--sig);
+}
+
+/* ── Page head ──────────────────────────────────────────────────────────── */
+
+.page-head {
+  padding-block: clamp(var(--s-6), 8vw, var(--s-9)) clamp(var(--s-5), 5vw, var(--s-7));
+}
+
+.page-head .label {
+  display: block;
+  margin-block-end: var(--s-3);
+}
+
+.page-head .lede {
+  margin-block-start: var(--s-4);
+}
+
+/* ── Pending marker — scaffold only, removed as each page lands ─────────── */
+
+.pending {
+  display: inline-block;
+  text-align: start;
+  padding: var(--s-2) var(--s-3);
+  border: var(--hair) dashed var(--rail-2);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+}
+
+.pending b {
+  color: var(--inert);
+  font-weight: 400;
+  text-transform: uppercase;
+  margin-inline-end: var(--s-2);
+}
+
+/* ── Footer ─────────────────────────────────────────────────────────────── */
+
+.site-foot {
+  margin-block-start: var(--s-8);
+  background: var(--ink);
+}
+
+.site-foot__grid {
+  display: grid;
+  gap: var(--s-5);
+  padding-block: var(--s-6) var(--s-7);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 720px) {
+  .site-foot__grid {
+    grid-template-columns: 1.4fr 1fr 1fr;
+  }
+}
+
+.site-foot h2 {
+  font-size: 1.05rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-family: var(--font-mono);
+  font-weight: 400;
+  font-stretch: normal;
+  color: var(--muted);
+  margin-block-end: var(--s-3);
+}
+
+.site-foot ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: var(--s-2);
+}
+
+.site-foot li {
+  max-width: none;
+}
+
+.site-foot a {
+  font-size: var(--t-small);
+}
+
+.foot-note {
+  color: var(--muted);
+  font-size: var(--t-small);
+  max-width: 46ch;
+}
+
+/* The honesty readout. It says zero because it is zero — plan 10 §8.1. */
+.counter {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  align-items: baseline;
+  gap: var(--s-3);
+  padding: var(--s-2) var(--s-3);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  margin-block-start: var(--s-4);
+}
+
+.counter__n {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 2rem;
+  line-height: 1;
+  color: var(--text);
+}
+
+.counter__what {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  color: var(--muted);
+  max-width: 22ch;
+}
+
+/* ── Pairing chip (§4.3.3) ───────────────────────────────────────────────
+ * The trust model in three seconds: the same six digits and the same word
+ * pair on two screens, confirmed on both, after which the link is pinned.
+ *
+ * Built on two checkboxes, so it is fully interactive with JavaScript
+ * disabled. No dead controls, no video, no GIF. */
+
+.chip {
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  padding: var(--s-4);
+}
+
+.chip__input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.chip__grid {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: 1fr;
+  align-items: stretch;
+}
+
+@media (min-width: 620px) {
+  .chip__grid {
+    /* No column gap: the link is the gap, and it has to touch both devices. */
+    grid-template-columns: 1fr minmax(72px, 0.35fr) 1fr;
+    column-gap: 0;
+    align-items: center;
+  }
+}
+
+.chip__side {
+  display: grid;
+  gap: var(--s-3);
+  justify-items: start;
+  padding: var(--s-3);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink);
+}
+
+.chip__device {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.chip__code {
+  font-family: var(--font-mono);
+  font-size: clamp(1.6rem, 1.1rem + 1.8vw, 2.3rem);
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  line-height: 1;
+  color: var(--text);
+}
+
+.chip__words {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--sig);
+}
+
+.chip__confirm {
+  display: inline-block;
+  padding: var(--s-2) var(--s-4);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease);
+}
+
+.chip__confirm:hover {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+.chip__confirm::before {
+  content: 'confirm';
+}
+
+/* ── The link between the two sides ─────────────────────────────────────
+ * Dashed while the code is unverified; solid, pinned and traversed by one
+ * packet once both sides have confirmed. */
+
+.chip__link {
+  position: relative;
+  display: block;
+  block-size: 2px;
+  inline-size: 100%;
+  min-inline-size: 96px;
+  border-block-start: 2px dashed var(--rail-2);
+  align-self: center;
+}
+
+@media (max-width: 619px) {
+  .chip__link {
+    block-size: 28px;
+    inline-size: 2px;
+    min-inline-size: 0;
+    margin-inline-start: var(--s-6);
+    border-block-start: 0;
+    border-inline-start: 2px dashed var(--rail-2);
+  }
+}
+
+/* The state line is real text in the DOM, not generated content: a CSS ::before
+ * is invisible to a screen reader, and this sentence is the whole point of the
+ * component. Exactly one of the three is displayed. */
+.chip__state {
+  margin-block-start: var(--s-4);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  max-width: none;
+}
+
+.chip__state > span {
+  display: none;
+}
+
+.chip__state > .state-none {
+  display: inline;
+}
+
+.chip:has(.chip__input:checked) .chip__state > .state-none {
+  display: none;
+}
+
+.chip:has(.chip__input:checked) .chip__state > .state-half {
+  display: inline;
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__state > .state-half {
+  display: none;
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__state > .state-paired {
+  display: inline;
+}
+
+/* Both confirmed. The handshake runs left to right: a --sig packet crosses the
+ * dashed line and lays a solid one behind it. That *is* "dashed to solid" —
+ * the animation shows the trust being established, not just its result.
+ * Under prefers-reduced-motion --dur-packet is 1ms, so it snaps to solid. */
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::before {
+  content: '';
+  position: absolute;
+  inset-block-start: -2px;
+  inset-inline-start: 0;
+  inline-size: 100%;
+  block-size: 2px;
+  background: var(--sig);
+  transform-origin: left center;
+  animation: link-zip var(--dur-packet) var(--ease) forwards;
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::after {
+  content: '';
+  position: absolute;
+  inset-block-start: -4px;
+  inset-inline-start: 0;
+  inline-size: 8px;
+  block-size: 6px;
+  background: var(--text);
+  animation: packet-head var(--dur-packet) var(--ease) forwards;
+}
+
+@keyframes link-zip {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+/* Percentages in translate resolve against the packet's own 8px, not the wire —
+ * so the head travels on inset-inline-start instead. */
+@keyframes packet-head {
+  from {
+    inset-inline-start: 0;
+    opacity: 1;
+  }
+  92% {
+    opacity: 1;
+  }
+  to {
+    inset-inline-start: calc(100% - 8px);
+    opacity: 0;
+  }
+}
+
+/* Stacked layout: the link runs vertically, so the handshake does too. */
+@media (max-width: 619px) {
+  .chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::before {
+    inset-block-start: 0;
+    inset-inline-start: -2px;
+    inline-size: 2px;
+    block-size: 100%;
+    transform-origin: center top;
+    animation-name: link-zip-y;
+  }
+
+  .chip:has(#pair-a:checked):has(#pair-b:checked) .chip__link::after {
+    display: none;
+  }
+}
+
+@keyframes link-zip-y {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+.chip:has(#pair-a:checked):has(#pair-b:checked) .chip__state {
+  color: var(--sig);
+}
+
+/* A confirmed side reads as confirmed. */
+.chip:has(#pair-a:checked) label[for='pair-a'],
+.chip:has(#pair-b:checked) label[for='pair-b'] {
+  border-color: var(--sig);
+  color: var(--sig);
+  cursor: default;
+}
+
+.chip:has(#pair-a:checked) label[for='pair-a']::before,
+.chip:has(#pair-b:checked) label[for='pair-b']::before {
+  content: '✓ confirmed';
+}
+
+/* The checkbox is off-screen, so its focus ring has to land on the label. */
+#pair-a:focus-visible ~ .chip__grid label[for='pair-a'],
+#pair-b:focus-visible ~ .chip__grid label[for='pair-b'] {
+  outline: 2px solid var(--sig);
+  outline-offset: 3px;
+}
+
+/* ── Kitchen sink (dev reference page only) ─────────────────────────────── */
+
+.ks-note {
+  border-inline-start: 2px solid var(--partial);
+  padding: var(--s-2) 0 var(--s-2) var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.swatches {
+  display: grid;
+  gap: var(--s-3);
+  grid-template-columns: repeat(auto-fill, minmax(148px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.swatch {
+  max-width: none;
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+.swatch__chip {
+  block-size: 56px;
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+.swatch__meta {
+  display: grid;
+  gap: 2px;
+  padding: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0;
+}
+
+.swatch__meta b {
+  font-weight: 400;
+  color: var(--text);
+}
+
+.swatch__meta span {
+  color: var(--muted);
+}
+
+.specimen {
+  display: grid;
+  gap: var(--s-4);
+}
+
+.tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-3);
+  align-items: center;
+  /* Headroom for the tooltip, which opens upward. */
+  padding-block-start: var(--s-5);
+}
+
+/* ── Home: hero ─────────────────────────────────────────────────────────── */
+
+.hero {
+  padding-block: clamp(var(--s-6), 8vw, var(--s-9)) clamp(var(--s-6), 6vw, var(--s-8));
+}
+
+.hero .label {
+  display: block;
+  margin-block-end: var(--s-3);
+}
+
+.hero .chip {
+  margin-block-start: clamp(var(--s-5), 5vw, var(--s-7));
+}
+
+/* The spec strip: four facts, hairline-separated, mono. Not a feature list. */
+.facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--s-2) 0;
+  margin: var(--s-5) 0 0;
+  padding: 0;
+  list-style: none;
+  max-width: none;
+}
+
+.facts li {
+  max-width: none;
+  padding-inline: var(--s-3);
+  border-inline-start: var(--hair) solid var(--rail);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.facts li:first-child {
+  padding-inline-start: 0;
+  border-inline-start: 0;
+}
+
+@media (max-width: 619px) {
+  .facts {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0;
+  }
+
+  .facts li {
+    padding: var(--s-2) var(--s-3) var(--s-2) 0;
+    border-inline-start: 0;
+    border-block-start: var(--hair) solid var(--rail);
+    white-space: normal;
+  }
+}
+
+/* ── Home: the honest-status band ────────────────────────────────────────
+ * Second thing on the page, deliberately. Plan 10 §8.1: the counter is a
+ * feature, and this sentence is not something to bury below the fold. */
+
+.band {
+  background: var(--ink-2);
+}
+
+.band__grid {
+  display: grid;
+  gap: var(--s-6);
+  padding-block: clamp(var(--s-6), 6vw, var(--s-8));
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 900px) {
+  .band__grid {
+    grid-template-columns: 1.15fr 1fr;
+    gap: var(--s-8);
+    align-items: start;
+  }
+}
+
+.counter--lg {
+  display: block;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  background: none;
+}
+
+.counter--lg .counter__n {
+  display: block;
+  font-size: clamp(5rem, 16vw, 9rem);
+  line-height: 0.8;
+  letter-spacing: -0.05em;
+}
+
+.counter--lg .counter__what {
+  display: block;
+  margin-block-start: var(--s-3);
+  max-width: 30ch;
+}
+
+/* Three implementations, three real numbers, one date. */
+.figures {
+  display: grid;
+  gap: 0;
+  margin-block-start: var(--s-5);
+  padding-block-start: var(--s-4);
+  border-block-start: var(--hair) solid var(--rail);
+}
+
+.figures div {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block: var(--s-2);
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+.figures dt {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.figures dd {
+  margin: 0;
+  font-family: var(--font-mono);
+  font-size: var(--t-small);
+  color: var(--text);
+  text-align: end;
+}
+
+.dateline {
+  display: block;
+  margin-block-start: var(--s-3);
+  color: var(--muted);
+}
+
+/* ── Home: the four claims ──────────────────────────────────────────────── */
+
+.claims {
+  display: grid;
+  gap: var(--s-5);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 760px) {
+  .claims {
+    grid-template-columns: 1fr 1fr;
+    gap: var(--s-7) var(--s-6);
+  }
+}
+
+.claim {
+  max-width: none;
+  padding-block-start: var(--s-3);
+  border-block-start: 2px solid var(--rail-2);
+}
+
+.claim__n {
+  display: block;
+  color: var(--sig);
+  margin-block-end: var(--s-2);
+}
+
+.claim h3 + p {
+  margin-block-start: var(--s-2);
+}
+
+.claim p {
+  color: var(--muted);
+}
+
+/* ── Call to action ─────────────────────────────────────────────────────── */
+
+.cta {
+  margin-block-start: var(--s-5);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+}
+
+.cta a {
+  text-decoration: none;
+  border-block-end: var(--hair) solid color-mix(in srgb, var(--sig) 45%, transparent);
+  padding-block-end: 2px;
+}
+
+.cta a:hover {
+  border-block-end-color: currentColor;
+}
+
+/* ── Code blocks ────────────────────────────────────────────────────────── */
+
+.code {
+  margin: 0;
+  padding: var(--s-3) var(--s-4);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+  overflow-x: auto;
+  line-height: 1.75;
+  max-width: none;
+}
+
+.code .c {
+  color: var(--muted);
+}
+
+.quickstart {
+  display: grid;
+  gap: var(--s-5);
+  margin-block-start: var(--s-6);
+}
+
+@media (min-width: 980px) {
+  .quickstart {
+    grid-template-columns: repeat(3, 1fr);
+    align-items: start;
+  }
+}
+
+/* Without this a long command line widens its own grid item instead of
+ * scrolling inside the <pre> — at every width, not just the 3-column one. */
+.quickstart > * {
+  min-width: 0;
+}
+
+.quickstart h3 {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-3);
+  padding-block-end: var(--s-2);
+  border-block-end: var(--hair) solid var(--rail);
+  margin-block-end: var(--s-3);
+}
+
+.quickstart h3 small {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  font-weight: 400;
+  letter-spacing: var(--track-mono);
+  font-stretch: normal;
+  color: var(--sig);
+}
+
+/* ── Capability matrix (§4.3.4) ──────────────────────────────────────────
+ * A real <table>: semantic, keyboard-navigable, sticky header row and first
+ * column. Hairlines, no zebra stripes — the colour in this table means
+ * evidence strength, and nothing else is allowed to compete with it. */
+
+.matrix-wrap {
+  margin-block-start: var(--s-5);
+  overflow: auto;
+  max-block-size: min(78vh, 900px);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+}
+
+.matrix-wrap:focus-visible {
+  outline: 2px solid var(--sig);
+  outline-offset: 2px;
+}
+
+.matrix {
+  border-collapse: separate;
+  border-spacing: 0;
+  inline-size: 100%;
+  font-size: var(--t-small);
+}
+
+.matrix th,
+.matrix td {
+  padding: var(--s-2) var(--s-3);
+  text-align: start;
+  vertical-align: top;
+  border-block-end: var(--hair) solid var(--rail);
+  border-inline-end: var(--hair) solid var(--rail);
+}
+
+/* Cells wrap; only the pill itself refuses to break. A nowrap cell made long
+ * notes overlap their own tag. */
+.matrix td {
+  min-inline-size: 10ch;
+  line-height: 1.5;
+}
+
+.matrix tr:last-child th,
+.matrix tr:last-child td {
+  border-block-end: 0;
+}
+
+.matrix th:last-child,
+.matrix td:last-child {
+  border-inline-end: 0;
+}
+
+/* Sticky header row and first column. Both need an opaque ground of their
+ * own or the cells scroll through them. */
+.matrix thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 2;
+  background: var(--ink-3);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.matrix tbody th {
+  position: sticky;
+  inset-inline-start: 0;
+  z-index: 1;
+  background: var(--ink-2);
+  font-weight: 500;
+  font-size: var(--t-small);
+  white-space: normal;
+  border-inline-end: var(--hair) solid var(--rail-2);
+}
+
+/* The capability column is the row's name; without a floor the table layout
+ * squeezes it to its longest word while the nowrap tag columns take the room. */
+.matrix tbody th,
+.matrix thead th:first-child {
+  min-inline-size: min(26ch, 42vw);
+}
+
+.matrix thead th:first-child {
+  z-index: 3;
+  inset-inline-start: 0;
+  background: var(--ink-3);
+}
+
+.cell__note {
+  color: var(--muted);
+  font-size: var(--t-mono);
+  font-family: var(--font-mono);
+}
+
+/* The README bolds a handful of cells — the ones whose tag alone would
+ * mislead. Carry that emphasis through instead of flattening it. */
+.cell__note--strong {
+  color: var(--text);
+}
+
+/* Footnote reference: small, mono, superscript, and a real link. */
+.fn {
+  font-family: var(--font-mono);
+  font-size: 0.68em;
+  vertical-align: super;
+  line-height: 1;
+  text-decoration: none;
+  color: var(--muted);
+  border-block-end: var(--hair) solid var(--rail-2);
+}
+
+.fn:hover,
+.fn:focus-visible {
+  color: var(--sig);
+}
+
+/* A cell the tooltip would push off the top of the scroll container opens
+ * downward instead. */
+.matrix tbody tr:first-child .tag::after,
+.matrix tbody tr:nth-child(2) .tag::after {
+  inset-block-end: auto;
+  inset-block-start: calc(100% + var(--s-1));
+}
+
+.matrix td:last-child .tag::after,
+.matrix td:nth-last-child(2) .tag::after {
+  inset-inline-start: auto;
+  inset-inline-end: 0;
+}
+
+/* ── Matrix filters ──────────────────────────────────────────────────────
+ * Platform toggles are checkboxes plus CSS, so they work with JavaScript
+ * disabled. The capability search needs script, so it stays hidden until
+ * matrix.js can run it. */
+
+.matrix-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--s-2);
+  margin-block-start: var(--s-5);
+}
+
+.colfilter {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
+.chipbox {
+  display: inline-block;
+  padding: var(--s-1) var(--s-3);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius-pill);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  cursor: pointer;
+  user-select: none;
+  transition: border-color var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease);
+}
+
+.colfilter:checked + .chipbox {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+.colfilter:focus-visible + .chipbox {
+  outline: 2px solid var(--sig);
+  outline-offset: 3px;
+}
+
+.matrix-search input {
+  padding: var(--s-1) var(--s-3);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius-pill);
+  background: var(--ink-2);
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  inline-size: 22ch;
+}
+
+.matrix-count {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+}
+
+.matrix-empty {
+  margin-block-start: var(--s-4);
+  color: var(--muted);
+}
+
+.matrix tr[hidden] {
+  display: none;
+}
+
+/* ── Legend with counts, footnote list ──────────────────────────────────── */
+
+.legend__n {
+  display: inline-block;
+  margin-inline-start: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--inert);
+  white-space: nowrap;
+}
+
+.footnotes {
+  display: grid;
+  gap: var(--s-3);
+  margin: 0;
+  padding-inline-start: var(--s-5);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.footnotes li {
+  max-width: 78ch;
+  padding-inline-start: var(--s-2);
+}
+
+.footnotes li::marker {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  color: var(--sig);
+}
+
+.footnotes li:target {
+  color: var(--text);
+}
+
+.counter__of {
+  color: var(--muted);
+  font-size: 0.42em;
+  letter-spacing: -0.02em;
+}
+
+.figures--wide dd {
+  text-align: end;
+  max-inline-size: 46ch;
+}
+
+@media (max-width: 640px) {
+  .figures--wide div {
+    display: grid;
+    gap: var(--s-1);
+  }
+
+  .figures--wide dd {
+    text-align: start;
+  }
+}
+
+/* Column toggles, in CSS so they work with JavaScript disabled. One rule per
+ * platform; the slug matches the checkbox id emitted for that column. */
+.matrix-tools:has(#col-macos:not(:checked)) ~ .matrix-wrap [data-col='1'],
+.matrix-tools:has(#col-ios-ipados:not(:checked)) ~ .matrix-wrap [data-col='2'],
+.matrix-tools:has(#col-tvos:not(:checked)) ~ .matrix-wrap [data-col='3'],
+.matrix-tools:has(#col-android:not(:checked)) ~ .matrix-wrap [data-col='4'],
+.matrix-tools:has(#col-linux:not(:checked)) ~ .matrix-wrap [data-col='5'],
+.matrix-tools:has(#col-windows:not(:checked)) ~ .matrix-wrap [data-col='6'] {
+  display: none;
+}
+
+/* ── Outcome marks ───────────────────────────────────────────────────────
+ * Square-cornered, so they never read as evidence tags. An evidence tag says
+ * how something was tested; a mark says what happened to a promise. */
+
+.mark {
+  display: inline-block;
+  padding: 1px var(--s-2) 2px;
+  border: var(--hair) solid currentColor;
+  border-radius: var(--radius);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  line-height: 1.5;
+  white-space: nowrap;
+  color: var(--inert);
+}
+
+.mark--done {
+  color: var(--sig);
+}
+
+.mark--part {
+  color: var(--partial);
+}
+
+.mark--gone {
+  color: var(--inert);
+  border-style: dashed;
+}
+
+/* ── Pull quote ─────────────────────────────────────────────────────────── */
+
+.pull {
+  margin: 0;
+  border-inline-start: 2px solid var(--sig);
+  padding-inline-start: clamp(var(--s-4), 3vw, var(--s-6));
+}
+
+.pull p {
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: var(--t-h2);
+  line-height: 1;
+  letter-spacing: var(--track-display);
+  text-wrap: balance;
+  max-width: 22ch;
+}
+
+.pull footer {
+  margin-block-start: var(--s-4);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+/* ── Plain table (scorecard, non-goals) ─────────────────────────────────── */
+
+.tbl {
+  inline-size: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--t-small);
+  margin-block-start: var(--s-5);
+}
+
+.tbl th,
+.tbl td {
+  text-align: start;
+  vertical-align: top;
+  padding: var(--s-3) var(--s-4) var(--s-3) 0;
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+.tbl thead th {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  font-weight: 400;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+  border-block-end-color: var(--rail-2);
+}
+
+.tbl td:last-child,
+.tbl th:last-child {
+  padding-inline-end: 0;
+}
+
+.tbl .mark {
+  margin-block-start: 1px;
+}
+
+/* ── Path ladder (§4.3.5) ────────────────────────────────────────────────
+ * LAN → same-vendor P2P → soft-AP → manual hotspot. One continuous rail
+ * across the top; the segment above a rung is lit only where that rung is
+ * proven, so the graphic itself says how far along we actually are. */
+
+.ladder {
+  display: grid;
+  gap: var(--s-5);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 900px) {
+  .ladder {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0;
+  }
+
+  .rung {
+    padding-inline: var(--s-4);
+    border-inline-start: var(--hair) solid var(--rail);
+  }
+
+  .rung:first-child {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+}
+
+.rung {
+  position: relative;
+  max-width: none;
+  padding-block-start: var(--s-4);
+  border-block-start: 2px solid var(--rail-2);
+}
+
+.rung--proven {
+  border-block-start-color: var(--sig);
+}
+
+.rung::before {
+  content: '';
+  position: absolute;
+  inset-block-start: -5px;
+  inset-inline-start: 0;
+  inline-size: 8px;
+  block-size: 8px;
+  background: var(--rail-2);
+}
+
+@media (min-width: 900px) {
+  .rung::before {
+    inset-inline-start: var(--s-4);
+  }
+
+  .rung:first-child::before {
+    inset-inline-start: 0;
+  }
+}
+
+.rung--proven::before {
+  background: var(--sig);
+}
+
+.rung__n {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+  margin-block-end: var(--s-2);
+}
+
+.rung h3 {
+  font-size: 1.15rem;
+}
+
+.rung h3 + .mark {
+  margin-block-start: var(--s-2);
+}
+
+.rung p {
+  margin-block-start: var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+/* ── Horizons ───────────────────────────────────────────────────────────── */
+
+.horizons {
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.horizon {
+  display: grid;
+  gap: var(--s-2) var(--s-5);
+  max-width: none;
+  padding-block: var(--s-5);
+  border-block-start: var(--hair) solid var(--rail);
+}
+
+.horizon:last-child {
+  border-block-end: var(--hair) solid var(--rail);
+}
+
+@media (min-width: 880px) {
+  .horizon {
+    grid-template-columns: 14ch minmax(0, 1fr) auto;
+    align-items: start;
+  }
+}
+
+.horizon__n {
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--sig);
+  padding-block-start: 4px;
+}
+
+.horizon p {
+  margin-block-start: var(--s-2);
+  color: var(--muted);
+}
+
+/* ── Numbered rung list (adoption ladder, plan 04) ──────────────────────── */
+
+.rungs {
+  display: grid;
+  gap: 0;
+  margin: var(--s-5) 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: rung;
+}
+
+.rungs li {
+  display: grid;
+  gap: var(--s-2) var(--s-4);
+  max-width: none;
+  padding-block: var(--s-3);
+  border-block-end: var(--hair) solid var(--rail);
+  counter-increment: rung;
+}
+
+/* Four children — counter, name, description, mark — so four columns. Three
+ * made the description wrap inside the mark's width. */
+@media (min-width: 720px) {
+  .rungs li {
+    grid-template-columns: 4ch minmax(16ch, 26ch) minmax(0, 1fr) auto;
+    align-items: baseline;
+  }
+}
+
+.rungs li::before {
+  content: counter(rung, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+}
+
+.rungs b {
+  font-weight: 600;
+}
+
+.rungs span:not(.mark) {
+  color: var(--muted);
+}
+
+/* ── Three-impl seal (§4.3.7) ────────────────────────────────────────────
+ * Swift · Go · Kotlin against one frozen vector set. Small, dense, and in
+ * the footer of every page — it is the single most load-bearing fact about
+ * this protocol, so it never scrolls out of reach. */
+
+.seal {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-5);
+  max-width: none;
+  padding-block: var(--s-3);
+  border-block-end: var(--hair) solid var(--rail);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--muted);
+}
+
+.seal__impl {
+  display: inline-flex;
+  align-items: baseline;
+  gap: var(--s-2);
+}
+
+.seal__impl b {
+  font-weight: 400;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.seal__impl em {
+  font-style: normal;
+  color: var(--sig);
+}
+
+.seal__note {
+  margin-inline-start: auto;
+}
+
+/* The same fact, at hero scale, on /protocol. */
+.seal--lg {
+  display: grid;
+  gap: var(--s-4);
+  border-block-end: 0;
+  padding-block: 0;
+  margin-block-start: var(--s-6);
+  grid-template-columns: 1fr;
+}
+
+@media (min-width: 760px) {
+  .seal--lg {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+  }
+
+  .seal--lg .seal__impl {
+    padding-inline: var(--s-5);
+    border-inline-start: var(--hair) solid var(--rail);
+  }
+
+  .seal--lg .seal__impl:first-child {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+  }
+}
+
+.seal--lg .seal__impl {
+  display: block;
+  padding-block-start: var(--s-4);
+  border-block-start: 2px solid var(--sig);
+}
+
+.seal--lg .seal__impl b {
+  display: block;
+  margin-block-end: var(--s-2);
+}
+
+.seal--lg .seal__impl em {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: clamp(2.6rem, 1.6rem + 3vw, 4rem);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+}
+
+.seal--lg .seal__impl i {
+  display: block;
+  font-style: normal;
+  margin-block-start: var(--s-2);
+  color: var(--muted);
+}
+
+/* ── Copy button ─────────────────────────────────────────────────────────
+ * An enhancement over selectable text, so it stays hidden until copy.js can
+ * make it work. The commands are readable and selectable either way. */
+
+.codeblock {
+  position: relative;
+}
+
+.copy {
+  position: absolute;
+  inset-block-start: var(--s-2);
+  inset-inline-end: var(--s-2);
+  padding: 2px var(--s-2);
+  border: var(--hair) solid var(--rail-2);
+  border-radius: var(--radius);
+  background: var(--ink);
+  color: var(--muted);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity var(--dur-ui) var(--ease), color var(--dur-ui) var(--ease),
+    border-color var(--dur-ui) var(--ease);
+}
+
+.copy[hidden] {
+  display: none;
+}
+
+.codeblock:hover .copy,
+.copy:focus-visible,
+.copy[data-done] {
+  opacity: 1;
+}
+
+.copy:hover {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+.copy[data-done] {
+  border-color: var(--sig);
+  color: var(--sig);
+}
+
+/* Keyboard users never hover, so the button has to be reachable without it. */
+@media (hover: none) {
+  .copy {
+    opacity: 1;
+  }
+}
+
+/* ── Device-gated step ───────────────────────────────────────────────────
+ * Every command on /build either ran on 2026-07-26 or is flagged here. */
+
+.step {
+  max-width: none;
+  padding-block: var(--s-5);
+  border-block-start: var(--hair) solid var(--rail);
+}
+
+.step__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--s-2) var(--s-3);
+  margin-block-end: var(--s-3);
+}
+
+.step__head h3 {
+  margin: 0;
+}
+
+.step > p {
+  margin-block: var(--s-3);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.gated {
+  border-inline-start: 2px solid var(--partial);
+  padding: var(--s-3) 0 var(--s-3) var(--s-4);
+  margin-block-start: var(--s-5);
+}
+
+.gated p {
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+/* ── Spec blocks (/protocol) ─────────────────────────────────────────────── */
+
+.spec {
+  display: grid;
+  gap: var(--s-6);
+  margin-block-start: var(--s-6);
+}
+
+@media (min-width: 900px) {
+  .spec {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-7) var(--s-6);
+  }
+}
+
+.spec > div {
+  min-width: 0;
+}
+
+.spec h3 {
+  padding-block-end: var(--s-2);
+  border-block-end: var(--hair) solid var(--rail-2);
+  margin-block-end: var(--s-3);
+}
+
+.spec p {
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+.spec .code {
+  margin-block-start: var(--s-3);
+}
+
+/* ── Capability cards ────────────────────────────────────────────────────
+ * What the thing actually does. Each card carries the macOS evidence tag,
+ * generated from matrix.json, so the showcase cannot drift from the ledger. */
+
+.caps {
+  display: grid;
+  gap: var(--s-5);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 700px) {
+  .caps {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-6) var(--s-6);
+  }
+}
+
+@media (min-width: 1060px) {
+  .caps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.cap {
+  max-width: none;
+  min-width: 0;
+  padding-block-start: var(--s-3);
+  border-block-start: 2px solid var(--sig);
+}
+
+.cap__head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--s-2) var(--s-3);
+}
+
+.cap h3 {
+  font-size: 1.1rem;
+}
+
+.cap p {
+  margin-block-start: var(--s-2);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+/* ── Coverage: who has run this on real hardware ─────────────────────────
+ * The recruiting surface. Platforms nobody owns are the ask, not an apology. */
+
+.coverage {
+  display: grid;
+  gap: var(--s-3);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+}
+
+@media (min-width: 760px) {
+  .coverage {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.cov {
+  max-width: none;
+  min-width: 0;
+  padding: var(--s-3);
+  border: var(--hair) solid var(--rail);
+  border-radius: var(--radius);
+  background: var(--ink-2);
+}
+
+.cov--run {
+  border-color: color-mix(in srgb, var(--sig) 50%, var(--rail));
+}
+
+.cov--open {
+  border-style: dashed;
+  border-color: var(--rail-2);
+  background: none;
+}
+
+.cov__name {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.cov__state {
+  display: block;
+  margin-block-start: var(--s-2);
+  font-size: var(--t-small);
+  color: var(--muted);
+}
+
+.cov--run .cov__state {
+  color: var(--sig);
+}
+
+.cov__ask {
+  display: inline-block;
+  margin-block-start: var(--s-2);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  text-transform: uppercase;
+  text-decoration: none;
+  border-block-end: var(--hair) solid color-mix(in srgb, var(--sig) 45%, transparent);
+}
+
+/* ── Benefits ────────────────────────────────────────────────────────────── */
+
+.why {
+  display: grid;
+  gap: var(--s-5);
+  margin: var(--s-6) 0 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: why;
+}
+
+@media (min-width: 780px) {
+  .why {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--s-6);
+  }
+}
+
+.why li {
+  max-width: none;
+  min-width: 0;
+  counter-increment: why;
+  padding-inline-start: var(--s-6);
+  position: relative;
+}
+
+.why li::before {
+  content: counter(why, decimal-leading-zero);
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 2px;
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  color: var(--sig);
+}
+
+.why b {
+  display: block;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-stretch: 88%;
+  font-size: 1.15rem;
+  letter-spacing: -0.02em;
+}
+
+.why span {
+  display: block;
+  margin-block-start: var(--s-2);
+  color: var(--muted);
+  font-size: var(--t-small);
+}
+
+/* ── Footer status line ─────────────────────────────────────────────────── */
+
+.foot-status {
+  margin-block-start: var(--s-4);
+  padding-block-start: var(--s-3);
+  border-block-start: var(--hair) solid var(--rail);
+  font-family: var(--font-mono);
+  font-size: var(--t-mono);
+  letter-spacing: var(--track-mono);
+  line-height: 1.7;
+  color: var(--muted);
+  max-width: 44ch;
+}
+
+.foot-status b {
+  color: var(--text);
+  font-weight: 400;
+}
