@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="assets/css/tokens.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
+    <!-- Applies a stored theme choice before first paint. Three lines, no
+         dependency: prefers-color-scheme covers everyone without it. -->
     <script>
       try {
         var t = localStorage.getItem('mosis-theme');
@@ -75,12 +77,14 @@
             <div>
               <h3>Device truth</h3>
               <p>
-                Every capability tag turns <code>dev</code> on real hardware.
-                This is the only horizon with a number attached, and the number
-                is <span data-total="claimed">54</span> cells still to go.
+                Every capability tag turns <code>dev</code> when someone walks
+                the device checklist on real hardware. macOS, iPhone and the
+                browser viewer have been run by hand;
+                <span data-total="claimed">56</span> cells could
+                carry the tag once the checklist is walked.
               </p>
             </div>
-            <span class="mark mark--part">0 / <span data-total="claimed">54</span> verified</span>
+            <span class="mark mark--part"><span data-total="claimed">56</span> cells to walk</span>
           </li>
           <li class="horizon">
             <span class="horizon__n">Horizon 2</span>
@@ -261,9 +265,10 @@
             Mobile Operating System Integrated Solutions. Open, local-first,
             cross-device connectivity. Apache-2.0.
           </p>
-          <p class="counter">
-            <span class="counter__n">0</span>
-            <span class="counter__what">device-verified sessions with the current code</span>
+          <p class="foot-status">
+            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
+            hand. Android, Linux, tvOS and Windows have never run on a device.
+            No cell in the matrix carries a <code>dev</code> tag yet.
           </p>
         </div>
         <div>

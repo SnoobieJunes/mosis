@@ -23,10 +23,10 @@
     "dev": "device-verified on real hardware — this tag appears nowhere yet"
   },
   "counts": {
-    "E2E": 14,
+    "E2E": 16,
     "bld": 22,
     "smoke": 3,
-    "—": 29,
+    "—": 42,
     "E2E*": 7,
     "wall": 6,
     "none": 1,

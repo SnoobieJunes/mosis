@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Status — MOSIS</title>
-    <meta name="description" content="The full capability × platform matrix, with the strongest evidence that exists in every cell, and a device-verified counter that reads zero." />
+    <meta name="description" content="The full capability × platform matrix, with the strongest evidence that exists in every cell, and an open call for testers on the platforms nobody has run." />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#070b0a" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f4f7f5" media="(prefers-color-scheme: light)" />
@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="assets/css/tokens.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
+    <!-- Applies a stored theme choice before first paint. Three lines, no
+         dependency: prefers-color-scheme covers everyone without it. -->
     <script>
       try {
         var t = localStorage.getItem('mosis-theme');
@@ -59,7 +61,7 @@
         <span class="label">/status</span>
         <h1>Every claim carries its&nbsp;evidence.</h1>
         <p class="lede">
-          90 cells, each naming the strongest evidence that exists for it
+          105 cells, each naming the strongest evidence that exists for it
           and footnoted with what was actually run. This page is generated from
           the README table and CI fails if the two disagree.
         </p>
@@ -67,28 +69,51 @@
 
       <hr class="rail" />
 
-      <!-- ── The counter ───────────────────────────────────────────────── -->
+      <!-- ── The ask ───────────────────────────────────────────────────── -->
       <section class="band">
-        <div class="wrap band__grid">
-          <div>
-            <h2>Zero of 54 cells are device-verified.</h2>
-            <p>
-              54 of the 90 cells name an implementation, so 54 could one
-              day carry the <code>dev</code> tag. None does. The other
-              36 are platform walls or unimplemented, and never will.
-            </p>
-            <p>
-              An earlier build did hold an iPhone↔Mac session — that session is
-              what exposed the broken screen and input paths since fixed. Those
-              fixes have not been run on hardware.
-            </p>
-          </div>
-          <div>
-            <p class="counter counter--lg">
-              <span class="counter__n">0<span class="counter__of"> / 54</span></span>
-              <span class="counter__what">cells device-verified on real hardware</span>
-            </p>
-          </div>
+        <div class="wrap">
+          <h2>The tags are conservative on purpose. Help us raise&nbsp;them.</h2>
+          <p>
+            A cell turns <code>dev</code> when someone walks
+            <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/DEVICE_CHECKLIST.md">the scripted
+            session</a> on real hardware and reports what happened. macOS,
+            iPhone and the browser viewer have been run by hand; four columns
+            have never run on a device at all.
+          </p>
+        <ul class="coverage">
+          <li class="cov cov--run">
+            <span class="cov__name">macOS</span>
+            <span class="cov__state">Sessions run by hand</span>
+          </li>
+          <li class="cov cov--run">
+            <span class="cov__name">iOS / iPadOS</span>
+            <span class="cov__state">iPhone ↔ Mac run by hand; iPad untried</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
+          </li>
+          <li class="cov cov--run">
+            <span class="cov__name">Browser</span>
+            <span class="cov__state">Watch page used over real HTTP</span>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">Android</span>
+            <span class="cov__state">Has never completed a pairing</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20Android">I have one →</a>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">Linux</span>
+            <span class="cov__state">Cross-compiles; never executed on Linux</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20Linux">I have one →</a>
+          </li>
+          <li class="cov cov--open">
+            <span class="cov__name">tvOS</span>
+            <span class="cov__state">Builds; never run on an Apple TV</span>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20tvOS">I have one →</a>
+          </li>
+          <li class="cov cov--hold">
+            <span class="cov__name">Windows</span>
+            <span class="cov__state">Deliberately on hold — plan 08</span>
+          </li>
+        </ul>
         </div>
       </section>
 
@@ -116,6 +141,8 @@
           <label class="chipbox" for="col-linux">Linux</label>
           <input class="colfilter" type="checkbox" id="col-windows" data-col="6" checked />
           <label class="chipbox" for="col-windows">Windows</label>
+          <input class="colfilter" type="checkbox" id="col-browser" data-col="7" checked />
+          <label class="chipbox" for="col-browser">Browser</label>
           <label class="matrix-search" hidden>
             <span class="sr-only">Filter capabilities by name</span>
             <input type="search" id="cap-search" placeholder="filter…" autocomplete="off" />
@@ -138,6 +165,7 @@
             <th scope="col" data-col="4">Android</th>
             <th scope="col" data-col="5">Linux</th>
             <th scope="col" data-col="6">Windows <a class="fn" href="#fn-2" aria-label="footnote 2">2</a></th>
+            <th scope="col" data-col="7">Browser</th>
           </tr>
             </thead>
             <tbody>
@@ -149,6 +177,7 @@
             <td data-col="4" data-tag="smoke" data-fn="3"><abbr class="tag tag--smoke" tabindex="0" aria-describedby="def-smoke" data-def="Kotlin/JVM in-process session smoke (real crypto, no Android)">smoke</abbr> <a class="fn" href="#fn-3" aria-label="footnote 3">3</a></td>
             <td data-col="5" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
             <td data-col="6" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="file transfer (chunked, resumable, sha-256)">
             <th scope="row">File transfer (chunked, resumable, SHA-256)</th>
@@ -158,6 +187,7 @@
             <td data-col="4" data-tag="smoke" data-fn="3"><abbr class="tag tag--smoke" tabindex="0" aria-describedby="def-smoke" data-def="Kotlin/JVM in-process session smoke (real crypto, no Android)">smoke</abbr> <a class="fn" href="#fn-3" aria-label="footnote 3">3</a></td>
             <td data-col="5" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
             <td data-col="6" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="clipboard (both directions, explicit)">
             <th scope="row">Clipboard (both directions, explicit)</th>
@@ -167,6 +197,7 @@
             <td data-col="4" data-tag="smoke" data-fn="3"><abbr class="tag tag--smoke" tabindex="0" aria-describedby="def-smoke" data-def="Kotlin/JVM in-process session smoke (real crypto, no Android)">smoke</abbr> <a class="fn" href="#fn-3" aria-label="footnote 3">3</a></td>
             <td data-col="5" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
             <td data-col="6" data-tag="E2E" data-fn="4"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-4" aria-label="footnote 4">4</a></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="input — send (drive a peer)">
             <th scope="row">Input — send (drive a peer)</th>
@@ -176,6 +207,7 @@
             <td data-col="4" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr></td>
             <td data-col="5" data-tag="E2E*" data-fn="13"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <a class="fn" href="#fn-13" aria-label="footnote 13">13</a></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="input — receive (be driven)">
             <th scope="row">Input — receive (be driven)</th>
@@ -185,6 +217,7 @@
             <td data-col="4" data-tag="bld" data-fn="6"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-6" aria-label="footnote 6">6</a></td>
             <td data-col="5" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <span class="cell__note">(uinput)</span></td>
             <td data-col="6" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <span class="cell__note">(SendInput)</span></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="screen — source (be watched)">
             <th scope="row">Screen — source (be watched)</th>
@@ -194,6 +227,7 @@
             <td data-col="4" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <span class="cell__note">(MediaProjection)</span></td>
             <td data-col="5" data-tag="E2E*" data-fn="13"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <a class="fn" href="#fn-13" aria-label="footnote 13">13</a></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="screen — view a peer">
             <th scope="row">Screen — view a peer</th>
@@ -203,6 +237,7 @@
             <td data-col="4" data-tag="bld" data-fn="8"><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <a class="fn" href="#fn-8" aria-label="footnote 8">8</a></td>
             <td data-col="5" data-tag="E2E*" data-fn="13"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <a class="fn" href="#fn-13" aria-label="footnote 13">13</a></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="E2E" data-fn="14"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <span class="cell__note">(push only)</span> <a class="fn" href="#fn-14" aria-label="footnote 14">14</a></td>
           </tr>
           <tr data-cap="watch and drive, one surface (adr 0015 absolute pointing)">
             <th scope="row">Watch <strong>and</strong> drive, one surface (ADR 0015 absolute pointing)</th>
@@ -212,6 +247,7 @@
             <td data-col="4" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr></td>
             <td data-col="5" data-tag="E2E*" data-fn="13"><abbr class="tag tag--e2e-fake" tabindex="0" aria-describedby="def-e2e-fake" data-def="E2E with a fake at the hardware seam (fake injector / synthetic capturer)">E2E*</abbr> <a class="fn" href="#fn-13" aria-label="footnote 13">13</a></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="push-share + cast to any browser (hls + qr)">
             <th scope="row">Push-share + cast to any browser (HLS + QR)</th>
@@ -221,6 +257,7 @@
             <td data-col="4" data-tag="" data-fn=""><span class="cell__note">(browser plays it)</span></td>
             <td data-col="5" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="E2E" data-fn="14"><abbr class="tag tag--e2e" tabindex="0" aria-describedby="def-e2e" data-def="automated end-to-end over real TLS sockets, same host (loopback)">E2E</abbr> <a class="fn" href="#fn-14" aria-label="footnote 14">14</a></td>
           </tr>
           <tr data-cap="multi-viewer, per-peer view-only/control, live revoke">
             <th scope="row">Multi-viewer, per-peer view-only/control, live revoke</th>
@@ -230,6 +267,7 @@
             <td data-col="4" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="5" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="notifications (source → display)">
             <th scope="row">Notifications (source → display)</th>
@@ -239,6 +277,7 @@
             <td data-col="4" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <span class="cell__note">(listener svc)</span></td>
             <td data-col="5" data-tag="code" data-fn="10"><abbr class="tag tag--code" tabindex="0" aria-describedby="def-code" data-def="written but unreachable or uninstantiated — weaker than `bld`">code</abbr> <a class="fn" href="#fn-10" aria-label="footnote 10">10</a></td>
             <td data-col="6" data-tag="code" data-fn="10"><abbr class="tag tag--code" tabindex="0" aria-describedby="def-code" data-def="written but unreachable or uninstantiated — weaker than `bld`">code</abbr> <a class="fn" href="#fn-10" aria-label="footnote 10">10</a></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="phone as bluetooth hid peripheral">
             <th scope="row">Phone as Bluetooth HID peripheral</th>
@@ -248,6 +287,7 @@
             <td data-col="4" data-tag="bld" data-fn=""><abbr class="tag tag--bld" tabindex="0" aria-describedby="def-bld" data-def="compiles / APK assembles — no runtime evidence">bld</abbr> <span class="cell__note">(needs 2 devices)</span></td>
             <td data-col="5" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="wi-fi aware (link with no router)">
             <th scope="row">Wi-Fi Aware (link with no router)</th>
@@ -257,6 +297,7 @@
             <td data-col="4" data-tag="code" data-fn="12"><abbr class="tag tag--code" tabindex="0" aria-describedby="def-code" data-def="written but unreachable or uninstantiated — weaker than `bld`">code</abbr> <a class="fn" href="#fn-12" aria-label="footnote 12">12</a></td>
             <td data-col="5" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="contexts / routines / on-device suggestions">
             <th scope="row">Contexts / Routines / on-device suggestions</th>
@@ -266,6 +307,7 @@
             <td data-col="4" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="5" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="6" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
           <tr data-cap="extra monitor (virtual display)">
             <th scope="row">Extra monitor (virtual display)</th>
@@ -275,6 +317,7 @@
             <td data-col="4" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
             <td data-col="5" data-tag="code" data-fn=""><abbr class="tag tag--code" tabindex="0" aria-describedby="def-code" data-def="written but unreachable or uninstantiated — weaker than `bld`">code</abbr> <span class="cell__note">(evdi, unwired)</span></td>
             <td data-col="6" data-tag="code" data-fn=""><abbr class="tag tag--code" tabindex="0" aria-describedby="def-code" data-def="written but unreachable or uninstantiated — weaker than `bld`">code</abbr> <span class="cell__note">(IddCx, unsigned)</span></td>
+            <td data-col="7" data-tag="—" data-fn=""><abbr class="tag tag--none" aria-describedby="def-none" data-def="not implemented">—</abbr></td>
           </tr>
             </tbody>
           </table>
@@ -289,11 +332,11 @@
         <h2>How to read a cell.</h2>
         <p>
           The tag is the strongest evidence that exists — not the best intention.
-          Counts are of the 90 cells above.
+          Counts are of the 105 cells above.
         </p>
         <dl class="legend legend--counted" style="margin-block-start: var(--s-6)">
           <dt><span class="tag tag--e2e">E2E</span></dt>
-          <dd id="def-e2e">automated end-to-end over real TLS sockets, same host (loopback) <span class="legend__n">14 cells</span></dd>
+          <dd id="def-e2e">automated end-to-end over real TLS sockets, same host (loopback) <span class="legend__n">16 cells</span></dd>
           <dt><span class="tag tag--e2e-fake">E2E*</span></dt>
           <dd id="def-e2e-fake">E2E with a fake at the hardware seam (fake injector / synthetic capturer) <span class="legend__n">7 cells</span></dd>
           <dt><span class="tag tag--unit">unit</span></dt>
@@ -307,7 +350,7 @@
           <dt><span class="tag tag--wall">wall</span></dt>
           <dd id="def-wall">the platform forbids it (documented, not a TODO) <span class="legend__n">6 cells</span></dd>
           <dt><span class="tag tag--none">—</span></dt>
-          <dd id="def-none">not implemented <span class="legend__n">29 cells</span></dd>
+          <dd id="def-none">not implemented <span class="legend__n">42 cells</span></dd>
           <dt><span class="tag tag--dev">dev</span></dt>
           <dd id="def-dev">device-verified on real hardware — this tag appears nowhere yet <span class="legend__n">0 cells</span></dd>
         </dl>
@@ -342,7 +385,7 @@
         <h2>Every footnote is the README's, word for&nbsp;word.</h2>
         <p>
           They are where a cell stops being a colour and starts being something
-          you can go and check. 13 of them, unedited.
+          you can go and check. 14 of them, unedited.
         </p>
         <ol class="footnotes" style="margin-block-start: var(--s-5)">
           <li id="fn-1" value="1">Shared <code>ConduitKit</code> core: the logic runs in the loopback E2E suite on macOS; the iOS/tvOS app targets build unsigned (<code>make apple-apps</code>, four <code><strong> BUILD SUCCEEDED </strong></code> re-verified today) but no session has run on an iOS/tvOS device with the current code.</li>
@@ -358,6 +401,7 @@
           <li id="fn-11" value="11">Implemented today (2026-07-26): entitlement granted, <code>_mosis-aware._tcp</code> published/subscribed over the iOS 26 Network API, same pinned mutual TLS, OS-level <code>WAPairedDevice</code> pairing UI in the app, flag ON for iOS with runtime self-gating. <strong>Compile-verified only</strong> — not one Aware byte has ever flowed; needs two Aware-capable iPhones/iPads. Aware-only sessions would carry video on the control-lane fallback (~2.5 Mbps) until plan 08 lands QUIC.</li>
           <li id="fn-12" value="12">Android's <code>WifiAwareBackend</code> was rewritten to be capable of working (2026-07-26) but nothing instantiates it (<a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/interop-status.md"><code>docs/interop-status.md</code></a>).</li>
           <li id="fn-13" value="13">Linux via the Go core (<code>core/screencast/</code> + <code>conduitview</code>, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have <strong>never executed on a Linux box</strong> — per-row ledger in <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/09-linux-screen-and-control.md">plan 09</a>, runbook in <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/linux.md"><code>docs/linux.md</code></a>.</li>
+          <li id="fn-14" value="14"><strong>Browser</strong> is not a platform port — there is no browser client. It is what a plain web browser can do with no MOSIS app installed: watch a screen a Mac pushes to it (HLS over real HTTP, URL + QR), and nothing else. It cannot pair, cannot initiate a pull, and cannot send anything back.</li>
         </ol>
       </section>
     </main>
@@ -379,9 +423,10 @@
             Mobile Operating System Integrated Solutions. Open, local-first,
             cross-device connectivity. Apache-2.0.
           </p>
-          <p class="counter">
-            <span class="counter__n">0</span>
-            <span class="counter__what">device-verified sessions with the current code</span>
+          <p class="foot-status">
+            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
+            hand. Android, Linux, tvOS and Windows have never run on a device.
+            No cell in the matrix carries a <code>dev</code> tag yet.
           </p>
         </div>
         <div>

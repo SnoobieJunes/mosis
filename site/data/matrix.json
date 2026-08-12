@@ -22,6 +22,9 @@
       "fn": [
         2
       ]
+    },
+    {
+      "name": "Browser"
     }
   ],
   "rows": [
@@ -67,6 +70,10 @@
           "fn": [
             4
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         }
       ]
     },
@@ -109,6 +116,10 @@
           "fn": [
             4
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         }
       ]
     },
@@ -151,6 +162,10 @@
           "fn": [
             4
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         }
       ]
     },
@@ -183,6 +198,10 @@
           "fn": [
             13
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         },
         {
           "raw": "—",
@@ -226,6 +245,10 @@
           "raw": "bld (SendInput)",
           "tag": "bld",
           "note": "(SendInput)"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         }
       ]
     },
@@ -261,6 +284,10 @@
           "fn": [
             13
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         },
         {
           "raw": "—",
@@ -307,6 +334,14 @@
         {
           "raw": "—",
           "tag": "—"
+        },
+        {
+          "raw": "E2E (push only)¹⁴",
+          "tag": "E2E",
+          "note": "(push only)",
+          "fn": [
+            14
+          ]
         }
       ]
     },
@@ -339,6 +374,10 @@
           "fn": [
             13
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         },
         {
           "raw": "—",
@@ -378,6 +417,13 @@
         {
           "raw": "—",
           "tag": "—"
+        },
+        {
+          "raw": "E2E¹⁴",
+          "tag": "E2E",
+          "fn": [
+            14
+          ]
         }
       ]
     },
@@ -402,6 +448,10 @@
           "fn": [
             1
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         },
         {
           "raw": "—",
@@ -455,6 +505,10 @@
           "fn": [
             10
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         }
       ]
     },
@@ -478,6 +532,10 @@
           "raw": "bld (needs 2 devices)",
           "tag": "bld",
           "note": "(needs 2 devices)"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         },
         {
           "raw": "—",
@@ -524,6 +582,10 @@
         {
           "raw": "—",
           "tag": "—"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         }
       ]
     },
@@ -542,6 +604,10 @@
           "fn": [
             1
           ]
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         },
         {
           "raw": "—",
@@ -591,6 +657,10 @@
           "raw": "code (IddCx, unsigned)",
           "tag": "code",
           "note": "(IddCx, unsigned)"
+        },
+        {
+          "raw": "—",
+          "tag": "—"
         }
       ]
     }
@@ -608,12 +678,13 @@
     "10": "The Go→Swift notification path is E2E-tested on host; the OS hooks (Linux D-Bus / Windows WinRT sources) are stubs.",
     "11": "Implemented today (2026-07-26): entitlement granted, `_mosis-aware._tcp` published/subscribed over the iOS 26 Network API, same pinned mutual TLS, OS-level `WAPairedDevice` pairing UI in the app, flag ON for iOS with runtime self-gating. **Compile-verified only** — not one Aware byte has ever flowed; needs two Aware-capable iPhones/iPads. Aware-only sessions would carry video on the control-lane fallback (~2.5 Mbps) until plan 08 lands QUIC.",
     "12": "Android's `WifiAwareBackend` was rewritten to be capable of working (2026-07-26) but nothing instantiates it ([`docs/interop-status.md`](docs/interop-status.md)).",
-    "13": "Linux via the Go core (`core/screencast/` + `conduitview`, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have **never executed on a Linux box** — per-row ledger in [plan 09](docs/plans/09-linux-screen-and-control.md), runbook in [`docs/linux.md`](docs/linux.md)."
+    "13": "Linux via the Go core (`core/screencast/` + `conduitview`, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have **never executed on a Linux box** — per-row ledger in [plan 09](docs/plans/09-linux-screen-and-control.md), runbook in [`docs/linux.md`](docs/linux.md).",
+    "14": "**Browser** is not a platform port — there is no browser client. It is what a plain web browser can do with no MOSIS app installed: watch a screen a Mac pushes to it (HLS over real HTTP, URL + QR), and nothing else. It cannot pair, cannot initiate a pull, and cannot send anything back."
   },
   "totals": {
     "rows": 15,
-    "platforms": 6,
-    "cells": 90,
-    "claimed": 54
+    "platforms": 7,
+    "cells": 105,
+    "claimed": 56
   }
 }

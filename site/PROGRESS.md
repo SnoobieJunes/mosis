@@ -16,6 +16,8 @@ with a reason.
 - From P5: `node tools/site/check-commands.mjs` — every shell command on the site is in `README.md` verbatim.
 - Every page loads with JavaScript disabled with all content present.
 - No horizontal overflow at **any** of 390 / 834 / 1440 — checking one width is not checking.
+- No prose block over 3 sentences, every `<section>` leads with a heading, and no
+  `aria-describedby` or in-page link points at a missing id (all machine-checked).
 - Zero third-party requests; zero dependencies; zero build step.
 - Guardrails (§8): no `dev` claim, no demo GIF, no invented metrics, no logos,
   no testimonials, no block over 3 sentences, nothing contradicting
@@ -226,3 +228,45 @@ with a reason.
 - **P6 — `site.yml` now ignores pushes to `main`**, because `pages.yml` runs
   the same three gates there before deploying. Pull requests still run
   `site.yml`.
+
+---
+
+## Revision after Auston's review (2026-08-11)
+
+Direction: stop leading with "none of this is device-tested" — it undersells
+work that is genuinely solid — keep the honesty in the footer, and turn the
+page into a call for testers. Plus: show more than pairing, drop the judge
+quote for the benefits of peer-to-peer, add a Browser column.
+
+- [x] The zero counter is gone from the body of all six pages. The honest line
+      now lives in the footer of every page, and in the `/status` band that
+      asks for testers.
+- [x] `/` gained a **capability showcase** — screens both directions,
+      clipboard, files, input, browser cast — each card carrying the macOS tag
+      pulled from `matrix.json`, so the showcase cannot out-claim the ledger.
+- [x] `/` and `/status` gained a **coverage panel**: which platforms have been
+      run on hardware, which have nobody, and an "I have one →" link that opens
+      a pre-titled device report.
+- [x] `/story`: judge quote and transcript link removed; **"Why go direct at
+      all?"** added with Auston's seven reasons plus privacy and
+      works-when-the-internet-doesn't.
+- [x] **Browser column** added to the README matrix and therefore to the site:
+      90 cells → 105, 54 claimed → 56, footnote ¹⁴ says plainly that Browser is
+      not a platform port.
+- [x] README's status section rewritten to lead with what is proven and to name
+      what has been run by hand.
+- [x] All six pages regenerate from **one shared shell** now, so the footer and
+      the seal cannot drift.
+
+### Open questions for Auston — these are the ones I did not answer for you
+
+1. **Which cells should turn `dev`?** You ran macOS ↔ iPhone and the browser
+   viewer. The matrix still shows `bld` for every iOS cell, because I drew the
+   line at *checklist-verified*, not *worked when I tried it* — and `/status`
+   says so out loud. That line is my invention. If hands-on counts, tell me
+   which capabilities you exercised and I will turn those cells.
+2. **AWDL.** You said it was tested. That would move path-ladder rung 2 off
+   "spike pending", and possibly more. I did not act on it, because I cannot
+   tell from here what was exercised or on what. What did you run?
+3. **iPad.** You said it "should work the same" as iPhone. The coverage panel
+   says "iPad untried" — the conservative reading. Correct?

@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="assets/css/tokens.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
+    <!-- Applies a stored theme choice before first paint. Three lines, no
+         dependency: prefers-color-scheme covers everyone without it. -->
     <script>
       try {
         var t = localStorage.getItem('mosis-theme');
@@ -243,9 +245,10 @@ words = wordlist[material[4]],
             Mobile Operating System Integrated Solutions. Open, local-first,
             cross-device connectivity. Apache-2.0.
           </p>
-          <p class="counter">
-            <span class="counter__n">0</span>
-            <span class="counter__what">device-verified sessions with the current code</span>
+          <p class="foot-status">
+            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
+            hand. Android, Linux, tvOS and Windows have never run on a device.
+            No cell in the matrix carries a <code>dev</code> tag yet.
           </p>
         </div>
         <div>

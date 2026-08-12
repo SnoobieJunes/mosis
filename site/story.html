@@ -4,7 +4,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Story — MOSIS</title>
-    <meta name="description" content="A 2013 pitch whose live demo died when the venue lost its internet, and the 2026 rebuild designed around that exact failure." />
+    <meta name="description" content="A 2013 pitch whose live demo died when the venue lost its internet, why peer-to-peer is worth the trouble, and what the rebuild owes the original." />
     <meta name="color-scheme" content="dark light" />
     <meta name="theme-color" content="#070b0a" media="(prefers-color-scheme: dark)" />
     <meta name="theme-color" content="#f4f7f5" media="(prefers-color-scheme: light)" />
@@ -12,6 +12,8 @@
     <link rel="stylesheet" href="assets/css/tokens.css" />
     <link rel="stylesheet" href="assets/css/base.css" />
     <link rel="stylesheet" href="assets/css/components.css" />
+    <!-- Applies a stored theme choice before first paint. Three lines, no
+         dependency: prefers-color-scheme covers everyone without it. -->
     <script>
       try {
         var t = localStorage.getItem('mosis-theme');
@@ -76,27 +78,32 @@
           the judges' connections went too, so it was the room, not the demo.
         </p>
         <p>
-          The answer given on the spot was Wi-Fi Direct: <q>so situations as
-          these don't happen — if the internet goes down you can just set up a
-          direct peer-to-peer connection.</q> Punctuation is added; the words are
-          the transcript's. That sentence is the entire design brief this rebuild
-          works from.
+          The answer given on the spot was Wi-Fi Direct: a direct peer-to-peer
+          connection <q>so situations as these don't happen.</q> That sentence is
+          the entire design brief this rebuild works from.
         </p>
-        <p class="cta"><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/appture-2013-transcript.txt">The full transcript →</a></p>
       </section>
 
       <hr class="rail" />
 
-      <section class="wrap">
-        <h2>A judge gave away the better elevator&nbsp;line.</h2>
-        <figure class="pull" style="margin-block-start: var(--s-6)">
-          <p>What you're doing is essentially abstracting the OS to the network.</p>
-          <footer>
-            A judge, closing the session, 2013. Roles in the transcript stay
-            bracketed; the recording is a rough auto-transcription, in which this
-            line survives as “abstracting the lesson to the network.”
-          </footer>
-        </figure>
+      <section class="wrap" id="why">
+        <h2>Why go direct at&nbsp;all?</h2>
+        <p>
+          Peer-to-peer is not nostalgia for a simpler internet. It is shorter,
+          cheaper, harder to switch off, and it keeps working when the network
+          you were counting on does not.
+        </p>
+        <ol class="why">
+          <li><b>It is the shortest path.</b><span>The device you want is ten feet away. Sending your screen to a datacentre and back to reach it is a round trip you pay for in latency, bandwidth and someone else’s uptime.</span></li>
+          <li><b>No cable to fray, forget or carry.</b><span>The dongle you left at home is the reason the meeting starts late. A link that needs no cable also needs no adapter, no spare, and no bag pocket.</span></li>
+          <li><b>Your devices should work with each other.</b><span>You bought them. Which logo is on the back should not decide whether they can talk, and an open wire format is the only way that stays true.</span></li>
+          <li><b>No walled garden.</b><span>AirPlay and Miracast work beautifully right up to the edge of the hardware they were blessed for. Nothing here can be switched off by a company, because no company is in the path.</span></li>
+          <li><b>Your data does not go anywhere.</b><span>There is no server to breach, no account to leak and no telemetry to opt out of. Local-first is a privacy property before it is a performance one.</span></li>
+          <li><b>It still works when the internet does not.</b><span>A dead venue Wi-Fi ended the 2013 demo of this exact idea. On a LAN — or, later, on no shared network at all — that failure has nowhere to land.</span></li>
+          <li><b>It is futuristic, and it is fun.</b><span>Driving a Mac from a phone across the room still feels like something from a film. That is a legitimate reason to build a thing.</span></li>
+          <li><b>It was a serious test of agentic coding.</b><span>Three byte-exact implementations, a frozen vector set and a wire format documented well enough to reimplement from is a hard target to hit. Hitting it with agents, deliberately, was half the reason to start.</span></li>
+          <li><b>Why not? We should all build more.</b><span>The parts are on the shelf and the protocols are public. The only scarce ingredient is somebody deciding to do it.</span></li>
+        </ol>
       </section>
 
       <hr class="rail" />
@@ -225,9 +232,10 @@
             Mobile Operating System Integrated Solutions. Open, local-first,
             cross-device connectivity. Apache-2.0.
           </p>
-          <p class="counter">
-            <span class="counter__n">0</span>
-            <span class="counter__what">device-verified sessions with the current code</span>
+          <p class="foot-status">
+            <b>Hardware so far:</b> macOS, iPhone and the browser viewer, run by
+            hand. Android, Linux, tvOS and Windows have never run on a device.
+            No cell in the matrix carries a <code>dev</code> tag yet.
           </p>
         </div>
         <div>
