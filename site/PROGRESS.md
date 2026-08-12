@@ -92,7 +92,7 @@ with a reason.
 - [x] All three gates run in CI and gate the deploy: `deploy` needs `build`, and `build` is the gates.
 - [x] Lighthouse: accessibility **100** and performance **95–96** on all six pages.
 - [x] Screenshots at 390 / 834 / 1440 px reviewed in both themes, all six pages, with and without JS.
-- [ ] **Live URL recorded here.** Blocked on a decision that is Auston's — see note.
+- [x] **Live: https://snoobiejunes.github.io/mosis/** — deployed from `main` by `pages.yml`, 2026-08-12.
 
 ---
 
@@ -206,12 +206,21 @@ with a reason.
   clicks through hits the contradiction. **Not fixed here — it is outside
   `site/`, and CONTRIBUTING's rule is that the protocol doc moves with the
   wire. Auston's call.**
-- **P6 — nothing is deployed, by Auston's decision.** GitHub Pages is not
-  enabled on the repo (the Pages API 404s), `pages.yml` triggers on pushes to
-  `main`, and this work is on an unmerged branch. Asked whether to publish;
-  the answer was **review first, then merge to `main`**. So: no merge, no PR,
-  no Pages, nothing live. The branch is complete at `42da480` and waiting on
-  that review.
+- **P6 — shipped 2026-08-12 to https://snoobiejunes.github.io/mosis/.**
+  Reviewed, then merged to `main` (`31a65d6`); Pages enabled with
+  `build_type: workflow`; `pages.yml` ran the three gates and deployed in 29s.
+  The GitHub repo was renamed `conduit` → `mosis` to get that path, because a
+  project Pages site is served at `/<repo-name>/`. Nothing about the local
+  checkout or the code's `conduit`/`cndt` identifiers moved — the staged code
+  rename is still plan 01.
+- **P6 — Lighthouse on the live deployment beats the local figure**, as
+  predicted: **97, 98, 97, 98, 98, 97** performance and 100 accessibility, up
+  from 95–96 locally, because Pages serves over HTTP/2 and multiplexes the
+  three stylesheets the local harness serialised.
+- **P6 — the deploy emits a Node-20 deprecation annotation**, not a failure:
+  `actions/checkout@v4`, `configure-pages@v5`, `setup-node@v4`,
+  `upload-artifact@v4` and `deploy-pages@v4` are forced onto Node 24 by the
+  runner. Worth bumping when GitHub ships v5s.
 - **P6 — the Lighthouse numbers are measured, and where matters.** Against
   `python -m http.server` performance scored 86–90, failing on `cache-insight`
   and `document-latency-insight` — properties of that server (HTTP/1.0, no
