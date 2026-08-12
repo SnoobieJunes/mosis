@@ -4,4 +4,4 @@ Allow: /
 Disallow: /kitchen-sink.html
 Disallow: /PROGRESS.md
 
-Sitemap: https://snoobiejunes.github.io/conduit/sitemap.xml
+Sitemap: https://snoobiejunes.github.io/mosis/sitemap.xml

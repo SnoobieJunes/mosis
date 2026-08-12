@@ -77,7 +77,7 @@
           <p>
             A cell turns <code>dev</code> when someone runs it on a real device
             and reports what happened — the script is
-            <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/DEVICE_CHECKLIST.md">DEVICE_CHECKLIST.md</a>.
+            <a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/DEVICE_CHECKLIST.md">DEVICE_CHECKLIST.md</a>.
             One iPhone and one Mac account for every <code>dev</code> tag below;
             five columns have never run on a device at all.
           </p>
@@ -97,22 +97,22 @@
           <li class="cov cov--open">
             <span class="cov__name">iPad</span>
             <span class="cov__state">Never tried — should behave like iPhone</span>
-            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20iPad">I have one →</a>
           </li>
           <li class="cov cov--open">
             <span class="cov__name">Android</span>
             <span class="cov__state">Has never completed a pairing</span>
-            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20Android">I have one →</a>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20Android">I have one →</a>
           </li>
           <li class="cov cov--open">
             <span class="cov__name">Linux</span>
             <span class="cov__state">Cross-compiles; never executed on Linux</span>
-            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20Linux">I have one →</a>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20Linux">I have one →</a>
           </li>
           <li class="cov cov--open">
             <span class="cov__name">tvOS</span>
             <span class="cov__state">Builds; never run on an Apple TV</span>
-            <a class="cov__ask" href="https://github.com/SnoobieJunes/conduit/issues/new?title=Device%20report%3A%20tvOS">I have one →</a>
+            <a class="cov__ask" href="https://github.com/SnoobieJunes/mosis/issues/new?title=Device%20report%3A%20tvOS">I have one →</a>
           </li>
           <li class="cov cov--hold">
             <span class="cov__name">Windows</span>
@@ -380,7 +380,7 @@
           <div><dt>Self-skipped</dt><dd>the 4-test broadcast suite, while the screen is locked</dd></div>
         </dl>
 
-        <p class="cta"><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/TESTING_PLAN.md">The full testing ledger →</a></p>
+        <p class="cta"><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/TESTING_PLAN.md">The full testing ledger →</a></p>
       </section>
 
       <hr class="rail" />
@@ -394,20 +394,20 @@
         </p>
         <ol class="footnotes" style="margin-block-start: var(--s-5)">
           <li id="fn-1" value="1">Shared <code>ConduitKit</code> core: the logic runs in the loopback E2E suite on macOS; the iOS/tvOS app targets build unsigned (<code>make apple-apps</code>, four <code><strong> BUILD SUCCEEDED </strong></code> re-verified today). No session has run on a <strong>tvOS</strong> device, and any iOS cell not marked <code>dev</code> has not been exercised on hardware.</li>
-          <li id="fn-2" value="2">Windows: daemon logic only; new Windows work is <strong>on hold</strong> per <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/08-direct-link-transport.md">plan 08</a>.</li>
-          <li id="fn-3" value="3">JVM in-process smoke proves the session code with real Ed25519 + pairing math. <strong>No Android device has ever completed pairing</strong> — the gate everything Android waits behind. Per-capability detail: <a href="https://github.com/SnoobieJunes/conduit/blob/main/android/README.md"><code>android/README.md</code></a>.</li>
+          <li id="fn-2" value="2">Windows: daemon logic only; new Windows work is <strong>on hold</strong> per <a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/plans/08-direct-link-transport.md">plan 08</a>.</li>
+          <li id="fn-3" value="3">JVM in-process smoke proves the session code with real Ed25519 + pairing math. <strong>No Android device has ever completed pairing</strong> — the gate everything Android waits behind. Per-capability detail: <a href="https://github.com/SnoobieJunes/mosis/blob/main/android/README.md"><code>android/README.md</code></a>.</li>
           <li id="fn-4" value="4">Go daemon logic proven over loopback on a macOS host (Go↔Go pair+transfer test, plus the live Swift↔Go interop suite). The Linux/Windows binaries cross-compile but <strong>have never been executed on those OSes</strong>.</li>
           <li id="fn-5" value="5">The real macOS <code>CGEvent</code> injector needs Accessibility and a non-sandboxed app (ADR 0005). It has now moved a real cursor — see ¹⁵.</li>
-          <li id="fn-6" value="6">Android input receive is an AccessibilityService; keyboard support is a narrow, documented subset — unsupported keys are refused out loud (<a href="https://github.com/SnoobieJunes/conduit/blob/main/android/README.md"><code>android/README.md</code></a>).</li>
+          <li id="fn-6" value="6">Android input receive is an AccessibilityService; keyboard support is a narrow, documented subset — unsupported keys are refused out loud (<a href="https://github.com/SnoobieJunes/mosis/blob/main/android/README.md"><code>android/README.md</code></a>).</li>
           <li id="fn-7" value="7">Real ScreenCaptureKit capture needs the Screen Recording grant. It has now run with that grant — see ¹⁵.</li>
           <li id="fn-8" value="8">Decoder + <code>SurfaceView</code> exist; <strong>no frame has ever been decoded on an Android device.</strong></li>
           <li id="fn-9" value="9">Includes the browser watch page over real HTTP GETs. AirPlay endpoint is built-in; Google Cast / Matter Casting are real code behind their SDKs (SDK-gated, unvalidated — ADR 0011). HLS runs seconds behind: for watching, not controlling.</li>
           <li id="fn-10" value="10">The Go→Swift notification path is E2E-tested on host; the OS hooks (Linux D-Bus / Windows WinRT sources) are stubs.</li>
           <li id="fn-11" value="11">Implemented today (2026-07-26): entitlement granted, <code>_mosis-aware._tcp</code> published/subscribed over the iOS 26 Network API, same pinned mutual TLS, OS-level <code>WAPairedDevice</code> pairing UI in the app, flag ON for iOS with runtime self-gating. <strong>Compile-verified only</strong> — not one Aware byte has ever flowed; needs two Aware-capable iPhones/iPads. Aware-only sessions would carry video on the control-lane fallback (~2.5 Mbps) until plan 08 lands QUIC.</li>
-          <li id="fn-12" value="12">Android's <code>WifiAwareBackend</code> was rewritten to be capable of working (2026-07-26) but nothing instantiates it (<a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/interop-status.md"><code>docs/interop-status.md</code></a>).</li>
-          <li id="fn-13" value="13">Linux via the Go core (<code>core/screencast/</code> + <code>conduitview</code>, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have <strong>never executed on a Linux box</strong> — per-row ledger in <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/plans/09-linux-screen-and-control.md">plan 09</a>, runbook in <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/linux.md"><code>docs/linux.md</code></a>.</li>
+          <li id="fn-12" value="12">Android's <code>WifiAwareBackend</code> was rewritten to be capable of working (2026-07-26) but nothing instantiates it (<a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/interop-status.md"><code>docs/interop-status.md</code></a>).</li>
+          <li id="fn-13" value="13">Linux via the Go core (<code>core/screencast/</code> + <code>conduitview</code>, landed 2026-07-26): Go↔Go loopback E2E on a macOS host — real TLS, real ffmpeg at the codec seam, synthetic frames at the capture seam; lane promotion and control-lane fallback asserted on both ends. All X11 code (capture, window/blit/events), uinput, and real-network reverse dial cross-compile but have <strong>never executed on a Linux box</strong> — per-row ledger in <a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/plans/09-linux-screen-and-control.md">plan 09</a>, runbook in <a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/linux.md"><code>docs/linux.md</code></a>.</li>
           <li id="fn-14" value="14"><strong>Browser</strong> is not a platform port — there is no browser client. It is what a plain web browser can do with no MOSIS app installed: watch a screen a Mac pushes to it (HLS over real HTTP, URL + QR), and nothing else. It cannot pair, cannot initiate a pull, and cannot send anything back.</li>
-          <li id="fn-15" value="15"><strong>Device-verified 2026-08-11</strong>, hands-on by the author on one real iPhone and one real Mac: pairing, file transfer, clipboard, the iPhone driving the Mac's pointer and keyboard as a trackpad, and screen sharing <strong>both</strong> directions — so the real <code>CGEvent</code> injector moved a real cursor and real ScreenCaptureKit capture ran, neither of which had happened before. The browser watch page was used over real HTTP from another device. This was hands-on use, <strong>not</strong> a full <a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/DEVICE_CHECKLIST.md"><code>DEVICE_CHECKLIST.md</code></a> walk. <strong>iPad has not been tried</strong> (iPhone only), and nothing here touches Android, Linux, tvOS or Windows.</li>
+          <li id="fn-15" value="15"><strong>Device-verified 2026-08-11</strong>, hands-on by the author on one real iPhone and one real Mac: pairing, file transfer, clipboard, the iPhone driving the Mac's pointer and keyboard as a trackpad, and screen sharing <strong>both</strong> directions — so the real <code>CGEvent</code> injector moved a real cursor and real ScreenCaptureKit capture ran, neither of which had happened before. The browser watch page was used over real HTTP from another device. This was hands-on use, <strong>not</strong> a full <a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/DEVICE_CHECKLIST.md"><code>DEVICE_CHECKLIST.md</code></a> walk. <strong>iPad has not been tried</strong> (iPhone only), and nothing here touches Android, Linux, tvOS or Windows.</li>
         </ol>
       </section>
     </main>
@@ -438,19 +438,19 @@
         <div>
           <h2>Repo</h2>
           <ul>
-            <li><a href="https://github.com/SnoobieJunes/conduit">Source</a></li>
-            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/protocol.md">Wire protocol</a></li>
-            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/IMPLEMENTORS.md">Write a client</a></li>
-            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/LICENSE">License</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis">Source</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/protocol.md">Wire protocol</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/IMPLEMENTORS.md">Write a client</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/LICENSE">License</a></li>
           </ul>
         </div>
         <div>
           <h2>Ledgers</h2>
           <ul>
             <li><a href="status.html">Capability matrix</a></li>
-            <li><a href="https://github.com/SnoobieJunes/conduit/blob/main/docs/TESTING_PLAN.md">Testing plan</a></li>
-            <li><a href="https://github.com/SnoobieJunes/conduit/tree/main/docs/adr">Decisions</a></li>
-            <li><a href="https://github.com/SnoobieJunes/conduit/tree/main/docs/plans">Plans</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/blob/main/docs/TESTING_PLAN.md">Testing plan</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/tree/main/docs/adr">Decisions</a></li>
+            <li><a href="https://github.com/SnoobieJunes/mosis/tree/main/docs/plans">Plans</a></li>
           </ul>
         </div>
       </div>
