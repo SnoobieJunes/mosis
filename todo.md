@@ -89,9 +89,9 @@ which is a different claim from *working*.
 | # | Where | Bug |
 |---|---|---|
 | ~~B5~~ **FIXED 6c6ff99** | `.../ConduitProtocol/Framing.swift:145` | One shared oversize bound for all frame kinds — file-chunk frames bypass the documented 2 MiB chunk cap. Same hole as B4; fix both or the two implementations disagree about what is legal. |
-| ~~B6~~ **FIXED 5e08c0c (this pass)** | `.../ConduitSession/Pairing.swift:38` | The pairing ceremony has no timeout anywhere, so a silent peer wedges it forever — while a `PairingError.timeout` case exists for exactly this. |
-| ~~B7~~ **FIXED 5e08c0c (this pass)** | `.../ConduitSession/PeerLink.swift:162` | One control message with a known type but an undecodable body tears down the whole session instead of dropping that message. |
-| ~~B8~~ **FIXED 5e08c0c (this pass)** | `.../ConduitProtocol/ScreenFrameCodec.swift:35` | `ScreenFramePacking.pack()` silently drops parameter sets past the 8-set cap; `unpack()` already defines the error it should throw. |
+| ~~B6~~ **FIXED edeff6e** | `.../ConduitSession/Pairing.swift:38` | The pairing ceremony has no timeout anywhere, so a silent peer wedges it forever — while a `PairingError.timeout` case exists for exactly this. |
+| ~~B7~~ **FIXED edeff6e** | `.../ConduitSession/PeerLink.swift:162` | One control message with a known type but an undecodable body tears down the whole session instead of dropping that message. |
+| ~~B8~~ **FIXED edeff6e** | `.../ConduitProtocol/ScreenFrameCodec.swift:35` | `ScreenFramePacking.pack()` silently drops parameter sets past the 8-set cap; `unpack()` already defines the error it should throw. |
 
 ### 2c. UNVERIFIED — Go daemon, screencast, Windows
 
