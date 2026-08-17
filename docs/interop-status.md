@@ -40,7 +40,7 @@ avoid repeating the mistake in the other direction. Wi-Fi Aware remains gated.
 
 | Date | iPhone (model, iOS) | Android (model, OS) | Discovery | Pairing | Data path | Notes |
 |---|---|---|---|---|---|---|
-| — | — | — | — | — | — | No probes run yet. iOS-side Aware is entitlement-gated (ADR 0003); Android-side needs `FEATURE_WIFI_AWARE` hardware. |
+| — | — | — | — | — | — | No probes run yet. The iOS entitlement was **granted 2026-07-26** and the Swift backend is real and flag-on — what is missing is hardware: two Aware-capable devices, plus `FEATURE_WIFI_AWARE` on the Android side. |
 
 Known state going in (spec §2 pillar 6): community reports show discovery can
 succeed while Apple's pairing stage fails against many Android devices; Apple
@@ -61,7 +61,9 @@ Both now exist.
 
 What has *not* changed: nothing instantiates it from the app, and no device has
 run it. It needs two devices reporting `FEATURE_WIFI_AWARE`. iPhone ↔ iPad Aware
-still waits on the Apple entitlement (ADR 0003). LAN fallback is always on, so
+no longer waits on the Apple entitlement — that was **granted 2026-07-26** for
+`org.auston.mosis` (ADR 0003's unblock checklist); it waits only on two
+Aware-capable Apple devices. LAN fallback is always on, so
 Aware is upside rather than a dependency.
 
 See [android-devices.md](android-devices.md) for the per-device Android Aware

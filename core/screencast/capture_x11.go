@@ -27,9 +27,12 @@ import (
 //     picture may be incomplete. The runbook says so out loud; the portal
 //     (ScreenCast + PipeWire) is the eventual native path.
 //
-// NOTHING in this file has executed on a real Linux box yet: it compiles
-// under GOOS=linux and its logic mirrors documented protocol, and that is the
-// entire claim. Device-gated (see docs/plans/09 status table).
+// Verified 2026-07-28 against a real X server: the tools/linux-docker/ harness
+// runs Xvfb (1280x800x24) in one container and a viewer in another, and capture
+// → encode → wire → decode → blit reads back legible text at the same
+// wall-clock second. What that run does NOT cover, and what is therefore still
+// device-gated (docs/plans/09 status table): no GPU, no compositor, no window
+// manager, no Wayland/XWayland, and no non-24-bit visual.
 type x11Capturer struct {
 	mu      sync.Mutex
 	conn    *xgb.Conn

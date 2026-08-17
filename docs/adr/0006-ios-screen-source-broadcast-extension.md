@@ -49,10 +49,15 @@ finish.
   hardware-gated. The code compiles and links (extension target builds), the
   streaming logic mirrors the E2E-tested macOS source, but the two-process path
   itself is unverified until run on a real iPhone against a real viewer. Flagged
-  honestly, like the Aware and real-capture paths.
-- **App Group id** `group.org.auston.conduit` and the extension bundle id
-  `org.auston.conduit.ios.broadcast` are placeholders tied to the unresolved
-  product name (open decision 1); rename both together before any build upload.
+  honestly, like the Aware and real-capture paths. **Update 2026-08-11: it ran —
+  the ReplayKit broadcast path worked on a real iPhone against a real Mac
+  viewer, hands-on (`docs/loop-state.md`).**
+- **App Group id and extension bundle id** — *amended 2026-08-17.* No longer
+  placeholders and no longer `org.auston.conduit.*`: the shipped values are
+  `group.org.auston.mosis` and `org.auston.mosis.broadcast` (ADR 0014 closed the
+  name). They are now a compatibility boundary — the App Group must match
+  byte-for-byte across app and extension or broadcast breaks silently, and
+  changing the bundle id orphans paired identity.
 - A stale offer (user cancels the picker) leaves the viewer briefly waiting for
   frames; acceptable for v1 (the viewer can dismiss). A viewer-side offer
   timeout is a follow-up.

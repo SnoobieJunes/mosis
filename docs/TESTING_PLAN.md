@@ -1,7 +1,9 @@
 # Conduit — Comprehensive Testing Plan (Phases 1–7)
 
-> Working codename **Conduit** (the shipping name is undecided — "Conduit" is
-> taken). This plan is what to test before you commit to a name and a launch, and
+> **The name is decided: MOSIS** (ADR 0014, 2026-07-17) — bundle ids, App Group,
+> entitlements and log subsystem all carry it. "Conduit" below is the working
+> codename, which survives inside identifiers and crypto domain strings on
+> purpose (`docs/plans/01-rename-to-mosis.md`). This plan is what to test, and
 > — bluntly — **what does not work yet and the gotchas** that will bite you.
 >
 > The guiding rule for the whole project: the **provable core is proven by
@@ -163,7 +165,10 @@ CI-testable.
 
 **How to test for real:** build `conduitd` on the target OS, `conduitd pair --host
 … --port …`, then `conduitd run`. It prints its listen port, device id, and
-**which input backend is active** (`SendInput` / `uinput` / `CGEvent` / `none`).
+**which input backend is active** (`SendInput` on Windows / `uinput` on Linux /
+`none` everywhere else — including macOS, where `conduitd` deliberately has no
+injector: `core/platform/injector_other.go` is a permanent no-op because the Mac
+app injects via `CGEvent` instead).
 
 ---
 
@@ -304,10 +309,13 @@ control. Interactive stays on the Phase 3 low-latency path.
    **not** do commissioning (start from already-commissioned devices).
 4. **Google Cast — not validated.** Real integration, but behind `canImport`;
    needs the GoogleCast SDK + a Chromecast.
-5. **Desktop input injection — cross-compiles, not exercised here.** `SendInput`
-   (Windows), `uinput` (Linux, needs device permissions / a udev rule), `CGEvent`
-   (macOS, needs **Accessibility** permission). Each needs the target OS + its
-   permission to actually move a cursor.
+5. **Desktop input injection.** `SendInput` (Windows, `conduitd`) — **broken and
+   never exercised**: the `mouseInput` struct layout does not match Win32's
+   `MOUSEINPUT`, and `kind:"key"` is not handled at all (`todo.md`). `uinput`
+   (Linux, `conduitd`, needs device permissions / a udev rule) — reachable but
+   still drops `kind:"key"`, and the container harness has no uinput so it is
+   untested. `CGEvent` (macOS) lives **only in the Mac app**, not in `conduitd`,
+   and is `dev`-verified as of 2026-08-11.
 6. **Cross-device profile sync — intentionally not built.** `ROUTINE_*` slots are
    reserved but profiles stay local-first (syncing them would move context data
    off the device; that's an explicit opt-in for later).
@@ -322,11 +330,13 @@ control. Interactive stays on the Phase 3 low-latency path.
   conflicts with the App Store sandbox — the input-injection Mac build can't be a
   standard sandboxed App Store app without an alternative (e.g. a separate helper).
   Decide this before you plan distribution.
-- **Bundle IDs and the App Group are placeholders** (`org.auston.conduit.*`,
-  `group.org.auston.conduit`). Renaming on the naming decision touches **four**
-  clients (iOS, macOS, tvOS, Android) **plus** the daemon, and the App Group must
-  match across the iOS app and its broadcast/So extensions or screen broadcast
-  breaks silently.
+- **Bundle IDs and the App Group are final, not placeholders**:
+  `org.auston.mosis` / `.mac` / `.tv` / `.broadcast` and
+  `group.org.auston.mosis` (the pre-rename `org.auston.conduit.*` values are
+  gone). They are now a **compatibility boundary** — the App Group must match
+  across the iOS app and its broadcast extension or screen broadcast breaks
+  silently, and changing the bundle id orphans paired-device identity and resets
+  TCC grants. Do not rename them again.
 - **Screen Recording (macOS)** must be granted before sourcing a screen, and the
   first grant usually needs an app relaunch.
 - **Multi-viewer bandwidth scales with N.** One capture, one encode (CPU is fine),

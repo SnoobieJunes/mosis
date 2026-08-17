@@ -12,7 +12,8 @@ sense, both unvalidated for lack of hardware:
 
 - **Matter scenes** in Routines (`MatterSceneController`, ADR 0013): recalls
   a scene via the stable generic invoke, gated behind
-  `MOSIS_MATTER_SCENES` + `canImport(Matter)`.
+  `CONDUIT_MATTER_SCENES` + `canImport(Matter)`. (The flag still carries the
+  codename — renaming it is part of plan 01's remaining sweep, not done.)
 - **Matter Casting** sender (`MatterCastBackend`, ADR 0011): real
   `MTRCastingApp` integration behind `canImport(MatterTvCastingBridge)`,
   fed by the proven HLS re-publisher.
@@ -51,5 +52,6 @@ ever *commands home devices from Routines*.
 ## Verify
 
 V1: Office profile run flips the physical device's scene, captured on video
-for the README. V2: viewed Mac screen appears on a Fire TV. Both get an
-"validated on <hw>" line in TESTING_PLAN §8 replacing today's ⚠.
+for the README. V2: viewed Mac screen appears on a Fire TV. Each gets a
+"validated on <hw>" line replacing today's ⚠ — V1 in `TESTING_PLAN.md` §8
+(Phase 7), V2 in §7 (Phase 6, TV viewers), which is where they actually live.

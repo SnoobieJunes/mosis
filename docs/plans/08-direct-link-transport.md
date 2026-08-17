@@ -5,6 +5,18 @@ TCP+TLS universal fallback) and **ADR 0017** (path ladder: LAN → same-vendor
 P2P → soft-AP → manual hotspot). This plan is the build order, the gates, and
 the honest status ledger for both.
 
+> **Status 2026-08-17: nothing in this plan has been built.** All three P0
+> spikes are still ☐ — they gate everything below. One correction to the ledger
+> and one to the ladder:
+> - **P1 assumes a Go backend seam that does not exist.** Apple really has
+>   `protocol TransportBackend` (`ConduitTransport/TransportBackend.swift`) with
+>   two conforming types; Go's `core/transport` is a single concrete TCP+TLS
+>   implementation with no interface to slot QUIC into. Building that seam is
+>   unscoped work hiding inside a one-line table row.
+> - **Ladder rung 2 is no longer entirely design** — the Apple↔Apple (AWDL) leg
+>   was exercised on hardware 2026-08-11 (ADR 0017, amended). The Wi-Fi Aware
+>   legs and rungs 3–4 remain written-only.
+
 **Product goal being served:** Linux, Android, iOS, Windows, macOS — cast and
 control any device from the others (within platform walls), file sharing,
 input sharing, screen casting — peer-to-peer, no cloud, no account, no relay.
@@ -51,7 +63,7 @@ conflated.
 
 | Step | Verification | Status |
 |---|---|---|
-| `core/transport` QUIC listener+dialer behind the existing backend seam; `.quic` backend kind | Unit + conformance over QUIC | ☐ |
+| `core/transport` QUIC listener+dialer behind a backend seam that **has to be written first** (Go has no `TransportBackend` equivalent today — only Swift does); `.quic` backend kind | Unit + conformance over QUIC | ☐ |
 | TXT `quic=<port>` advertise; prefer-QUIC-else-TCP dialer with per-peer/per-network outcome cache | Two-process LAN test | ☐ |
 | conduitd `--quic` flag, default ON only after P0a gates pass | Flag + bake note in this table | ☐ |
 

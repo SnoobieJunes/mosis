@@ -4,6 +4,23 @@ Closes spec open decision 1. Product name **MOSIS**, identifier `mosis`.
 This is the last cheap moment: nothing is published, no peers are deployed,
 so even wire-visible strings can change in one coordinated commit.
 
+> **That premise expired on 2026-08-12: the repo is public** and the site links
+> to it. There are still no releases and no third-party peers, so the clean
+> break in Step 1 remains *possible* — but it is no longer free, and it stays
+> **blocked on Auston's decision** (recorded in `00-overview.md` decision 4 as
+> "decide at publish time"). Until that call, `conduit-pairing-v1` /
+> `conduit-tls-binding-v1` and `_cndt-app._tcp` ship as-is, deliberately.
+>
+> **Also stale below, corrected 2026-08-17:** Step 0's ADR was written as
+> `docs/adr/0014-product-name-mosis.md` (not `0014-name-mosis.md`); Step 2's
+> log-subsystem count is now **8** sites, not 6; Step 3's repo rename is
+> **done** (github.com/SnoobieJunes/mosis) and `gh` **is** installed (v2.96.0);
+> Step 3's `docs/BRIEF.md` fold-in is **done** and linked from the README;
+> Step 4's stable signing team is **done** (`2fcccdd`, 2026-07-28); Step 1
+> item 2 no longer has a service-type string in `ProtocolConstants.swift` (that
+> copy was dead code and was collapsed away); and the Verify section's "all 91"
+> Swift tests is now **126**.
+
 > **Status & two corrections (2026-07-20, from an adversarial audit).**
 > The rename is **partly done already** and this plan is stale in spots:
 > - **DONE in `e6c6eb3`/`40e5c69`:** iOS bundle id → `org.auston.mosis` (no
@@ -36,7 +53,7 @@ so even wire-visible strings can change in one coordinated commit.
 
 ## Step 0 — ADR
 
-Write `docs/adr/0014-name-mosis.md`: name decided (MOSIS, the 2011–2013
+**DONE** — written as `docs/adr/0014-product-name-mosis.md`: name decided (MOSIS, the 2011–2013
 APPture/mosis revival), identifier casing, bundle-ID root, service names, and
 the crypto-domain-string decision below. Flip the README/spec placeholder
 banners to done. Historical ADR bodies (0001–0013) are records — leave their
@@ -113,7 +130,7 @@ lockstep, conformance is the referee:
 
 ## Verify
 
-`swift test` (all 91), `go test ./...`, Go + Kotlin conformance against the
+`swift test` (all **126**), `go test ./...`, Go + Kotlin conformance against the
 regenerated vectors, `xcodegen generate` + build all four Apple targets, then
 a case-insensitive sweep: `grep -ri "conduit\|cndt" --exclude-dir=.git .`
 should hit only ADR history (0001–0013) and intentional heritage mentions.

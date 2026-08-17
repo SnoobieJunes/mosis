@@ -453,7 +453,10 @@ that were wrong, or missing entirely. That is exactly the state the `SCREEN_*`
 builders were in while Android "passed conformance". Kotlin session smoke: PASS.
 `./gradlew :app:assembleDebug`: APK built.
 
-**Still only backed by hope.** No device session has run any of this. The real
+**Still only backed by hope** *(as written on 2026-07-26; half of it was
+retired by the 2026-08-11 device session — see that entry. `MacInputInjector`
+and Apple-side capture are now `dev`; every Android sentence below still
+stands.)* No device session has run any of this. The real
 `MacInputInjector` has still never injected a real event; MediaProjection has
 never been granted; no frame has ever been decoded on a phone; the Android
 pairing gate — the thing everything else waits behind — is still unproven on
@@ -464,8 +467,9 @@ and `docs/DEVICE_CHECKLIST.md` is the script.
 - ~~**Secondary (multi-viewer) sessions** still use the blocking dial with no
   control-lane fallback.~~ **Fixed in loop 6** and covered by
   `PushShareE2ETests.pushingToASecondViewerWorksWithoutAReverseDial`.
-- **No device session has validated loop 6.** Everything in it is automated-test
-  green and hardware-unproven. That distinction is the whole point of this file.
+- ~~**No device session has validated loop 6.**~~ **Retired 2026-08-11** — the
+  push-share path and the browser watch page both ran on real hardware (see the
+  2026-08-11 entry). What loop 6 built for *Android* is still hardware-unproven.
 - **Casting to a TV is HLS**, so it runs a few seconds behind. Fine for watching,
   useless for control. The interactive path (MOSIS peer → MOSIS viewer) is the
   low-latency one; the UI says so in both places.
@@ -676,3 +680,82 @@ carried frames`) and ran on the session link; every run after a daemon restart
 promoted correctly. Suspect the freshly-paired peer record the reverse dial
 reads. `attachScreenLane` now logs which of its three refusals it took, so the
 next occurrence names itself.
+
+---
+
+## 2026-08-11 — the first real device session, recorded six days late
+
+**This entry exists because it was missing.** A hands-on iPhone ↔ Mac session
+happened on 2026-08-11 and its results went into `README.md` (footnote ¹⁵) and
+the website only. This file — the running log the project's own rules say
+device results land in — said nothing about it until 2026-08-17. That is the
+same failure this file was created to prevent, so it is written down as one.
+
+**What ran on real hardware (one iPhone, one Mac, hands-on):** pairing, file
+transfer, clipboard both ways, the iPhone driving the Mac, screen sharing in
+both directions, and the browser watch page. **15 matrix cells turned `dev`**
+(macOS ×7, iOS ×6, Browser ×2).
+
+**Two long-standing fakes are retired by it.** The real `MacInputInjector`
+moved a real cursor (README footnote ⁵ — it never had), and real
+ScreenCaptureKit capture ran (footnote ⁷ — it was device-gated). The ReplayKit
+broadcast path and the loop-6 push-share/browser-watch path also ran for real.
+Everything the 2026-07-26 block above filed under "still only backed by hope"
+for the *Apple* platforms is therefore retired; the Android half of that
+sentence still stands, untouched.
+
+**Evidence tier, stated precisely:** hands-on device session. **Not** the
+scripted `docs/DEVICE_CHECKLIST.md` walk, and **no recordings were captured**,
+so plan 02's exit bar (a fresh-install scripted run, captured for the README)
+is *not* met. Three capabilities were deliberately left un-`dev`ed because the
+session did not clearly exercise them: **watch-and-drive on one surface**
+(ADR 0015's absolute-pointing composition), **multi-viewer**, and anything on
+iPad.
+
+**AWDL / direct link.** Apple↔Apple direct linking was exercised, which moves
+path-ladder rung 2 to *proven* for that half only. The Wi-Fi Aware half
+(iPhone↔iPad) remains written-only and hardware-blocked.
+
+**One documented gap was never a gap.** "Presenting to a device you don't own"
+— plan 06's "real gaps" item 2 — was wrong: anyone in the room can pair, the
+trust is the six digits and the word pair on both screens. Plan 06 is corrected
+in this pass rather than left to contradict the site.
+
+## 2026-08-12 — the website shipped and the repo went public
+
+Plan 10 built out P0–P6 and merged (`31a65d6`); the site is live at
+<https://snoobiejunes.github.io/mosis/>. The GitHub repo was flipped **public**
+around that merge so Pages could serve `/mosis/`. Both `pages` and
+`conformance` workflows are green on GitHub-hosted runners — which also retires
+plan 03 §5's "CI has never run on hosted runners" and the same note inside
+`.github/workflows/conformance.yml`.
+
+Worth stating plainly, because no plan said it would happen this way: the repo
+went public **before** plan 01's rename finished and **before** device sessions
+S1–S4 formally passed. Plan 00 had recommended the opposite order. The decision
+stands; the plans are updated to describe the world as it is.
+
+## 2026-08-17 — repo-wide audit; the evidence board re-verified
+
+A 45-agent read-only audit swept every plan, doc and subsystem. Its findings
+drive this pass and the new `todo.md`.
+
+**Re-verified green, same day, nothing hardware-dependent:** Swift
+**126/126** (7+19+27+31+42 across five bundles), Go tests + **52/52**
+conformance vectors, Kotlin **70/70** vectors + session smoke, Android debug
+APK assembles, and all four Apple app targets build.
+
+**70 stale doc claims and 174 outstanding items** came back. The doc claims are
+fixed in this pass; the outstanding items are now `todo.md`, which replaces
+"read all eleven plans and diff them against the code" as the way to find the
+next piece of work.
+
+**37 bug findings, and the honest state of their verification:** adversarial
+skeptics ran on only 7 of them (the Swift-protocol and Go-core dimensions)
+before the audit session was killed — 14 skeptics, none refuted, high
+confidence. The Android, Kotlin, CI and Apple-app findings are **unverified
+single-reader claims** and `todo.md` labels them as such.
+
+**Known limitations of the audit itself:** it was read-only and ran no tests,
+the wire-format-parity finder across the three implementations died before
+reporting, and no adjudication or completeness pass ever ran.

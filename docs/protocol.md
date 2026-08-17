@@ -3,19 +3,27 @@
 Status: **frozen v1.** Canonical JSON is the wire format (not protobuf — see
 [ADR 0008](adr/0008-json-is-the-v1-wire-format.md); an informative schema lives
 in [`proto/conduit.proto`](../proto/conduit.proto)). Everything network-visible
-through Phase 4 is documented here. Golden vectors:
+through Phase 4 is documented here, plus the Phase 7 additions
+(`DEVICE_STATE`, `PERMISSION_REQUEST`/`GRANT`/`REVOKE`). Golden vectors:
 [`proto/vectors/`](../proto/vectors) (append-only).
 
-**Two implementations pass these vectors byte-for-byte** and interoperate live:
-the Swift `ConduitKit` (Apple apps) and the Go `conduit-core` (`core/`, the
-Windows/Linux/macOS daemon). A third party can implement a client from this
-document plus the vectors alone — that is the conformance bar.
+**Three implementations pass these vectors byte-for-byte:** the Swift
+`ConduitKit` (Apple apps), the Go `conduit-core` (`core/`, the
+Windows/Linux/macOS daemon), and the Kotlin `android/core` (pure JVM, checked by
+the `kotlin` job in `.github/workflows/conformance.yml`). Swift and Go also
+interoperate live over real TLS; the Kotlin implementation is vector-exact but
+has never completed a session against another implementation on hardware. A
+third party can implement a client from this document plus the vectors alone —
+that is the conformance bar.
 
 ## Transport
 
 - Service type (Bonjour, later also Wi-Fi Aware): **`_cndt-app._tcp`**
-  (≤15 chars per Aware rules; name is a placeholder pending product naming,
-  to be registered with IANA after renaming — spec §5.3).
+  (≤15 chars per Aware rules). The product name is decided (MOSIS, ADR 0014),
+  but this string is deliberately *not* renamed yet: it is a fleet-wide
+  compatibility boundary, so it changes only as one clean break together with
+  the crypto domain strings — a decision deferred on the record
+  (`docs/plans/01-rename-to-mosis.md`). IANA registration comes after that.
 - TXT record keys on the advertised service: `id` (full device ID hex),
   `nm` (display name), `cl` (device class), `v` (protocol version).
 - One TCP listener per device serves **both** lanes: control connections
@@ -114,6 +122,10 @@ Every control message:
 | `SCREEN_ACK` | `screen_session_id`, `acked_seq` (u32), `request_keyframe` — viewer→source feedback |
 | `SCREEN_END` | `screen_session_id`, `reason?` |
 | `NOTIFICATION` | `app_name`, `title`, `body`, `id`, `actions?` — source→display (Phase 4) |
+| `DEVICE_STATE` | `charging`, `docked`, `display_attached`, `foreground` (all bool), `battery?` (0…1) — advisory peer state; every field absent-means-false except `battery`, which is simply omitted when unknown |
+| `PERMISSION_REQUEST` | `capability`, `scope` (e.g. `view-only`) — ask a peer to grant a capability |
+| `PERMISSION_GRANT` | `capability`, `peer` (device ID hex), `scope`, `ttl?` (seconds) |
+| `PERMISSION_REVOKE` | `capability`, `peer` — takes effect immediately; a granted peer must stop |
 
 ## Notifications (Phase 4)
 

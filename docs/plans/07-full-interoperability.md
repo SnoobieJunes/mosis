@@ -1,7 +1,15 @@
 # Plan 07 — Full cross-OS interoperability
 
-**Status: code complete, device-unverified.** Every milestone below is built and
-covered by automated tests; **nothing in it has run on a phone, a tablet, or a
+**Status: code complete; partly device-verified as of 2026-08-11.** Every
+milestone below is built and covered by automated tests. The macOS ↔ iOS half
+then ran on real hardware, hands-on: screen sharing both directions, the iPhone
+driving the Mac, files, clipboard, pairing (15 `dev` cells; see
+`docs/loop-state.md`, 2026-08-11). **Still device-unverified: everything
+Android, everything iPad, watch-and-drive on one surface (ADR 0015's
+composition), and multi-viewer.** The sentence below is kept because it was true
+when written and because the distinction it draws is the point of this file —
+read it as applying to what is still unproven, not to all of it:
+**nothing in it has run on a phone, a tablet, or a
 second Mac.** The distinction is the whole point of this repo's process
 (`CONTRIBUTING.md`, "plans are kept true") and is carried through every "done" mark in this file: each says
 *how* it is verified, and the answer is never "on hardware".
@@ -259,7 +267,11 @@ unreachable" with no visible cause) is now written where before it did not exist
 `unavailableReason()` says which of the three ways it is unavailable.
 
 **It remains unproven and unreachable from the UI**, because it needs two devices
-reporting `FEATURE_WIFI_AWARE` and the iOS Aware entitlement (ADR 0003). LAN
+reporting `FEATURE_WIFI_AWARE`. The iOS entitlement is **no longer a
+prerequisite** — `com.apple.developer.wifi-aware` was granted for
+`org.auston.mosis` on 2026-07-26 and the Swift `AwareBackend` is implemented and
+flag-enabled (ADR 0003's own unblock checklist); the Android backend is still
+uninstantiated. LAN
 fallback is always on, so this is upside, not a blocker. **Blocked on hardware.**
 
 ---
@@ -267,10 +279,15 @@ fallback is always on, so this is upside, not a blocker. **Blocked on hardware.*
 ## Sequencing — what is left
 
 Everything in this plan that can be done without hardware is done. What remains
-is exclusively device work — and one build problem that blocks all of it.
+is exclusively device work — the Android gate first, since the macOS ↔ iOS half
+was exercised on 2026-08-11.
 
-0. **The Apple app targets do not build in Xcode.** Found while verifying this
-   plan (2026-07-26): every target fails identically on a swift-crypto
+0. ~~**The Apple app targets do not build in Xcode.**~~ **RESOLVED the same day
+   (2026-07-26)** — the root cause was `xcodebuild -target` taking the legacy
+   build path, not a real swift-crypto problem: building by `-scheme` works, and
+   all four app targets built green again on 2026-08-17. Use `make apple-apps`.
+   Original text kept for the diagnosis: every target failed identically on a
+   swift-crypto
    explicit-modules error (`CryptoExtras` → `SwiftASN1`). It is **not** caused by
    anything here — the same failure occurs on a clean DerivedData, and
    `ConduitKit` itself compiles for macOS, iOS *and* tvOS under SwiftPM, which is

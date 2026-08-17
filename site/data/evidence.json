@@ -27,11 +27,11 @@
     "bld": 16,
     "smoke": 3,
     "E2E": 9,
-    "—": 42,
+    "—": 43,
     "E2E*": 5,
     "wall": 6,
     "none": 1,
-    "code": 6,
+    "code": 5,
     "unit": 2
   },
   "deviceVerified": 15

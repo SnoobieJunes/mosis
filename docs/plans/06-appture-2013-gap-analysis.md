@@ -38,8 +38,8 @@ demo, customer validation, and a $65k ask.
 |---|---|
 | Cross-platform, software-only display sharing | ✅ core (Swift/Go/Kotlin, HEVC pipeline) |
 | Control the remote machine, launch anything | ✅ remote input (where platforms allow; iOS can't receive) |
-| Wi-Fi Direct (no internet needed) | ◐ became Wi-Fi Aware — entitlement-gated, off (the long pole) |
-| Chromecast / set-top boxes | ◐ AirPlay ✅, Cast/Matter SDK-gated, tvOS/Android TV viewers built |
+| Wi-Fi Direct (no internet needed) | ◐ became Wi-Fi Aware — entitlement **granted** and the iOS flag is **on**; blocked only on two Aware-capable devices. Apple↔Apple direct linking (AWDL) was exercised 2026-08-11 |
+| Chromecast / set-top boxes | ◐ AirPlay ✅, Cast/Matter SDK-gated, **tvOS viewer built** (a real 10-foot app: focus-driven list, on-TV pairing, full-screen viewer). **Android TV has no viewer** — the Android app declares no leanback/TV entry point |
 | Home automation future | ✅ became Matter scenes in Routines (validation pending) |
 | File streaming | ✅ file transfer + HLS re-publish |
 | "Touch of a button" automation | ✅ became Contexts/Routines/suggestions — better than pitched |
@@ -48,18 +48,21 @@ demo, customer validation, and a $65k ask.
 
 ## The real gaps (things the pitch had that the repo doesn't)
 
-1. **The zero-install browser viewer** — the heart of the 2013 demo ("put in
-   the web address and it streams"). Today both ends need the app. We are
-   *close*: the HLS re-publisher already serves `http://<ip>:<port>/stream.m3u8`
-   from a viewer. A small `/view` HTML page + one-time guest token would let
-   any laptop/TV-browser in the room watch a shared screen with nothing
-   installed — the single highest-leverage feature gap, and the best demo.
-   (Worth adding as a phase/plan when ready; it's a new consent surface, so
-   it needs the same care as multi-viewer grants.)
-2. **Presenting to devices you don't own.** 2013 was about a *client's*
-   projector; 2026's trust model is pair-once-your-own-devices. Guest
-   sessions (time-boxed, view-only, no pairing) are the missing concept —
-   the browser viewer above is 90% of the answer.
+1. ~~**The zero-install browser viewer**~~ **BUILT — corrected 2026-08-17.**
+   `LocalHTTPServer.swift` serves a complete `/watch` page (video element,
+   autoplay HLS, a VLC fallback for browsers without native HLS) and
+   `ConvenienceSenders.watchURL` hands out the address; it ran on real hardware
+   on 2026-08-11 and is two of the 15 `dev` cells. **What is genuinely missing
+   is only the consent layer** — the page is currently reachable by anyone who
+   has the URL, with no one-time guest token and no time box. That is the real
+   remaining item, and it is a security surface, not a feature gap.
+2. ~~**Presenting to devices you don't own.**~~ **WRONG — corrected
+   2026-08-17.** This was never a gap. Pairing is not restricted to your own
+   devices: anyone in the room can pair, because the trust is the six digits and
+   the word pair confirmed on both screens. The 2013 demo's hardest promise —
+   putting your screen on a stranger's projector — works today. (Guest sessions
+   remain a nice *convenience* idea: view-only, time-boxed, no pairing at all.
+   The website was corrected first; this file lagged.)
 3. **Internet range** ("streamed from anywhere in the world"). Deliberately
    out of scope (local-first, optional self-hosted relay listed as future
    work, never a dependency). Keep it a stated non-goal, not a silent gap.

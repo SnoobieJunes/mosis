@@ -23,14 +23,19 @@ Xcode 26.6 / Swift 6.3.3 (2026-07-06):
 
 ## Leg 2 — Wi-Fi Aware, same-platform (iPhone ↔ iPad): OPEN
 
-Blocked on (in order): product name → real App ID → the
-`com.apple.developer.wifi-aware` entitlement request (LONG POLE — file it the
-day the name is decided; spec §12 risk 2) → two supported devices on Apple's
-Wi-Fi Aware device list. See ADR 0003 for the full unblock checklist.
+Blocked on (in order): ~~product name~~ **done** (MOSIS, ADR 0014) → ~~real App
+ID~~ **done** → ~~the `com.apple.developer.wifi-aware` entitlement request~~
+**GRANTED 2026-07-26**, and `AwareBackend` is implemented and flag-enabled on
+iOS → **two supported devices on Apple's Wi-Fi Aware device list — the only
+thing still missing.** See ADR 0003 for the full unblock checklist.
 
 ## Leg 3 — Wi-Fi Aware, cross-OS (iPhone ↔ Android): OPEN
 
-Gated behind leg 2 plus an Android 13+ device with `FEATURE_WIFI_AWARE`.
+Gated behind leg 2 plus an Android 13+ device with `FEATURE_WIFI_AWARE`. The
+Android side is no longer empty: `WifiAwareBackend.kt` exists and had two
+blocking defects (a cast between unrelated discovery-session types, and a
+never-written data path) fixed on 2026-07-26 — still uninstantiated from the
+app, still unproven on hardware.
 Known state going in (spec §2 pillar 6): discovery tends to succeed while
 Apple's pairing stage fails against many Android combos; time-box to one day
 and record works/fails-at-X per device+OS in `interop-status.md`.

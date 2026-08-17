@@ -21,8 +21,11 @@ import (
 // tiling WM that resizes the window anyway crops or bares the edge — mapping
 // stays correct for the visible region. Scaled drawing is a follow-up.
 //
-// Like the capture side, NONE of this has run on a real X server yet —
-// compiles under GOOS=linux, semantics from the protocol docs. Device-gated.
+// Like the capture side, this ran for real on 2026-07-28 in the
+// tools/linux-docker/ harness (Xvfb, real ffmpeg, two network namespaces): the
+// window was drawn and read back correct pixels. Still unexercised there: any
+// window manager (so tiling/resize behaviour above is untested), a compositor,
+// GPU paths, and Wayland. Device-gated for those (docs/plans/09).
 type x11Window struct {
 	mu     sync.Mutex
 	conn   *xgb.Conn

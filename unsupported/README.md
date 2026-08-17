@@ -22,7 +22,8 @@ Rules (spec §11 invariants):
   window/display *streaming* (Phase 3), and iPad-as-Mac-monitor is conceded to
   Sidecar (spec §9 Phase 6 step 5).
 
-The **supported** extra-monitor directions live in the normal build:
-- Windows: `docs/virtual-display.md` — the documented IddCx indirect display
-  driver model (a real, signable driver; the work is signing logistics).
-- Linux: `docs/virtual-display.md` — evdi / DRM leases.
+The **supported-in-principle** extra-monitor directions are documented but not
+built (`docs/virtual-display.md` has the honest per-OS status):
+- Windows: the IddCx indirect display driver model — our driver is a skeleton
+  whose frame-forwarding callback is an empty `return STATUS_SUCCESS;`.
+- Linux: evdi / DRM leases — a design writeup, no code.

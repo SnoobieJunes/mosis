@@ -665,14 +665,14 @@
           "tag": "—"
         },
         {
-          "raw": "code (evdi, unwired)",
-          "tag": "code",
-          "note": "(evdi, unwired)"
+          "raw": "— (evdi, design note only)",
+          "tag": "—",
+          "note": "(evdi, design note only)"
         },
         {
-          "raw": "code (IddCx, unsigned)",
+          "raw": "code (IddCx, no frame path)",
           "tag": "code",
-          "note": "(IddCx, unsigned)"
+          "note": "(IddCx, no frame path)"
         },
         {
           "raw": "—",
@@ -702,7 +702,7 @@
     "rows": 15,
     "platforms": 7,
     "cells": 105,
-    "claimed": 56,
+    "claimed": 55,
     "verified": 15
   }
 }

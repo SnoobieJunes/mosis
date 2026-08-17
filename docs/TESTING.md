@@ -96,7 +96,7 @@ with real crypto. This is the code the Android app runs over TLS sockets.
 ```bash
 cd core
 go test ./...                                # Go-to-Go pair + 3 MiB transfer + clipboard + notification
-go run ./cmd/conformance ../proto/vectors    # 42 golden vectors, byte-exact → "PASS"
+go run ./cmd/conformance ../proto/vectors    # 52 golden vectors, byte-exact → "PASS"
 GOOS=linux   GOARCH=amd64 go build ./...      # cross-compile the daemon for Linux
 GOOS=windows GOARCH=amd64 go build ./...      # …and Windows
 ```
@@ -151,7 +151,9 @@ In Xcode, once per machine:
 > fine.
 
 Bundle IDs (`org.auston.mosis.*`) and the App Group (`group.org.auston.mosis`)
-are placeholders pending the product name — rename before any TestFlight upload.
+are **final** — the product name was decided 2026-07-17 (ADR 0014) and these are
+the renamed values. Changing either again orphans every paired device's identity
+and resets TCC grants, so treat them as frozen.
 
 ---
 
@@ -174,8 +176,10 @@ are placeholders pending the product name — rename before any TestFlight uploa
 - [ ] Clipboard round-trips via the explicit **Send Clipboard** action both ways.
 - [ ] A second, **unpaired** Mac cannot connect (rejected).
 - [ ] If you have an iPhone + iPad that both support Wi-Fi Aware, the stats
-      overlay shows the **AWARE** badge for that pair *(only once the Aware
-      entitlement is approved — see §7; today everything is LAN)*.
+      overlay shows the **AWARE** badge for that pair. *(The entitlement was
+      granted 2026-07-26 and the backend is real and flag-enabled on iOS — what
+      is missing is a hardware run on two Aware-capable devices. Nobody has ever
+      seen this badge.)*
 
 Turn on the **Stats** toggle to see backend (LAN/AWARE), RTT, and throughput.
 
@@ -225,7 +229,9 @@ Mac if not already green).
 
 1. iPhone: **Share → Share My Screen** on the Mac row → a sheet appears (the
    Mac starts waiting immediately and gives up after 45 s — start promptly).
-2. Tap the broadcast button, choose **Conduit**, **Start Broadcast**.
+2. Tap the broadcast button, choose **MOSIS Screen**, **Start Broadcast**. (That
+   is the broadcast extension's display name in Apple's ReplayKit picker — not
+   "Conduit", and not "MOSIS".)
 3. The iPhone's screen appears in the Mac's viewer; the phone's sheet + banner
    show live extension status ("Broadcasting ✓ — N frames sent").
 
@@ -295,7 +301,8 @@ confirm the code the daemon prints in its terminal (type `y`).
 
 The Kotlin core is proven on the JVM (§1b-kt). The Android app is
 Android-Studio-and-device-gated. Open `android/` in Android Studio (Ladybug+
-with the Android SDK), run on a device (API 28+).
+with the Android SDK), run on a device (**Android 13+ / API 33** — `minSdk` is
+33, not 28: the first-launch identity path needs `EdECPrivateKeySpec`).
 
 **Acceptance checklist (spec §9 Phase 5):**
 - [ ] Android ↔ iPhone **file transfer** over LAN (Android speaks the same v1
@@ -340,10 +347,12 @@ Acceptance: a cheap tablet as a second Windows monitor over LAN, < ~80 ms.
 
 These are documented dead-ends, not bugs (spec §4 matrix + ADRs):
 
-- **Wi-Fi Aware** is feature-flagged **off** until the
-  `com.apple.developer.wifi-aware` entitlement is approved — which needs a real
-  App ID, which needs the product name decided (ADR 0003). Everything runs on
-  the LAN backend today, by design.
+- **Wi-Fi Aware** is no longer entitlement-blocked: `com.apple.developer.wifi-aware`
+  was **granted** for `org.auston.mosis` on 2026-07-26, `AwareBackend`/
+  `AwareConnection` are a real implementation, and the flag is **on** for iOS
+  (ADR 0003's unblock checklist). What remains is purely hardware: two
+  Aware-capable, OS-paired Apple devices. Until then everything you will actually
+  observe runs on the LAN backend.
 - **iPhone ↔ Android Aware** is expected to fail at the encrypted pairing stage
   on most hardware (Phase 5 concern; tracked in `docs/interop-status.md`).
 - **iOS can't**: inject input, source notifications, or become a system-level

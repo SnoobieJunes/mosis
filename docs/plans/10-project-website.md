@@ -1,5 +1,15 @@
 # Plan 10 — The MOSIS website
 
+> **Shipped and live 2026-08-12** — P0–P6 all built, merged in `31a65d6`,
+> serving at <https://snoobiejunes.github.io/mosis/>.
+>
+> **Two things below were overtaken by events and are corrected in place:** §1's
+> "zero device-verified sessions" and §8 guardrail 1's "never claim a `dev` tag"
+> — 15 cells legitimately earned `dev` on 2026-08-11, and after Auston's review
+> the site stopped leading with the zero counter and became a call for testers
+> instead. The guardrail's *intent* (never claim a tag the repo hasn't earned)
+> still holds and is still CI-enforced against the README matrix.
+
 **Deliverable:** `mosis.dev`-shaped static site at `SnoobieJunes.github.io/…`,
 hand-written HTML/CSS/JS in `site/`, deployed by GitHub Actions. No framework,
 no build step, no Node in a Go/Swift/Kotlin repo.
@@ -30,7 +40,7 @@ Four things make it worth a website:
 | **Local-first, absolutely** | No cloud path exists to disable. Kill the internet; it still works. |
 | **Honest by construction** | Every capability claim carries its evidence tag. `dev` appears nowhere yet, and the site says so. |
 
-### Current true state (the site must not exceed this)
+### Current true state (the site must not exceed this) — *as of 2026-08-11, before that day's device session; see the banner above*
 
 - ✅ Protocol, crypto, pairing, TLS identity, codec pipeline — three
   implementations, byte-exact (126 Swift tests · 52 Go vectors · 70 Kotlin
@@ -222,8 +232,11 @@ Each phase = one commit, pushed to `claude/project-website-plan-hi5o6j`.
 
 ## 8. Guardrails
 
-1. **Never claim a `dev` tag.** Until a real device session exists, the site
-   says zero. The counter is a feature.
+1. **Never claim a `dev` tag the repo hasn't earned.** *(Reworded 2026-08-17 —
+   the original said "until a real device session exists, the site says zero",
+   which a real device session then made false.)* Every `dev` cell traces to a
+   named session in `docs/loop-state.md`, and `check-matrix.mjs` holds the site
+   to the README's tags.
 2. **No demo GIF** until plan 02 produces a real one. A recording of a test
    harness is the exact failure this repo documented in
    `quirky-tickling-dongarra.md`.

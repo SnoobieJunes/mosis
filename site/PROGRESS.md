@@ -219,8 +219,10 @@ with a reason.
   three stylesheets the local harness serialised.
 - **P6 — the deploy emits a Node-20 deprecation annotation**, not a failure:
   `actions/checkout@v4`, `configure-pages@v5`, `setup-node@v4`,
-  `upload-artifact@v4` and `deploy-pages@v4` are forced onto Node 24 by the
-  runner. Worth bumping when GitHub ships v5s.
+  `upload-pages-artifact@v3` and `deploy-pages@v4` are forced onto Node 24 by
+  the runner (corrected 2026-08-17: the workflow uses
+  `actions/upload-pages-artifact@v3`, not `upload-artifact@v4`). Worth bumping
+  when GitHub ships v5s.
 - **P6 — the Lighthouse numbers are measured, and where matters.** Against
   `python -m http.server` performance scored 86–90, failing on `cache-insight`
   and `document-latency-insight` — properties of that server (HTTP/1.0, no
@@ -229,11 +231,11 @@ with a reason.
   **95, 95, 95, 96, 96, 96**, accessibility 100 across the board, best
   practices 100, SEO 100. The real figure on Pages should be at or above that,
   since HTTP/2 multiplexes the three stylesheets this harness serialised.
-- **P6 — `sitemap.xml` and `robots.txt` hard-code
-  `snoobiejunes.github.io/conduit`.** They are the only absolute URLs on the
-  site, and they break if the repo is renamed to `mosis`. The sitemap lists the
-  six routes and omits `kitchen-sink.html`, which is what P1's "excluded from
-  the sitemap" was waiting for.
+- **P6 — ~~`sitemap.xml` and `robots.txt` hard-code
+  `snoobiejunes.github.io/conduit`~~ — FIXED the same day** in `ca83227`; both
+  now point at `/mosis/`. They are still the only absolute URLs on the site. The
+  sitemap lists the six routes and omits `kitchen-sink.html`, which is what P1's
+  "excluded from the sitemap" was waiting for.
 - **P6 — `site.yml` now ignores pushes to `main`**, because `pages.yml` runs
   the same three gates there before deploying. Pull requests still run
   `site.yml`.
@@ -264,8 +266,13 @@ quote for the benefits of peer-to-peer, add a Browser column.
       not a platform port.
 - [x] README's status section rewritten to lead with what is proven and to name
       what has been run by hand.
-- [x] All six pages regenerate from **one shared shell** now, so the footer and
-      the seal cannot drift.
+- [x] All six pages were **re-emitted from one shared shell**, so the footer and
+      the seal do not currently drift. Stated precisely (2026-08-17): there is no
+      shell/template *generator* in the repo — plan 10 forbids a build step — so
+      this is a one-time alignment, not a standing guarantee. Only the seal's
+      numbers are CI-checked; a hand-edit to one page's footer would pass every
+      gate. (One already happened: the hero label was removed from `index.html`
+      alone in `5ac615f`.)
 
 ### Open questions for Auston — these are the ones I did not answer for you
 

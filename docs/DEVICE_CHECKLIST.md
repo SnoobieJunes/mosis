@@ -47,7 +47,8 @@ The bundle IDs are now `org.auston.mosis` (iOS), `org.auston.mosis.broadcast`
 
 Note: the iOS app now also carries the granted **Wi-Fi Aware** entitlement
 (`Publish`/`Subscribe`, verified embedded in the signed build). The Aware
-backend itself is still the flagged-off stub — everything below rides LAN.
+backend is **not** a stub and the flag is **on** for iOS — but nobody has run it
+on two Aware-capable devices, so everything below still rides LAN in practice.
 
 ## 0a. Make sure you're running the *macOS* app (this bit the first attempt)
 

@@ -4,6 +4,14 @@ Goal: make the repo public under the name **MOSIS** (Mobile Operating System
 Integrated Solutions) so it demonstrates Auston's skillset, reads honestly,
 and is genuinely useful to others.
 
+> **The repo is public.** It was flipped around the website merge on 2026-08-12
+> so GitHub Pages could serve <https://snoobiejunes.github.io/mosis/> — i.e.
+> **before** plan 01's rename finished and **before** the device sessions, which
+> is the opposite of what this file recommended below. The recommendation is
+> left in place as the record of a decision that was overtaken; what remains of
+> the going-public work is in plan 03 and in **`todo.md`** (the flat list of
+> every outstanding item across all eleven plans, added 2026-08-17).
+
 ## Recommended order (each plan runs in its own window)
 
 | # | Plan | Why this order |
@@ -15,13 +23,16 @@ and is genuinely useful to others.
 | 5 | `05-matter-support.md` | Validation of existing Matter code; hardware-gated; anytime. |
 | 6 | `07-full-interoperability.md` | **Code complete 2026-07-26; device-unverified.** Converted "wire is cross-OS" into "the *apps* interoperate" in code: simultaneous watch-and-drive, absolute pointing (the one wire change — ADR 0015), and Android parity (screen both ways, send-side UI, keyboard, BT-HID). Everything remaining in it is device work, which folds into plan 02's sessions plus one Android gate. |
 | 7 | `08-direct-link-transport.md` | **Architecture written 2026-07-26** (ADR 0016 QUIC-primary transport, ADR 0017 direct-link path ladder) toward the five-platform goal: cast/control/files/input, peer-to-peer, no shared network required. Sequenced after 07 because it changes what *carries* the lanes, not the lanes. Windows leg on hold; P0 spikes gate everything. |
-| 8 | `09-linux-screen-and-control.md` | **Code + docs landed 2026-07-26** (`core/screencast/`, `conduitview`, `docs/linux.md`): Linux screen-source + viewer/control over today's lanes. Loopback E2E with real ffmpeg proven on a macOS host; every X11/uinput/real-network row is device-gated in the plan's ledger until the first Linux-box session. QUIC slides underneath later. |
-| 9 | `10-project-website.md` | **Plan written 2026-08-11.** The public face: a dependency-free static site in `site/`, GitHub Pages, with a MOSIS-native design system whose color scale *is* the evidence-tag ledger. Runs in parallel with everything else — its only hard coupling is that the capability matrix is CI-checked against the README, so it can never out-claim the repo. Build instructions: `10-website-loop-prompt.md`. |
+| 8 | `09-linux-screen-and-control.md` | **Code + docs landed 2026-07-26; X11 de-gated 2026-07-28** (`core/screencast/`, `conduitview`, `docs/linux.md`). The `tools/linux-docker/` two-container harness (real Xvfb, real ffmpeg, two network namespaces) proved X11 capture, blit and lane promotion for real — `669f17f`. Still device-gated: `uinput` input receive (no uinput in the Colima kernel), Wayland, GPU/compositor behaviour, and Swift↔Go interop. QUIC slides underneath later. |
+| 9 | `10-project-website.md` | **Shipped and live 2026-08-12** — P0–P6 all committed, merged in `31a65d6`, serving at <https://snoobiejunes.github.io/mosis/>. Plan written 2026-08-11. The public face: a dependency-free static site in `site/`, GitHub Pages, with a MOSIS-native design system whose color scale *is* the evidence-tag ledger. Runs in parallel with everything else — its only hard coupling is that the capability matrix is CI-checked against the README, so it can never out-claim the repo. Build instructions: `10-website-loop-prompt.md`. |
 
 `06-appture-2013-gap-analysis.md` is reference, not work: what the 2013 pitch
 promised vs. what exists, feeding `../BRIEF.md` and the README story.
 
-## The one sequencing decision (Auston's call)
+## The one sequencing decision (Auston's call) — ANSWERED BY EVENTS, 2026-08-12
+
+The repo went public before the device beta. Everything below is the reasoning
+that was on the table at the time.
 
 **Publish before or after the device beta?**
 - *After* (safer): the README's story is "it works" with a demo GIF.
@@ -37,9 +48,11 @@ show a real GIF, and it's roughly a week away.
 1. ~~**License**: confirm Apache-2.0.~~ **DECIDED — Apache-2.0** (2026-07-20).
    `LICENSE`/`NOTICE` committed, ADR 0007 accepted. Copyright name **confirmed
    2026-07-27**: NOTICE stays "Auston Leroy".
-2. **Name casing**: product "MOSIS", code identifiers `mosis` (assumed in the
-   plans). github.com/**mosis** is taken by a dormant account, so the repo
-   will live at `<your-account>/mosis`.
+2. ~~**Name casing**~~ **DECIDED 2026-07-17, recorded in ADR 0014** — product
+   "MOSIS", code identifiers `mosis`, and the repo lives at
+   **github.com/SnoobieJunes/mosis** (github.com/`mosis` is a dormant account).
+   Already executed: bundle ids `org.auston.mosis*`, App Group
+   `group.org.auston.mosis`, log subsystem `org.mosis`.
 3. ~~**Public identity**~~ **DECIDED 2026-07-27 — keep the SnoobieJunes
    handle.** NOTICE keeps "Auston Leroy" as the copyright name; no
    git-history rewrite either way (the verifiable 12-commit timeline stays).

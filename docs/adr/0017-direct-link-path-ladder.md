@@ -1,8 +1,10 @@
 # ADR 0017 — Direct-link path ladder: LAN → same-vendor P2P → soft-AP → manual hotspot
 
-Date: 2026-07-26 · Status: accepted (design — every rung is device-gated until
-a real session is logged; the platform-API claims below are from SDK/docs
-research, not from running code) · Plan: 08
+Date: 2026-07-26 · Status: accepted (design). **Amended 2026-08-17: rung 2's
+Apple↔Apple leg is no longer device-gated** — an AWDL Mac↔iPhone link was
+exercised hands-on on 2026-08-11. Every other rung remains device-gated until a
+real session is logged, and the platform-API claims below are still from
+SDK/docs research rather than from running code. · Plan: 08
 
 ## Context
 
@@ -46,9 +48,12 @@ honest reason string when unavailable or skipped, in the
 
 1. **Shared infrastructure LAN** (status quo): Bonjour/mDNS discovery, direct
    dial. Always tried first; nothing about it changes.
-2. **Same-vendor P2P, no infrastructure:**
+2. **Same-vendor P2P, no infrastructure:** — **the Apple↔Apple half is proven on
+   hardware (2026-08-11); everything else on this rung is still design.**
    - Apple↔Apple: `includePeerToPeer = true` on the existing Network.framework
      paths (Bonjour and connections ride AWDL). Covers Mac↔iPhone/iPad/TV.
+     **Exercised Mac↔iPhone on 2026-08-11** — evidence tier: hands-on device
+     session, one pair of devices, not a scripted run.
      iPhone/iPad pairs additionally have the Aware backend (OS-paired peers).
    - Android↔Android: the existing `WifiAwareBackend` (needs instantiation +
      `FEATURE_WIFI_AWARE` hardware).

@@ -1,5 +1,20 @@
 # Conduit: Fix Screen Sharing + Remote Input, Honest Beta Plan
 
+> **Both original failures are fixed on real hardware (2026-08-11).** The two
+> bugs this plan exists for — the screen viewer stayed blank, the remote cursor
+> never moved — were both exercised hands-on on one iPhone and one Mac: screen
+> sharing worked in both directions and the iPhone drove the Mac. 15 matrix
+> cells turned `dev` (README footnote ¹⁵; `docs/loop-state.md`, 2026-08-11).
+>
+> **What that session does *not* discharge**, and the reason this file stays
+> open: it was hands-on, not the scripted `docs/DEVICE_CHECKLIST.md` walk, and
+> nothing was recorded — so plan 02's exit bar (fresh install, scripted, on
+> video) is still unmet. Also still unproven: **watch-and-drive on one surface**
+> (ADR 0015), **multi-viewer**, **iPad**, `docs/BETA.md` (never written), and
+> **everything Android** — no Android device has ever completed a pairing.
+> Sessions S1–S4 were never run as scripted sessions; treat the list below as
+> "what code exists", not "what a checklist proved".
+
 > **Milestone status (2026-07-20), verified against code by an audit pass.**
 > M1–M7 are **implemented**; several were then **superseded** by the loop 1–4
 > re-architecture (see `loop-state.md`), which demoted the reverse dial from the
@@ -22,8 +37,11 @@
 >   `CODE_SIGN_IDENTITY`. Second, separate bug: the panel refreshed once,
 >   immediately, so it always read the pre-grant answer, and it could not
 >   express "granted, but this process predates the grant" — now polled, and
->   split into a **Relaunch** affordance. Not yet verified by hand: that a
->   grant survives an actual rebuild.
+>   split into a **Relaunch** affordance. Still not verified as its own
+>   experiment: that a grant survives an actual rebuild. The 2026-08-11 session
+>   ran a signed build with Screen-Recording- and Accessibility-gated features
+>   working, which is strong circumstantial evidence but is not one grant
+>   followed by one rebuild.
 > - **M6** (CI honesty — full unfiltered `swift test` in CI): **done**; this was
 >   the core accusation and it's fixed (`.github/workflows/conformance.yml`).
 > - **M7** (`docs/DEVICE_CHECKLIST.md`): done, and good.
@@ -54,8 +72,10 @@
 >   green** (was 109) — including the first tests that run screen and input
 >   *together*, on both the bulk lane and the degraded one.
 > - **Still only backed by hope (no automated coverage, needs device sessions
->   S1–S4):** `MacInputInjector`, `MacScreenCapturer` (fake emits BGRA, prod
->   NV12), the ReplayKit `SampleHandler`, the datagram black-hole case, the
+>   S1–S4)** — *written 2026-07-26; the 2026-08-11 session retired the first
+>   three items and the loop-6 push-share/watch-page entries. The rest stands:*
+>   ~~`MacInputInjector`~~, ~~`MacScreenCapturer`~~ (fake emits BGRA, prod
+>   NV12), ~~the ReplayKit `SampleHandler`~~, the datagram black-hole case, the
 >   reverse-dial off-loopback, both loop-4 root causes (iOS-on-Mac "(iPad app)"
 >   disambiguation, Bonjour browser restart), **everything in loop 6** (the
 >   push-share path, `LocalScreenCast`, the browser watch page, every broadcast

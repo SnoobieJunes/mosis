@@ -1,5 +1,12 @@
 # Plan 02 — Device-truth beta (pointer plan)
 
+> **Status 2026-08-17: the four Apple-side flows have all worked on real
+> hardware (2026-08-11), but the exit bar below is still unmet** — that session
+> was hands-on, not the scripted `docs/DEVICE_CHECKLIST.md` walk, and nothing
+> was recorded, so there is no demo GIF. Remaining: run the script end to end
+> from a fresh install and capture it; `docs/BETA.md`; watch-and-drive on one
+> surface; multi-viewer; iPad; and **all** of Android. See `todo.md`.
+
 The real plan already exists: **`../quirky-tickling-dongarra.md`** — the
 audited fix plan for the two on-device failures (screen viewer stayed blank;
 remote cursor never moved). Milestones M1–M8 with your device sessions S1–S4.
@@ -13,6 +20,11 @@ produces the README demo GIF that does more for credibility than any prose.
 Estimated: ~6–7.5 agent-days + 4–5 short device sessions from Auston.
 
 ## Sequencing changes now that the name is decided
+
+**Both sequencing items below are DONE** — the bundle-id/App-Group rename landed
+in `e6c6eb3`/`40e5c69`, and the stable-signing fix landed 2026-07-28 (`2fcccdd`,
+`DEVELOPMENT_TEAM` + `CODE_SIGN_IDENTITY` in `project.yml`). Kept for the
+reasoning, not as a to-do.
 
 1. **Run plan 01 (rename) first.** The quirky plan's defer-list said "accept
    TCC reset at naming time" — naming time is now. Renaming bundle IDs after

@@ -10,8 +10,8 @@ Direction, per the §4 matrix — only where the platform allows a virtual displ
 
 | OS | Mechanism | Status |
 |---|---|---|
-| Windows | **IddCx** indirect display driver | Supported, signable — the work is signing logistics, not code |
-| Linux | **evdi** (or headless DRM output + DRM lease) | Supported |
+| Windows | **IddCx** indirect display driver | OS supports it; **our driver is a skeleton** — `ConduitAssignSwapChain` is `return STATUS_SUCCESS;` with no frame-forwarding thread, and no Go side binds it. Signing logistics *and* code |
+| Linux | **evdi** (or headless DRM output + DRM lease) | OS supports it; **we have written no code at all** — `core/drivers/linux-evdi/` is a README describing the approach |
 | macOS | private `CGVirtualDisplay` | **`unsupported/` only** — no public API (ADR 0012) |
 
 ## Shared architecture
@@ -51,7 +51,9 @@ and (for wide install) attestation/WHQL. Budget packaging time, not code.
 
 ## Linux — evdi
 
-`core/drivers/linux-evdi/` — bind the `evdi` kernel module (DisplayLink's
+`core/drivers/linux-evdi/` — **a design writeup, not an implementation: the
+directory holds one README and no C, Go or cgo source.** The intent: bind the
+`evdi` kernel module (DisplayLink's
 open-source virtual display), create a virtual output, and read damaged regions
 from its framebuffer. No root for the default path once udev grants the evdi
 device; the alternative is a headless DRM output + a DRM lease. Frames go

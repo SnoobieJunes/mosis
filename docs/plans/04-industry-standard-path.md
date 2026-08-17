@@ -31,8 +31,11 @@ iOS and Android, which is exactly MOSIS's bet.
    and a stated compatibility rule (envelope never changes; capabilities are
    negotiated strings). Keep it in-repo under `/spec` — a separate repo only
    if outside implementers actually appear.
-3. **Register the service names with IANA.** `mosis-app` (tcp) and
-   `mosis-scrn` (udp) via the RFC 6335 service-name registry (free, a web
+3. **Register the service name with IANA** — **one name, not two**: `mosis-app`
+   (tcp). ADR 0016 retires the separate UDP screen service (screen frames ride a
+   bulk TCP connection invited in-band; the input datagram lane is invited by
+   `INPUT_STATUS`), so there is nothing for `mosis-scrn` (udp) to advertise.
+   Via the RFC 6335 service-name registry (free, a web
    form + expert review). Cheap, real, and a credibility signal almost no
    hobby protocol bothers with. The spec (§5.3) already calls for this.
 4. **Weaponize conformance.** Publish the golden vectors + runners as the

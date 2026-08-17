@@ -34,10 +34,14 @@ session from the same device and you can drive it. This is exactly what Deskreen
 tells macOS users to do, and it is genuinely robust: no private API, nothing to
 break on a macOS update.
 
-Its one honest limitation: touch on the remote device maps to *relative* pointer
-motion, not absolute coordinates — `MacInputInjector` sends deltas by design
-(`docs/protocol.md` §Remote input: "Deltas only"). Direct-touch-to-that-display
-mapping is unbuilt work, not a tweak.
+*(Corrected 2026-08-17: this limitation was fixed a day after this doc was last
+edited.)* Absolute pointing exists — ADR 0015 (accepted 2026-07-26) added
+optional `nx`/`ny` plus `screen_session_id` to `INPUT_EVENT` precisely so a
+controller can point at a live screen-share view, and `docs/protocol.md` no
+longer says "deltas only". Touch on the remote device maps to the display being
+watched. What has **not** been verified is the composed experience —
+watch-and-drive on one surface was deliberately left un-`dev`ed after the
+2026-08-11 session because it was not clearly exercised.
 
 ## Why there is no software-only virtual display
 

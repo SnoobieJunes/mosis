@@ -9,8 +9,9 @@ Reports are taken seriously.
 
 This is pre-1.0, pre-beta software with **no releases and no installed user
 base**. The protocol core is proven by automated tests across three
-implementations; the device experience is not yet verified on hardware (the
-README states exactly what is and isn't). Security review of the protocol and
+implementations; the device experience is verified on hardware only for
+macOS ↔ iOS, hands-on, as of 2026-08-11 — every other platform's device
+experience is unproven (the README's matrix states exactly which is which). Security review of the protocol and
 its documented guarantees (below) is welcome and useful *now*; reports about
 polish-level hardening in flows that have never shipped will be triaged with
 that context.
@@ -21,12 +22,14 @@ Use GitHub's **private vulnerability reporting** on this repository
 (Security → Report a vulnerability). Please do not open a public issue for a
 security bug.
 
-> Maintainer note (remove once done): enabling private vulnerability reporting
-> is a repo setting that can only be flipped when the repo goes public — it is
-> on the flip-public checklist in `docs/plans/03-open-source-readiness.md`. If
-> you are reading this on the public repo and the "Report a vulnerability"
-> button is missing, that checklist item was missed: please open a *non-detailed*
-> issue saying only "security contact missing" and a maintainer will fix it.
+> **Known gap, stated rather than hidden (2026-08-17): private vulnerability
+> reporting is not enabled yet.** The repo went public on 2026-08-12 ahead of
+> the checklist that would have turned it on
+> (`docs/plans/03-open-source-readiness.md`), so the "Report a vulnerability"
+> button is currently missing. Until it appears: open a **non-detailed** issue
+> saying only "security contact needed" — no specifics, no reproduction — and a
+> maintainer will open a private channel to take the report. Enabling the
+> setting is the top item in `todo.md`.
 
 There is no bounty program. This is an unfunded open-source project; what is
 offered is a prompt, honest response and credit in the fix, if wanted.

@@ -54,3 +54,10 @@ The protocol as first specified: envelope, framing, canonical JSON, pairing,
 `HELLO`, file transfer, clipboard, remote input, screen sharing, notifications,
 device state and social permissions. Documented in `docs/protocol.md`; pinned by
 the golden vectors in `proto/vectors/`.
+
+Note on the last two: `DEVICE_STATE` and `PERMISSION_REQUEST`/`GRANT`/`REVOKE`
+landed later in wall-clock time than the rest (commit `65518aa`, 2026-07-07,
+"Phase 7 core") but still **before** the protocol was published or any peer
+existed, so they are part of the 0.2 surface rather than a separate minor bump.
+There is deliberately no 0.2.x entry for them; `docs/protocol.md`'s message
+table documents them alongside everything else.

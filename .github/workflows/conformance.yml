@@ -71,8 +71,8 @@ jobs:
     # macos-26: the suite is only ever verified on macOS 26 + Xcode 26 (the
     # dev machine). The package floor is macOS 15 / Swift 6.1, so macos-15
     # might work — but "might" is not the bar; pin to the proven environment.
-    # NOTE: no revision of this workflow has ever run on GitHub-hosted
-    # runners (docs/plans/03-open-source-readiness.md §5 — shakedown pending).
+    # Verified on GitHub-hosted runners: green on main since 2026-08-12
+    # (all four jobs — Swift 126/126, Go 52/52, Kotlin 70/70, Android APK).
     runs-on: macos-26
     timeout-minutes: 30
     steps:

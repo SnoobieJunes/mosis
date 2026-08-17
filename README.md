@@ -101,7 +101,7 @@ How to read a cell — the tag is the **strongest evidence that exists**:
 | Phone as Bluetooth HID peripheral | wall | wall | — | bld (needs 2 devices) | — | — | — |
 | Wi-Fi Aware (link with no router) | wall | **bld — flag ON, zero runtime**¹¹ | wall | code¹² | — | — | — |
 | Contexts / Routines / on-device suggestions | unit | unit¹ (triggers device-gated) | — | — | — | — | — |
-| Extra monitor (virtual display) | code (`unsupported/`, never compiled) | — | — | — | code (evdi, unwired) | code (IddCx, unsigned) | — |
+| Extra monitor (virtual display) | code (`unsupported/`, never compiled) | — | — | — | — (evdi, design note only) | code (IddCx, no frame path) | — |
 
 ¹ Shared `ConduitKit` core: the logic runs in the loopback E2E suite on macOS;
 the iOS/tvOS app targets build unsigned (`make apple-apps`, four

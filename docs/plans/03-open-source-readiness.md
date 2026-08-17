@@ -2,6 +2,32 @@
 
 Precondition: plan 01 (rename) merged. Everything here is small and mechanical.
 
+> **Status 2026-08-17 — the flip already happened, out of order.** The repo went
+> **public on 2026-08-12** (around the plan-10 website merge, so Pages could
+> serve `/mosis/`), without the ordered checklist at the bottom of this file
+> being walked. Two of its gates are therefore closed by events and the rest are
+> now *live* obligations on a public repo, not future ones:
+>
+> - ☑ **CI shakedown (§5).** Superseded: the conformance workflow has run
+>   repeatedly on GitHub-hosted runners on the live public repo and is green on
+>   `main` (runs 31555478183 / 31555676388 / 31555800798, 2026-08-12) — Swift
+>   126/126, Go 52/52, Kotlin 70/70, Android APK. No private copy was needed.
+>   The stale "never run on hosted runners" note inside
+>   `.github/workflows/conformance.yml` is removed in this pass.
+> - ☑ **Flip to public (§6).** Done 2026-08-12.
+> - ☐ **Private vulnerability reporting is still OFF** on a public repo whose
+>   subject matter is remote input injection, screen capture and clipboard
+>   access. `SECURITY.md` points users at a "Report a vulnerability" button that
+>   does not exist. **This is the highest-priority item in this plan** — fix the
+>   setting, then delete the maintainer note in `SECURITY.md`.
+> - ☐ Branch protection on `main` requiring the conformance check.
+> - ☐ Repo topics + social preview; Discussions.
+> - ☐ `v0.1.0-beta` tag with honest release notes.
+> - ☐ README demo GIF — still blocked, now on a *scripted* device walk rather
+>   than on any device at all (see plan 02).
+>
+> All of the above also live in `todo.md`.
+
 > **Progress (2026-07-20).** The mechanical files are done ahead of the rename,
 > since they don't depend on it: `LICENSE` (Apache-2.0, verbatim canonical text),
 > `NOTICE`, `CONTRIBUTING.md`, `SECURITY.md`, `.github/ISSUE_TEMPLATE/bug_report.yml`.
@@ -142,17 +168,23 @@ Precondition: plan 01 (rename) merged. Everything here is small and mechanical.
   quickstart — it printed the exact command that hangs — and the stale
   "Wi-Fi Aware is off pending entitlement" line corrected.)
 
-## 5. CI must be green in public
+## 5. CI must be green in public — DONE 2026-08-12
 
-- The conformance workflow has **never run on GitHub-hosted runners** — still
+The shakedown below never happened as written and no longer needs to: the
+workflow ran on the live public repo's hosted runners and is green on `main`
+(three consecutive successes 2026-08-12; all four jobs). The concerns listed
+here all turned out fine in practice.
+
+- ~~The conformance workflow has **never run on GitHub-hosted runners** — still
   true after today's edits (go vet, android-apk job, macos-26 pin; every
   *command* verified locally 2026-07-26, the *workflow* verified nowhere).
-  Push to a private copy first; fix runner issues there (kotlinc download,
+  Push to a private copy first; fix runner issues there~~ (kotlinc download,
   the macos-26 image assumption, Go 1.26 availability, Android SDK on the
   ubuntu image, and whether hosted macOS runners tolerate the full
   `--disable-sandbox` suite — note the local flake under CPU contention
   recorded above; hosted runners are slow and shared).
-- Add the badge only once it's actually green.
+- Add the badge only once it's actually green. **It is green — the badge is
+  still not added.** (`todo.md`.)
 
 ## 6. Repo settings & publish
 
@@ -183,16 +215,19 @@ shakedown.
    banner (the README's rename notice already covers this state honestly).
 3. ☑ **Plan 09 + `docs/linux.md` landed** (2026-07-26, `2e89e4a`) — the two
    README links resolve.
-4. ☐ **CI shakedown on a private GitHub copy** until the conformance workflow
-   is green as-committed. Then the README badge.
-5. ☐ **Device sessions S1–S4** (plan 02 / quirky) → demo GIF → README top.
-   (Plan 02 marks this the publish bar; publishing before it is a legitimate
-   choice `00-overview.md` documents — if so, skip to 6 knowingly.)
-6. ☐ **Repo settings** per §6, including: enable private vulnerability
-   reporting **and remove the maintainer note in SECURITY.md**; delete
-   `docs/TESTING.md` staleness or banner it; final `gitleaks git .` run.
-7. ☐ **Flip. Tag `v0.1.0-beta`** with release notes that copy the README's
-   verification-tag language.
+4. ☑ **CI shakedown** — happened on the live repo instead of a private copy,
+   green on hosted runners 2026-08-12. README badge still not added.
+5. ◐ **Device sessions S1–S4** (plan 02 / quirky) → demo GIF → README top.
+   Skipped knowingly: the flip happened first (step 7 below), which
+   `00-overview.md` documents as a legitimate choice. A hands-on session on
+   2026-08-11 turned 15 cells `dev`; the *scripted* walk and the GIF are still
+   outstanding.
+6. ☐ **Repo settings** per §6 — now overdue rather than pending, since the repo
+   is already public: enable private vulnerability reporting **and remove the
+   maintainer note in SECURITY.md**; branch protection requiring conformance;
+   topics + social preview; Discussions; final `gitleaks git .` run.
+7. ☑ **Flipped 2026-08-12.** ☐ **Tag `v0.1.0-beta`** with release notes that
+   copy the README's verification-tag language — not done.
 
 ## Verify
 

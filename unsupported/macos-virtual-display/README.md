@@ -24,11 +24,15 @@ ScreenCaptureKit), and iPad-as-Mac-monitor is Sidecar's job — we don't fight i
 ## What `VirtualDisplay.swift` does
 
 Declares the private `CGVirtualDisplay` interface (as reverse-engineered by the
-community) and wraps it:
+community) and wraps it. **Read the numbered list as the intended design, not as
+working code:** `modeInit` calls `alloc` and returns it without ever invoking
+`initWithWidth:height:refreshRate:` (three scalar args are awkward without an
+ObjC shim — the source says so), so `applySettings:` cannot succeed and no
+display is ever created. Nothing here has run.
 
-1. `ConduitVirtualDisplay.create(width:height:hiDPI:)` — registers a virtual
-   display of the given size with the window server. macOS now has a second
-   monitor.
+1. `ConduitVirtualDisplay.create(width:height:hiDPI:)` — *would* register a
+   virtual display of the given size with the window server, giving macOS a
+   second monitor. Does not work today (see above).
 2. The virtual display delivers frame updates via its `IOSurface`; the wrapper
    hands each surface to the Conduit screen source pipeline (the same
    `VideoEncoder` + `SCREEN_FRAME` wire as Phase 3), so a paired viewer renders

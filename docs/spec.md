@@ -5,7 +5,7 @@ Spec version 0.2 (draft). Supersedes v0.1.
 
 Heritage: this project modernizes **mosis** (APPture, 2011-2012), a mobile OS integrated solution covering display sharing, connection management, device peripherals, location profiles, and an assistant that automated routines. This document audits that vision against 2026 platform reality, keeps everything that survives, states plainly what does not, and lays out an implementation plan detailed enough to hand individual phases to AI coding agents.
 
-> "Conduit" remains a placeholder name. "mosis" itself is a candidate for revival. Swap everywhere once decided.
+> **Naming: decided 2026-07-17 — the product is MOSIS** (ADR 0014). "Conduit" was the working codename and survives in identifiers on purpose: the `conduit-*-v1` crypto domain strings and the `_cndt-*` service types are compatibility boundaries frozen into the golden vectors and the paired fleet, so they change only as one deliberate clean break (`docs/plans/01-rename-to-mosis.md`). Read "Conduit" below as the codename, not an open question.
 
 ---
 
@@ -112,7 +112,7 @@ protocol TransportBackend {
 - **AwareBackend (Android):** `WifiAwareManager` publish/subscribe + network specifier data path. Gate on `PackageManager.FEATURE_WIFI_AWARE`.
 - **LANBackend (all):** `NetworkListener`/`NetworkBrowser`/`NetworkConnection` on Apple (NetworkBrowser handles both Bonjour and Aware discovery, which keeps discovery code unified); NSD on Android; mDNS libs (zeroconf) in the Go core for Windows/Linux. Conduit supplies its own encryption here (section 7).
 
-Service naming (applies to Aware services): unique, letters/digits/dashes, **15 characters max**, TCP or UDP; register the chosen names with IANA to avoid collisions. Reserve now: `_cndt-app._tcp` (app-to-app) and `_cndt-scrn._udp` (screen/media), adjusting to fit the 15-char limit after final naming.
+Service naming (applies to Aware services): unique, letters/digits/dashes, **15 characters max**, TCP or UDP; register the chosen names with IANA to avoid collisions. Reserve now: `_cndt-app._tcp` (app-to-app) and `_cndt-scrn._udp` (screen/media), adjusting to fit the 15-char limit after final naming. **As built, only `_cndt-app._tcp` is ever advertised** — screen frames ride a dedicated TCP/TLS bulk connection invited in-band by `SCREEN_ATTACH`, and the one UDP/DTLS datagram lane (coalesced `INPUT_EVENT` moves) is invited by `INPUT_STATUS`, so neither needs its own advertised service. ADR 0016 retires the separate UDP service entirely. Register one name, not two.
 
 ### 5.4 Session layer
 
@@ -345,7 +345,7 @@ conduit/
   apple/
     ConduitKit/                      (SPM: Transport, Session, Protocol, Capabilities)
     AppleApps/                       (iOS, macOS, tvOS targets; broadcast + share extensions)
-  core/                              (Go: conduit-core lib, windowsd, linuxd, tray UIs)
+  core/                              (Go: conduit-core lib + one unified `conduitd` daemon for Windows/Linux/macOS, plus `conduitview`; no separate windowsd/linuxd, no tray UI built)
   android/                           (Kotlin client)
   unsupported/                       (gray-API modules: macOS virtual display; excluded from store builds)
   tools/
@@ -388,13 +388,14 @@ Additional guardrails for weaker agents: prefer boring code over clever; if an A
 4. **macOS virtual display legality** never improves. Mitigation: it's quarantined in `unsupported/`; the core Mac story never depends on it.
 5. **Scope gravity.** Eight phases is a lot for a passion project running beside income-critical work. Mitigation: every phase exits usable; stopping after Phase 2 or 3 still leaves a real tool; nothing in later phases is load-bearing for earlier ones.
 
-**Open decisions (each closes with an ADR):**
-1. Product name (Conduit placeholder; mosis revival on the table).
-2. LAN crypto detail: TLS+TOFU as specced vs Noise pattern vs hybrid PQ from the PQRC work; decide before Phase 4 freeze.
-3. JSON→protobuf cutover timing (currently: Phase 4).
-4. Go vs Rust for the portable core (spec assumes Go, matching the relay experience).
-5. License: MIT/Apache-2.0 (adoption, LocalSend path) vs GPL/AGPL (protection, KDE Connect path). Decide before Phase 4 publication.
-6. Android client: pure Kotlin (assumed) vs gomobile-wrapped core.
+**Open decisions (each closes with an ADR)** — five of the six are closed; kept
+with their outcomes so the reasoning stays readable:
+1. ~~Product name~~ **CLOSED — MOSIS** (ADR 0014, decided 2026-07-17).
+2. **STILL OPEN (narrowed).** LAN crypto detail: TLS 1.3 + TOFU shipped as specced; the remaining question is only when a hybrid post-quantum key agreement lands behind the §6 seam. Not a Phase 4 blocker any more — v1 is frozen classical X25519, stated as such in `SECURITY.md`.
+3. ~~JSON→protobuf cutover timing~~ **CLOSED — canonical JSON is the permanent v1 wire format**; protobuf deferred indefinitely, `proto/conduit.proto` is informative only (ADR 0008).
+4. ~~Go vs Rust for the portable core~~ **CLOSED — Go** (`core/` ships and cross-compiles for linux/windows, amd64+arm64).
+5. ~~License~~ **CLOSED — Apache-2.0** (ADR 0007; `LICENSE`/`NOTICE` committed).
+6. ~~Android client language~~ **CLOSED — pure Kotlin** (`android/core` is a third independent implementation passing the same golden vectors).
 
 ---
 
