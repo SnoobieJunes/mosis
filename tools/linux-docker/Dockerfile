@@ -9,7 +9,9 @@
 # so GetImage against it exercises the same code path a physical box would.
 # What it does NOT prove: a real GPU/compositor, XShm, or WM behaviour.
 
-# Build context is the repo root (see compose.yml), so paths are core/-prefixed.
+# Build context is the repo root (mosis-linux.sh passes $REPO_ROOT to
+# `docker build`), so paths are core/-prefixed. There is no compose.yml — the
+# earlier reference to one was stale (2026-08-17).
 FROM golang:1.26-trixie AS build
 WORKDIR /src
 COPY core/go.mod core/go.sum ./
