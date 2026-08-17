@@ -79,13 +79,13 @@ import Testing
             parameterSets: [Data([1]), Data([2, 2]), Data([3, 3, 3])],
             sampleData: Data(repeating: 0x7F, count: 300)
         )
-        let unpacked = try ScreenFramePacking.unpack(ScreenFramePacking.pack(frame), isKeyframe: true)
+        let unpacked = try ScreenFramePacking.unpack(try ScreenFramePacking.pack(frame), isKeyframe: true)
         #expect(unpacked == frame)
     }
 
     @Test func deltaFrameHasNoParameterSets() throws {
         let frame = EncodedVideoFrame(isKeyframe: false, parameterSets: [], sampleData: Data([1, 2, 3]))
-        let packed = ScreenFramePacking.pack(frame)
+        let packed = try ScreenFramePacking.pack(frame)
         #expect(packed.first == 0) // zero parameter sets
         #expect(try ScreenFramePacking.unpack(packed, isKeyframe: false) == frame)
     }

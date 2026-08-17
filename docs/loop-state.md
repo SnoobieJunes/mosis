@@ -759,3 +759,79 @@ single-reader claims** and `todo.md` labels them as such.
 **Known limitations of the audit itself:** it was read-only and ran no tests,
 the wire-format-parity finder across the three implementations died before
 reporting, and no adjudication or completeness pass ever ran.
+
+## 2026-08-17 (same day) — the audit's findings, acted on
+
+Four commits: the doc-truth pass, `todo.md`, the build harness, Android, and the
+core/wire fixes. **27 of the 39 bug findings are closed.** What each one was is
+in the commit messages and in `todo.md`; what matters here is the pattern and
+the evidence.
+
+**Three of them mean a headline feature had never worked at all**, and each
+failed *silently*, which is why a green suite never noticed:
+- **Windows input injection.** The `INPUT` struct inlined the mouse fields with
+  no allowance for the union's 8-byte alignment, so every field landed 4 bytes
+  early and `SendInput` accepted the call while doing nothing. Nobody can run
+  this file, so the fix carries a compile-time `sizeof(INPUT) == 40` assertion
+  instead of a test. `kind:"key"` was absent entirely.
+- **Typing into Android.** The AccessibilityService config never declared
+  `canRetrieveWindowContent`, so `findFocus` always returned null: every
+  character was dropped, and Enter fell through to its home-screen fallback.
+- **Android sessions with an Apple peer.** PING/PONG was unimplemented, so a Mac
+  hung up ~30 s after HELLO, every time.
+
+**The frame-length cap was wrong in all three implementations** — one shared
+ceiling, so a file chunk could arrive at twice its documented 2 MiB — and Kotlin
+parsed the length into a signed `Int`, where a hostile value went negative,
+*passed* the oversize guard because a negative is less than the maximum, and
+then threw. The guard meant to stop it was the thing it bypassed.
+
+**Two ways a single peer could stop the Go daemon serving anyone:** the TLS
+handshake ran inside the single accept loop with no deadline, and a handshake
+error looked to that loop like a dead listener, so one malformed connection
+ended accepts for good. Also fixed: the bulk token was never consumed (two
+concurrent `BULK_ATTACH`es raced `finalize` into a nil deref), no write in the
+session had a deadline (a frozen viewer wedged the whole link, PONGs included),
+and the decoder trusted a peer's offer dimensions (zero → a 100%-CPU spin,
+negative → a panic).
+
+**Android is now something a person without a Mac can attempt.** `conduitd`
+still does not advertise over mDNS, so the app grew a "Pair by address…" path
+and a "This device" card showing its own address, port and id — which is what
+`listenPort()` was always for; it had no callers. Plus the four runtime
+permissions and Settings routes that did not exist anywhere in the module, one
+`MOSIS` logcat tag across discovery/dial/handshake/pairing/close, and the real
+`PairOutcome.Failed.reason` in the snackbar instead of a fixed string.
+
+**`gradlew lintDebug` is a CI gate now, and its first run was worth it:** 15
+errors, including two manifest permissions `WifiAwareManager` requires and that
+were simply absent — Aware would have thrown `SecurityException` the moment
+anything wired it up. `assembleDebug` does not run lint, which is exactly how
+`minSdk 28` stayed a lie while an API-33 call sat on the first-launch path.
+
+**Also fixed: the harness could not be trusted to fail honestly.** `make interop`
+omitted `--disable-sandbox`, so it *hangs* rather than fails — the one behaviour
+this repo warns about most loudly — and `make swift-test` had the same omission.
+`make kotlin-smoke` ran a jar it never built, and the JDK fallback both Kotlin
+targets claimed in a comment was never implemented, so they failed outright on a
+Mac without a system JDK.
+
+**Verified:** Swift **126/126** across all five bundles (27 protocol · 19
+session · 42 capabilities · 31 E2E · 7 transport), Go tests + `-race`, **52/52**
+Go and **70/70** Kotlin conformance against the unchanged vectors, Kotlin session
+smoke, `make interop` (the live Swift↔Go session over real TLS) against the new
+accept path, Android `assembleDebug` + `lintDebug`, linux/windows amd64 and
+windows/arm64 cross-builds, gofmt clean, and all three site gates.
+
+**Not verified, and worth being blunt about:** none of the Android work has run
+on a phone, the Windows injector is *correct by inspection* rather than working,
+the Linux keyboard table is a US-QWERTY guess that no real keyboard has
+exercised, and 12 findings are still open — the Apple-app concurrency set, two
+Android lifecycle items, two site-workflow gates — all of them one reader's
+claim with no second opinion, because the audit was killed before the skeptics
+reached them.
+
+**One process note.** A full `swift test` run appeared to hang for 30 minutes;
+it was CPU contention from Gradle, lint and `go test -race` running alongside
+it, not a stall. Run the Swift suite alone — plan 03 already recorded a flake
+under contention, and this is the same trap.

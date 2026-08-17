@@ -30,10 +30,22 @@ public enum ScreenFrameCodecError: Error, Equatable {
 public enum ScreenFramePacking {
     static let maxParameterSets = 8
 
-    public static func pack(_ frame: EncodedVideoFrame) -> Data {
+    /// Throws `tooManyParameterSets` rather than truncating.
+    ///
+    /// Until 2026-08-17 this clamped with `prefix(maxParameterSets)` and said
+    /// nothing, while `unpack` already defined the error for exactly this case.
+    /// A frame that lost a parameter set still looks well-formed on the wire, so
+    /// the viewer builds a decoder from an incomplete set and shows nothing —
+    /// with no failure anywhere to explain why. Real streams carry three sets
+    /// (VPS/SPS/PPS), so this should never fire; if it ever does, the caller
+    /// wants to know rather than emit a stream nobody can decode.
+    public static func pack(_ frame: EncodedVideoFrame) throws -> Data {
+        guard frame.parameterSets.count <= maxParameterSets else {
+            throw ScreenFrameCodecError.tooManyParameterSets
+        }
         var out = Data()
-        out.append(UInt8(min(frame.parameterSets.count, maxParameterSets)))
-        for set in frame.parameterSets.prefix(maxParameterSets) {
+        out.append(UInt8(frame.parameterSets.count))
+        for set in frame.parameterSets {
             out.appendBigEndian(UInt32(set.count))
             out.append(set)
         }

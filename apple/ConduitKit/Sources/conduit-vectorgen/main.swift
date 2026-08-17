@@ -193,7 +193,7 @@ let encodedKeyframe = EncodedVideoFrame(
     parameterSets: [Data([0x40, 0x01, 0x0c, 0x01]), Data([0x42, 0x01, 0x03]), Data([0x44, 0x01, 0xc0])],
     sampleData: Data((0..<48).map { UInt8($0 & 0xFF) })
 )
-let packedKeyframe = ScreenFramePacking.pack(encodedKeyframe)
+let packedKeyframe = try ScreenFramePacking.pack(encodedKeyframe)
 let screenFrameVec = ScreenFrame(
     sessionID: 1, seq: 7, isKeyframe: true, ptsMillis: 33, data: packedKeyframe
 )

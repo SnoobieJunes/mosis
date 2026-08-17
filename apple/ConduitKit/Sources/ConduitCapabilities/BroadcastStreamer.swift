@@ -246,9 +246,15 @@ public actor BroadcastStreamer {
         guard let bulk, !finishing else { return }
         let seq = sentSeq; sentSeq &+= 1
         let ptsMillis = UInt64(max(0, CMTimeGetSeconds(pts) * 1000))
+        guard let packed = try? ScreenFramePacking.pack(frame) else {
+            // Three parameter sets at most in practice; a frame that cannot be
+            // packed is dropped rather than sent unusable.
+            framesDropped &+= 1
+            return
+        }
         let screenFrame = ScreenFrame(
             sessionID: wireSessionID, seq: seq, isKeyframe: frame.isKeyframe,
-            ptsMillis: ptsMillis, data: ScreenFramePacking.pack(frame)
+            ptsMillis: ptsMillis, data: packed
         )
         do {
             try await bulk.sendScreenFrame(screenFrame)

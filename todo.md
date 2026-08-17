@@ -16,8 +16,11 @@ verification state, and it is uneven, so it is labelled per item:
 - **UNVERIFIED** — one careful reader, no second opinion. The audit was killed
   before the skeptics reached these. Treat as a lead, not a fact.
 
-Nothing below has been fixed by running code; every "should" is a claim about
-code someone read. **Reproduce before you rewrite.**
+**What has since been fixed is struck through with its commit** (2026-08-17,
+same day: the doc drift, 27 of the 39 bugs, and all of §3a). Everything still
+live is a claim about code someone *read*, not code anyone ran — including the
+fixes, none of which have run on Android, Windows or Linux hardware.
+**Reproduce before you rewrite.**
 
 ---
 
@@ -57,57 +60,72 @@ These gate other people's ability to contribute, and two are security-relevant.
 
 ## 2. Bugs
 
+**Status 2026-08-17, same day:** 27 of the 39 are fixed — every CONFIRMED
+finding, both Windows injector defects, the Kotlin wire-parsing set, the
+Android-app set, and the build-harness set. Fixed rows are struck through with
+their commit. What is left is the Apple-app concurrency set (2f), two Android
+lifecycle items, and the two site-workflow gates — all still **UNVERIFIED**,
+i.e. one reader's claim with no second opinion, so read the code before
+rewriting it.
+
+Verification for the fixes: Swift 126/126 across all five bundles, Go tests +
+`-race`, 52/52 Go and 70/70 Kotlin conformance, Kotlin session smoke, `make
+interop` (live Swift↔Go over real TLS), Android `assembleDebug` + `lintDebug`,
+and linux/windows cross-builds. Nothing has run on Android, Windows or Linux
+hardware — the Windows injector in particular is now *correct by inspection*,
+which is a different claim from *working*.
+
 ### 2a. CONFIRMED — Go core
 
 | # | Where | Bug |
 |---|---|---|
-| B1 | `core/transport/lan.go:163` | The inbound TLS handshake runs synchronously inside the single accept loop with no deadline, so one stalled peer blocks every new connection. Handshake in a goroutine with a deadline. |
-| B2 | `core/session/file.go:78` | The bulk-attach token is not invalidated after first use: a second concurrent `BULK_ATTACH` races `handleChunk`/`finalize` into a nil-pointer panic. One-time tokens must be consumed. |
-| B3 | `core/session/framed.go:68` | `FramedConn.Send` allocates the envelope seq and writes the frame in two separate critical sections, so concurrent sends can interleave frames on the wire. Hold one lock across allocate-and-write. |
-| B4 | `core/wire/framing.go:137` | `FrameReader` never enforces `MaxChunkData` against `KindFileChunk`, so a chunk payload can be ~2× its documented cap. |
+| ~~B1~~ **FIXED 6c6ff99** | `core/transport/lan.go:163` | The inbound TLS handshake runs synchronously inside the single accept loop with no deadline, so one stalled peer blocks every new connection. Handshake in a goroutine with a deadline. |
+| ~~B2~~ **FIXED 6c6ff99** | `core/session/file.go:78` | The bulk-attach token is not invalidated after first use: a second concurrent `BULK_ATTACH` races `handleChunk`/`finalize` into a nil-pointer panic. One-time tokens must be consumed. |
+| ~~B3~~ **FIXED 6c6ff99** | `core/session/framed.go:68` | `FramedConn.Send` allocates the envelope seq and writes the frame in two separate critical sections, so concurrent sends can interleave frames on the wire. Hold one lock across allocate-and-write. |
+| ~~B4~~ **FIXED 6c6ff99** | `core/wire/framing.go:137` | `FrameReader` never enforces `MaxChunkData` against `KindFileChunk`, so a chunk payload can be ~2× its documented cap. |
 
 ### 2b. CONFIRMED — Swift
 
 | # | Where | Bug |
 |---|---|---|
-| B5 | `.../ConduitProtocol/Framing.swift:145` | One shared oversize bound for all frame kinds — file-chunk frames bypass the documented 2 MiB chunk cap. Same hole as B4; fix both or the two implementations disagree about what is legal. |
-| B6 | `.../ConduitSession/Pairing.swift:38` | The pairing ceremony has no timeout anywhere, so a silent peer wedges it forever — while a `PairingError.timeout` case exists for exactly this. |
-| B7 | `.../ConduitSession/PeerLink.swift:162` | One control message with a known type but an undecodable body tears down the whole session instead of dropping that message. |
-| B8 | `.../ConduitProtocol/ScreenFrameCodec.swift:35` | `ScreenFramePacking.pack()` silently drops parameter sets past the 8-set cap; `unpack()` already defines the error it should throw. |
+| ~~B5~~ **FIXED 6c6ff99** | `.../ConduitProtocol/Framing.swift:145` | One shared oversize bound for all frame kinds — file-chunk frames bypass the documented 2 MiB chunk cap. Same hole as B4; fix both or the two implementations disagree about what is legal. |
+| ~~B6~~ **FIXED 5e08c0c (this pass)** | `.../ConduitSession/Pairing.swift:38` | The pairing ceremony has no timeout anywhere, so a silent peer wedges it forever — while a `PairingError.timeout` case exists for exactly this. |
+| ~~B7~~ **FIXED 5e08c0c (this pass)** | `.../ConduitSession/PeerLink.swift:162` | One control message with a known type but an undecodable body tears down the whole session instead of dropping that message. |
+| ~~B8~~ **FIXED 5e08c0c (this pass)** | `.../ConduitProtocol/ScreenFrameCodec.swift:35` | `ScreenFramePacking.pack()` silently drops parameter sets past the 8-set cap; `unpack()` already defines the error it should throw. |
 
 ### 2c. UNVERIFIED — Go daemon, screencast, Windows
 
 | # | Where | Bug |
 |---|---|---|
-| B9 | `core/platform/injector_windows.go:34` | The `mouseInput` struct layout does not match Win32 `INPUT`/`MOUSEINPUT`, so **every** `SendInput` mouse event is silently dropped. Windows input injection has never worked. |
-| B10 | `core/platform/injector_windows.go:57` | The Windows injector never handles `kind:"key"` — keyboard input silently dropped, and unlike Linux this gap is documented nowhere. |
-| B11 | `core/screencast/decoder.go:127` | Crash or spin-loop on a peer-controlled zero or negative offer size. Pre-auth-ish input from a paired peer; validate it. |
-| B12 | `core/screencast/encoder.go:204` | No backpressure or deadline anywhere in the screencast send path: a stalled peer wedges the entire link, not just the screen share. |
+| ~~B9~~ **FIXED 6c6ff99** | `core/platform/injector_windows.go:34` | The `mouseInput` struct layout does not match Win32 `INPUT`/`MOUSEINPUT`, so **every** `SendInput` mouse event is silently dropped. Windows input injection has never worked. |
+| ~~B10~~ **FIXED 6c6ff99** | `core/platform/injector_windows.go:57` | The Windows injector never handles `kind:"key"` — keyboard input silently dropped, and unlike Linux this gap is documented nowhere. |
+| ~~B11~~ **FIXED 6c6ff99** | `core/screencast/decoder.go:127` | Crash or spin-loop on a peer-controlled zero or negative offer size. Pre-auth-ish input from a paired peer; validate it. |
+| ~~B12~~ **FIXED 6c6ff99** | `core/screencast/encoder.go:204` | No backpressure or deadline anywhere in the screencast send path: a stalled peer wedges the entire link, not just the screen share. |
 | B13 | `core/screencast/capture_x11.go:51` | A dead X connection is never detected or reconnected; `Available()` keeps lying and every later screen share on that daemon silently fails. |
-| B14 | `core/platform/injector_linux.go:44` | No single-controller enforcement plus an unsynchronized uinput injector: two granted peers interleave and corrupt each other's input. |
-| B15 | `core/platform/injector_linux.go` | `kind:"key"` is dropped entirely (no keycode table), and absolute `nx`/`ny` moves are ignored in favour of relative deltas. *(also `docs/linux.md`'s known receive-side gap)* |
+| ~~B14~~ **FIXED 6c6ff99** | `core/platform/injector_linux.go:44` | No single-controller enforcement plus an unsynchronized uinput injector: two granted peers interleave and corrupt each other's input. |
+| ~~B15~~ **FIXED 6c6ff99** | `core/platform/injector_linux.go` | `kind:"key"` is dropped entirely (no keycode table), and absolute `nx`/`ny` moves are ignored in favour of relative deltas. *(also `docs/linux.md`'s known receive-side gap)* |
 
 ### 2d. UNVERIFIED — Kotlin core
 
 | # | Where | Bug |
 |---|---|---|
-| B16 | `android/core/.../wire/Framing.kt` | The u32be frame-length header is parsed as a signed `Int` without widening: any length ≥ `0x80000000` crashes the parser. |
-| B17 | `android/core/.../wire/Framing.kt:99` | `decodeScreen` sign-extends the 32-bit `seq`, corrupting any `ScreenFrame.seq` ≥ 2³¹ into a negative `Long`. |
-| B18 | `android/core/.../wire/Framing.kt` | `FrameReader` never enforces the per-kind CONTROL payload cap that Go and Swift both apply. |
-| B19 | `android/core/.../session/Capabilities.kt` | `FileReceive.handleOffer` crashes the whole session on a non-UUID `file_id` instead of rejecting the offer. |
-| B20 | `android/core/.../session/Capabilities.kt:117` | A stale `byUuid` mapping leaks whenever a transfer fails via out-of-order chunk detection. |
+| ~~B16~~ **FIXED 6c6ff99** | `android/core/.../wire/Framing.kt` | The u32be frame-length header is parsed as a signed `Int` without widening: any length ≥ `0x80000000` crashes the parser. |
+| ~~B17~~ **FIXED 6c6ff99** | `android/core/.../wire/Framing.kt:99` | `decodeScreen` sign-extends the 32-bit `seq`, corrupting any `ScreenFrame.seq` ≥ 2³¹ into a negative `Long`. |
+| ~~B18~~ **FIXED 6c6ff99** | `android/core/.../wire/Framing.kt` | `FrameReader` never enforces the per-kind CONTROL payload cap that Go and Swift both apply. |
+| ~~B19~~ **FIXED 6c6ff99** | `android/core/.../session/Capabilities.kt` | `FileReceive.handleOffer` crashes the whole session on a non-UUID `file_id` instead of rejecting the offer. |
+| ~~B20~~ **FIXED 6c6ff99** | `android/core/.../session/Capabilities.kt:117` | A stale `byUuid` mapping leaks whenever a transfer fails via out-of-order chunk detection. |
 
 ### 2e. UNVERIFIED — Android app
 
 | # | Where | Bug |
 |---|---|---|
 | B21 | `.../capability/InputAccessibilityService.kt:40` | Accessibility/NotificationListener availability is lost when those services cold-start the process before `ConduitRuntime` exists. |
-| B22 | `app/src/main/res/xml/accessibility_service_config.xml` | **Re-checked by hand 2026-08-17 — confirmed.** The config declares `canPerformGestures` only; `canRetrieveWindowContent` is absent, which breaks all focused-field text injection, and Enter falls back to going Home. |
+| ~~B22~~ **FIXED bbfa4cd** | `app/src/main/res/xml/accessibility_service_config.xml` | **Re-checked by hand 2026-08-17 — confirmed.** The config declares `canPerformGestures` only; `canRetrieveWindowContent` is absent, which breaks all focused-field text injection, and Enter falls back to going Home. |
 | B23 | `.../ui/ScreenViewerScreen.kt:56` | The viewer never reattaches a new decoder's `Surface` when the live session is replaced without leaving the screen. |
-| B24 | `.../ConduitRuntime.ensure` | Not synchronized, and called concurrently from `MainActivity` (`Dispatchers.Default`) and `ConduitService.onCreate` (START_STICKY). A lost race mints two identities and races the writes to `ed25519.seed` / `tls.p8` — on the exact first-launch path the Conscrypt bug already broke once. Write the identity files atomically too. |
-| B25 | `.../capability/BluetoothHidMode.kt:47` | The BT profile proxy is never released, and a stale `ServiceListener` can overwrite the current session's proxy. |
-| B26 | `.../AndroidNode.peersFile` | The pinned-peer database lands in app-specific *external* storage while the identity correctly lives in `filesDir` — and the adjacent comment claims otherwise. If external storage is unavailable the path degrades to an unwritable root and pairing fails with "Couldn't save pairing". Move it and migrate once. |
-| B27 | `.../AndroidNode.runReadLoop` | No `FILE_ACK` / `FILE_REJECT` branch: outbound transfers are silent (complete, rejected and hash-mismatched all look identical), and `pendingSends` leaks one `File` per send. |
+| ~~B24~~ **FIXED bbfa4cd** | `.../ConduitRuntime.ensure` | Not synchronized, and called concurrently from `MainActivity` (`Dispatchers.Default`) and `ConduitService.onCreate` (START_STICKY). A lost race mints two identities and races the writes to `ed25519.seed` / `tls.p8` — on the exact first-launch path the Conscrypt bug already broke once. Write the identity files atomically too. |
+| ~~B25~~ **FIXED bbfa4cd** | `.../capability/BluetoothHidMode.kt:47` | The BT profile proxy is never released, and a stale `ServiceListener` can overwrite the current session's proxy. |
+| ~~B26~~ **FIXED bbfa4cd** | `.../AndroidNode.peersFile` | The pinned-peer database lands in app-specific *external* storage while the identity correctly lives in `filesDir` — and the adjacent comment claims otherwise. If external storage is unavailable the path degrades to an unwritable root and pairing fails with "Couldn't save pairing". Move it and migrate once. |
+| ~~B27~~ **FIXED bbfa4cd** | `.../AndroidNode.runReadLoop` | No `FILE_ACK` / `FILE_REJECT` branch: outbound transfers are silent (complete, rejected and hash-mismatched all look identical), and `pendingSends` leaks one `File` per send. |
 
 ### 2f. UNVERIFIED — Apple apps
 
@@ -125,11 +143,11 @@ These gate other people's ability to contribute, and two are security-relevant.
 
 | # | Where | Bug |
 |---|---|---|
-| B35 | `Makefile:62` | **Re-checked by hand 2026-08-17 — confirmed.** `make interop` runs `swift test --filter GoInteropTests` with no `--disable-sandbox`, so it **hangs** rather than fails — the one failure mode this repo documents most loudly. |
-| B36 | `Makefile` | `kotlin-smoke` has no dependency on the jar `kotlin-conformance` builds (fails on a fresh checkout with "Could not find or load main class"), and `kotlin-conformance` / `kotlin-smoke` / `interop` are missing from `.PHONY`. |
+| ~~B35~~ **FIXED ef54bf2** | `Makefile:62` | **Re-checked by hand 2026-08-17 — confirmed.** `make interop` runs `swift test --filter GoInteropTests` with no `--disable-sandbox`, so it **hangs** rather than fails — the one failure mode this repo documents most loudly. |
+| ~~B36~~ **FIXED ef54bf2** | `Makefile` | `kotlin-smoke` has no dependency on the jar `kotlin-conformance` builds (fails on a fresh checkout with "Could not find or load main class"), and `kotlin-conformance` / `kotlin-smoke` / `interop` are missing from `.PHONY`. |
 | B37 | `.github/workflows/pages.yml:26` | The Pages deploy is missing the "no third-party requests" gate that `site.yml` enforces. |
 | B38 | `.github/workflows/site.yml:41` | That gate cannot see the two most common ways an asset reaches a third party. |
-| B39 | `tools/linux-docker/Dockerfile:12` | A comment points at a `compose.yml` that was deliberately removed. |
+| ~~B39~~ **FIXED ef54bf2** | `tools/linux-docker/Dockerfile:12` | A comment points at a `compose.yml` that was deliberately removed. |
 
 **Not covered at all:** the wire-format-parity finder — the one comparing Swift
 vs Go vs Kotlin encode/decode against each other — died before reporting. That
@@ -145,7 +163,20 @@ the only documented pairing partner is a Mac running the Apple app, every
 documented Android command is macOS-shaped, and the emulator is ruled out with no
 workaround. Fix that first; the rest of this section is downstream.
 
-### 3a. The unblocks (do these before asking for testers)
+### 3a. The unblocks — BUILT 2026-08-17 (`bbfa4cd`), untried on hardware
+
+Implemented: PING/PONG, INPUT_STATUS, the accessibility config,
+"Pair by address…", the "This device" card (name · LAN address · listen port ·
+device-id prefix), the permissions-and-capabilities card with the two runtime
+requests and the three Settings intents, the `MOSIS` logcat tag carrying the real
+pairing reason, notification display, Forget-device, and the peers.json move.
+
+**Still not done from this list:** `conduitd` does not advertise over mDNS (the
+manual-connect path is what stands in for it), and the emulator +
+`adb reverse` recipe is not written down anywhere yet.
+
+The original list follows, because not one line of it has been *tried on a
+phone* — everything below is "compiles, lints, and reads correctly".
 
 - **`conduitd` never advertises over mDNS/DNS-SD** *(re-checked by hand
   2026-08-17 — confirmed: no zeroconf/mdns/dnssd reference in `core/go.mod` or
@@ -221,10 +252,14 @@ only through a raw `kotlinc` invocation duplicated across five files.
 - Unit-test `ScreenShareService.fit` (even rounding, no upscaling, both
   orientations) and `InputMoveCoalescer` (deltas accumulate; `flush()` orders a
   click after pending motion).
-- Add `./gradlew :app:lintDebug` to the `android-apk` CI job. `assembleDebug`
-  does not run lint, which is how `minSdk 28` stayed a lie while API-33
-  `EdECPrivateKeySpec` sat on the first-launch path. `NewApi` is the check that
-  matters.
+- ~~Add `./gradlew :app:lintDebug` to the `android-apk` CI job.~~ **DONE
+  2026-08-17 (`bbfa4cd`)** — it is a CI gate now, and its first run found 15
+  errors including two Wi-Fi Aware manifest permissions that were simply absent
+  (`ACCESS_WIFI_STATE`, `CHANGE_WIFI_STATE`), so Aware would have thrown
+  SecurityException the moment anything wired it up. All 15 are fixed; 12
+  warnings remain and are not gated. `NewApi` — the check that let `minSdk 28`
+  stay a lie while API-33 `EdECPrivateKeySpec` sat on the first-launch path — is
+  now enforced on every push.
 - Add `debugImplementation` ui-tooling + `@Preview` composables (paired/nearby
   rows, pairing dialog, screen-request dialog, control surface in both modes) so
   UI work is possible without hardware nobody has.

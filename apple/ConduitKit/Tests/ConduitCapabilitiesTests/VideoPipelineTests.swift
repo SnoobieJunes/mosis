@@ -102,7 +102,7 @@ private final class Collector: @unchecked Sendable {
         let decoder = VideoDecoder(codec: codec) { pb, _ in collector.addDecoded(pb) }
         var wireSeq: UInt32 = 0
         for (frame, pts) in encoded {
-            let packed = ScreenFramePacking.pack(frame)
+            let packed = try ScreenFramePacking.pack(frame)
             let screenFrame = ScreenFrame(
                 sessionID: 1, seq: wireSeq, isKeyframe: frame.isKeyframe,
                 ptsMillis: UInt64(wireSeq), data: packed
@@ -139,7 +139,7 @@ private final class Collector: @unchecked Sendable {
             isKeyframe: false, parameterSets: [], sampleData: Data(repeating: 0xAB, count: 500)
         )
         for frame in [keyframe, delta] {
-            let packed = ScreenFramePacking.pack(frame)
+            let packed = try ScreenFramePacking.pack(frame)
             let unpacked = try ScreenFramePacking.unpack(packed, isKeyframe: frame.isKeyframe)
             #expect(unpacked == frame)
         }

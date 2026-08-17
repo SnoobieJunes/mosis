@@ -159,8 +159,24 @@ public actor PeerLink {
             while let frame = try await framed.nextFrame() {
                 switch frame {
                 case .control(let payload):
-                    let (_, message) = try MessageCodec.decode(payload)
-                    await handle(message)
+                    // Drop an undecodable message, do not end the session over
+                    // it (2026-08-17). This used to `try` straight into the
+                    // loop's error path, so one control frame with a recognized
+                    // type and a body that failed to decode — an older peer's
+                    // field, a truncated body, a bug on the far side — tore down
+                    // the whole link: screen, files, clipboard, input, all of it.
+                    // Unknown *types* were already tolerated by design; a bad
+                    // body should be no worse. The framing itself is intact
+                    // (nextFrame gave us a complete frame), so the stream stays
+                    // in sync and the next message parses normally. A genuine
+                    // framing error still ends the loop below, because after
+                    // that the byte stream cannot be trusted.
+                    do {
+                        let (_, message) = try MessageCodec.decode(payload)
+                        await handle(message)
+                    } catch {
+                        sessionLog.info("dropping undecodable control message from \(self.peer.name, privacy: .public): \(error)")
+                    }
                 case .fileChunk(let chunk):
                     await onEvent(.chunk(deviceID: peer.deviceID, chunk: chunk))
                 case .screenFrame(let screenFrame):

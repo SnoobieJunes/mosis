@@ -544,7 +544,16 @@ public actor ScreenSourceEngine {
             session.sentSeq &+= 1
             sharing = session
             let ptsMillis = UInt64(max(0, CMTimeGetSeconds(pts) * 1000))
-            let packed = ScreenFramePacking.pack(frame)
+            let packed: Data
+            do {
+                packed = try ScreenFramePacking.pack(frame)
+            } catch {
+                // Cannot happen with a real encoder (three parameter sets at
+                // most); if it does, drop the frame and ask for a keyframe
+                // rather than ship one a viewer cannot decode.
+                screenLog.error("dropping frame: \(error)")
+                return
+            }
             let screenFrame = ScreenFrame(
                 sessionID: session.wireSessionID, seq: seq,
                 isKeyframe: frame.isKeyframe, ptsMillis: ptsMillis, data: packed

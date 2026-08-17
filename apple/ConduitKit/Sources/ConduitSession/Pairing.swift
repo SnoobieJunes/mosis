@@ -181,9 +181,37 @@ public enum PairingFlow {
         }
     }
 
+    /// How long either side will wait for the next step of the ceremony.
+    ///
+    /// There was no timeout anywhere in this file until 2026-08-17, while
+    /// `PairingError.timeout` sat in the enum unused for exactly this: a peer
+    /// that opened TLS, sent PAIR_REQUEST and then went silent left the
+    /// responder awaiting a frame forever, holding the connection and — on the
+    /// apps — a pairing sheet the user could only escape by force-quitting. The
+    /// human still has to read six digits off two screens, so this is generous.
+    static let stepTimeout: Duration = .seconds(60)
+
+    /// nextFrame with a deadline. Cancelling a blocked read is not guaranteed to
+    /// interrupt it, so callers close the underlying connection on the way out
+    /// (both `initiate` and `respond` do) — that is what actually frees it.
+    private static func nextFrame(_ framed: FramedConnection) async throws -> Frame? {
+        try await withThrowingTaskGroup(of: Frame?.self) { group in
+            group.addTask { try await framed.nextFrame() }
+            group.addTask {
+                try await Task.sleep(for: stepTimeout)
+                throw PairingError.timeout
+            }
+            defer { group.cancelAll() }
+            guard let first = try await group.next() else {
+                throw PairingError.timeout
+            }
+            return first
+        }
+    }
+
     private static func expectPairMessage(_ framed: FramedConnection, wantResponse: Bool) async throws -> PairBody {
         while true {
-            guard let frame = try await framed.nextFrame() else {
+            guard let frame = try await nextFrame(framed) else {
                 throw PairingError.connectionLost
             }
             guard case .control(let payload) = frame else { continue }
@@ -203,7 +231,7 @@ public enum PairingFlow {
 
     private static func expectPairConfirm(_ framed: FramedConnection) async throws {
         while true {
-            guard let frame = try await framed.nextFrame() else {
+            guard let frame = try await nextFrame(framed) else {
                 throw PairingError.connectionLost
             }
             guard case .control(let payload) = frame else { continue }
