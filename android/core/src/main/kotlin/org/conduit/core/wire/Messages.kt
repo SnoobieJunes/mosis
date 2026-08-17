@@ -103,6 +103,15 @@ object Bodies {
 
     fun ping(nonce: String, t: Long): Json = Json.obj("nonce" to Json.of(nonce), "t" to Json.of(t))
 
+    /** INPUT_STATUS — the receiver's answer to INPUT_REQUEST. Added 2026-08-17:
+     *  Android advertised `input-inject` and then never answered, so a
+     *  controller sat through its 10 s timeout and blamed the network. */
+    fun inputStatus(active: Boolean, reason: String? = null): Json {
+        val m = linkedMapOf<String, Json>("active" to Json.of(active))
+        if (reason != null) m["reason"] = Json.of(reason)
+        return Json.Obj(m)
+    }
+
     fun clipboard(mime: String, data: ByteArray): Json =
         Json.obj("mime" to Json.of(mime), "data" to Json.bytes(data))
 

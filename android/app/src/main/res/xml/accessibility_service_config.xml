@@ -2,10 +2,20 @@
 <!-- Input-receiver AccessibilityService config (spec §9 Phase 5 step 5).
      Declared honestly for Play review: this service exists solely to let a
      paired, user-approved device control this one, and can inject gestures. It
-     is disabled until the user turns it on in system settings. -->
+     is disabled until the user turns it on in system settings.
+
+     canRetrieveWindowContent is required for typing, and it was missing until
+     2026-08-17. Without it findFocus(FOCUS_INPUT) always returns null, so
+     ACTION_SET_TEXT could never run: every character sent from a peer was
+     silently dropped, backspace did nothing, and Enter fell through to its
+     GLOBAL_ACTION_HOME fallback — pressing Return on the Mac sent the phone to
+     its home screen. Scope note for Play review: it grants reading the focused
+     field's current text, which ACTION_SET_TEXT needs because it replaces a
+     field wholesale rather than appending. Nothing is stored or transmitted. -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
     android:description="@string/accessibility_description"
     android:accessibilityEventTypes="typeAllMask"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:canPerformGestures="true"
+    android:canRetrieveWindowContent="true"
     android:notificationTimeout="100" />

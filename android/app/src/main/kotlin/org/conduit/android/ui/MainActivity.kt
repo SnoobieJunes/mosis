@@ -1,8 +1,11 @@
 package org.conduit.android.ui
 
+import android.Manifest
 import android.app.Activity
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.os.Bundle
+import android.provider.Settings
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -20,6 +23,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -137,6 +141,7 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
     val connected by node.connected.collectAsStateWithLifecycle()
     val toast by node.toast.collectAsStateWithLifecycle()
     val incomingClipboard by runtime.incomingClipboard.collectAsStateWithLifecycle()
+    val incomingNotification by runtime.incomingNotification.collectAsStateWithLifecycle()
     val screenRequestFrom by node.screens.screenRequestFrom.collectAsStateWithLifecycle()
     val sourcing by node.screens.sourcing.collectAsStateWithLifecycle()
     var acceptPairing by remember { mutableStateOf(false) }
@@ -145,6 +150,10 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
     var busyWith by remember { mutableStateOf<String?>(null) }
     /** Peer a file is being picked for (AND-3: file SEND had no UI at all). */
     var sendFileTo by remember { mutableStateOf<String?>(null) }
+    /** Manual host:port pairing, for peers that never advertise (2026-08-17). */
+    var showManualConnect by remember { mutableStateOf(false) }
+    /** deviceId to name of a peer being un-paired, pending confirmation. */
+    var forgetPeer by remember { mutableStateOf<Pair<String, String>?>(null) }
     val scope = rememberCoroutineScope()
     val clipboard = LocalClipboardManager.current
     val context = LocalContext.current
@@ -200,6 +209,15 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
             node.toast.value = null
         }
     }
+    // NOTIFICATION display: `notify-show` was advertised unconditionally while
+    // `incomingNotification` had no consumer at all, so a mirrored notification
+    // arrived and vanished (2026-08-17). Shown in the snackbar, like clipboard.
+    LaunchedEffect(incomingNotification) {
+        incomingNotification?.let { (app, title, body) ->
+            node.toast.value = "$app: $title — $body"
+            runtime.incomingNotification.value = null
+        }
+    }
     // Clipboard RECEIVE had no UI either: text arrived and went nowhere.
     LaunchedEffect(incomingClipboard) {
         incomingClipboard?.let {
@@ -242,6 +260,8 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
                     }
                 }
             }
+            item { ThisDeviceCard(node) }
+            item { PermissionsCard(node) }
             item { SectionHeader("My devices") }
             if (pinned.isEmpty()) item { Hint("No paired devices yet. Turn on Accept pairing on one device, then tap the other under Nearby.") }
             items(pinned) { peer ->
@@ -275,6 +295,10 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
                             node.toast.value = "Clipboard sent to ${peer.name}"
                         }
                     },
+                    // node.unpair() existed and had no caller, so a half-broken
+                    // pairing could only be cleared by wiping app data
+                    // (2026-08-17).
+                    onForget = { forgetPeer = peer.deviceId to peer.name },
                 )
             }
             item { Spacer(Modifier.height(16.dp)); SectionHeader("Nearby") }
@@ -299,7 +323,77 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
                     },
                 )
             }
+            // Not everything advertises itself. `conduitd` — the Go daemon, and
+            // the only pairing partner available to a contributor without Apple
+            // hardware — does not advertise over mDNS at all, so it can never
+            // appear above. Before this existed (2026-08-17) there was no way to
+            // reach it, which made the project's most-wanted contribution
+            // impossible without owning a Mac.
+            item {
+                Spacer(Modifier.height(8.dp))
+                OutlinedButton(onClick = { showManualConnect = true }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Pair by address…")
+                }
+                Hint("For a device that doesn't advertise itself — the conduitd daemon, or an emulator via adb reverse.")
+            }
         }
+    }
+
+    if (showManualConnect) {
+        var host by remember { mutableStateOf("") }
+        var port by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showManualConnect = false },
+            title = { Text("Pair by address") },
+            text = {
+                Column {
+                    Text("The other device shows its address and port. Turn on Accept pairing there first.")
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = host,
+                        onValueChange = { host = it.trim() },
+                        label = { Text("Host or IP") },
+                        singleLine = true,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = port,
+                        onValueChange = { port = it.filter(Char::isDigit) },
+                        label = { Text("Port") },
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = host.isNotEmpty() && port.toIntOrNull() != null,
+                    onClick = {
+                        val h = host
+                        val p = port.toInt()
+                        showManualConnect = false
+                        busyWith = "$h:$p"
+                        scope.launch { try { node.pair(h, p) } finally { busyWith = null } }
+                    },
+                ) { Text("Pair") }
+            },
+            dismissButton = { TextButton(onClick = { showManualConnect = false }) { Text("Cancel") } },
+        )
+    }
+
+    forgetPeer?.let { (deviceId, name) ->
+        AlertDialog(
+            onDismissRequest = { forgetPeer = null },
+            title = { Text("Forget $name?") },
+            text = { Text("This device stops trusting $name and any live session ends. You can pair again with a fresh code. The other device keeps its own record until you unpair there too.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    node.unpair(deviceId)
+                    node.toast.value = "Forgot $name"
+                    forgetPeer = null
+                }) { Text("Forget") }
+            },
+            dismissButton = { TextButton(onClick = { forgetPeer = null }) { Text("Cancel") } },
+        )
     }
 
     prompt?.let { (p, resolve) ->
@@ -342,6 +436,142 @@ fun DevicesScreen(runtime: ConduitRuntime, onControl: (String) -> Unit = {}) {
     }
 }
 
+/**
+ * What this device is on the network.
+ *
+ * Added 2026-08-17. `AndroidNode.listenPort()` existed with no callers and the
+ * app never showed its own address, so pairing was only possible with a peer
+ * that advertises over mDNS — which `conduitd` does not do at all. Also the
+ * first thing to quote in a bug report.
+ */
+@Composable
+private fun ThisDeviceCard(node: org.conduit.android.AndroidNode) {
+    val address = remember { node.localAddress() }
+    // The port is only known after start(); poll briefly rather than block.
+    var port by remember { mutableStateOf(node.listenPort()) }
+    LaunchedEffect(Unit) {
+        while (port == 0) { delay(250); port = node.listenPort() }
+    }
+    ElevatedCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("This device", style = MaterialTheme.typography.titleSmall)
+            Spacer(Modifier.height(4.dp))
+            Text(
+                buildString {
+                    append(android.os.Build.MODEL ?: "Android")
+                    append(" · ")
+                    append(address ?: "no LAN address")
+                    append(if (port != 0) ":$port" else ":…")
+                    append(" · id ")
+                    append(node.deviceIdPrefix())
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Spacer(Modifier.height(4.dp))
+            Hint("Another device can dial this address — e.g. conduitd pair --host ${address ?: "<ip>"} --port ${if (port != 0) "$port" else "<port>"}")
+        }
+    }
+}
+
+/**
+ * Live state of the consent-gated capabilities, each with a way to grant it.
+ *
+ * Added 2026-08-17, because none of this existed: the app declared
+ * BLUETOOTH_CONNECT and POST_NOTIFICATIONS and never requested either (so
+ * BT-HID mode, described in the code as the headline Phase 5 feature, could
+ * never be enabled from inside the app), and there was no `Settings.ACTION_*`
+ * intent anywhere in the module — the AccessibilityService and the notification
+ * listener were enable-by-folklore. A capability MOSIS advertises to peers
+ * should be visible and reachable here.
+ */
+@Composable
+private fun PermissionsCard(node: org.conduit.android.AndroidNode) {
+    val context = LocalContext.current
+    var tick by remember { mutableStateOf(0) }
+    // Consent granted in system Settings comes back with no callback, so
+    // re-read while this screen is showing.
+    LaunchedEffect(Unit) { while (true) { delay(1500); tick++ } }
+
+    val notificationsGranted = remember(tick) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+    val bluetoothGranted = remember(tick) {
+        ContextCompat.checkSelfPermission(context, Manifest.permission.BLUETOOTH_CONNECT) ==
+            PackageManager.PERMISSION_GRANTED
+    }
+    val accessibilityOn = remember(tick) { node.canReceiveInput }
+    val notificationSourceOn = remember(tick) { node.canSourceNotifications }
+
+    val askNotifications = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { tick++ }
+    val askBluetooth = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        tick++
+        if (!granted) node.toast.value = "Without Nearby devices permission, MOSIS can't act as a Bluetooth keyboard."
+    }
+
+    ElevatedCard(Modifier.fillMaxWidth().padding(bottom = 12.dp)) {
+        Column(Modifier.padding(16.dp)) {
+            Text("Permissions & capabilities", style = MaterialTheme.typography.titleSmall)
+            Hint("Each one MOSIS advertises to your other devices only while it is on.")
+            Spacer(Modifier.height(8.dp))
+            CapabilityRow(
+                label = "Let a paired device control this one",
+                detail = if (accessibilityOn) "On — MOSIS advertises input-inject" else "Off — Accessibility service is disabled",
+                on = accessibilityOn,
+                actionLabel = "Settings",
+                onAction = { context.startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)) },
+            )
+            CapabilityRow(
+                label = "Send this phone's notifications",
+                detail = if (notificationSourceOn) "On" else "Off — notification access is disabled",
+                on = notificationSourceOn,
+                actionLabel = "Settings",
+                onAction = { context.startActivity(Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)) },
+            )
+            CapabilityRow(
+                label = "Show MOSIS's own notifications",
+                detail = if (notificationsGranted) "Allowed" else "Not allowed — the background service has no visible indicator",
+                on = notificationsGranted,
+                actionLabel = "Allow",
+                onAction = { askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS) },
+            )
+            CapabilityRow(
+                label = "Act as a Bluetooth keyboard",
+                detail = if (bluetoothGranted) "Allowed" else "Not allowed — BT-HID mode can't start",
+                on = bluetoothGranted,
+                actionLabel = "Allow",
+                onAction = { askBluetooth.launch(Manifest.permission.BLUETOOTH_CONNECT) },
+            )
+        }
+    }
+}
+
+@Composable
+private fun CapabilityRow(
+    label: String,
+    detail: String,
+    on: Boolean,
+    actionLabel: String,
+    onAction: () -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                detail,
+                style = MaterialTheme.typography.bodySmall,
+                color = if (on) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        if (!on) TextButton(onClick = onAction) { Text(actionLabel) }
+    }
+}
+
 @Composable private fun SectionHeader(text: String) =
     Text(text, style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = 8.dp))
 
@@ -359,6 +589,7 @@ private fun PairedRow(
     onWatchScreen: () -> Unit,
     onSendFile: () -> Unit,
     onSendClipboard: () -> Unit,
+    onForget: () -> Unit,
 ) {
     ElevatedCard(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
         Column(Modifier.padding(16.dp)) {
@@ -393,6 +624,9 @@ private fun PairedRow(
                     FilledTonalButton(onClick = onSendFile) { Text("Send file") }
                     FilledTonalButton(onClick = onSendClipboard) { Text("Clipboard") }
                 }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                TextButton(onClick = onForget) { Text("Forget") }
             }
         }
     }

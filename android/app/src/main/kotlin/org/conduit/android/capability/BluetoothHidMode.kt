@@ -1,6 +1,7 @@
 package org.conduit.android.capability
 
 import android.Manifest
+import android.annotation.SuppressLint
 import android.bluetooth.*
 import android.content.Context
 import android.content.pm.PackageManager
@@ -32,6 +33,14 @@ class BluetoothHidMode(private val context: Context) {
     private var service: BluetoothHidDevice? = null
     private var host: BluetoothDevice? = null
     private var listener: Listener = object : Listener {}
+    private var adapter: BluetoothAdapter? = null
+    /**
+     * Bumped on every start/stop so a late ServiceListener callback from a
+     * previous session cannot install its proxy over the current one — the
+     * profile proxy arrives asynchronously, and stop() used to leave the old
+     * listener live with nothing to invalidate it (2026-08-17).
+     */
+    private var generation = 0
 
     fun isSupported(): Boolean =
         context.packageManager.hasSystemFeature(PackageManager.FEATURE_BLUETOOTH)
@@ -44,16 +53,46 @@ class BluetoothHidMode(private val context: Context) {
             listener.onUnavailable("Bluetooth is off")
             return
         }
+        this.adapter = adapter
+        val mine = ++generation
         adapter.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
+            // The hasConnectPermission() guard below is the real check; the
+            // annotation on the enclosing start() cannot reach inside this
+            // anonymous object, which is the only reason lint needs telling.
+            @SuppressLint("MissingPermission")
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                 if (profile != BluetoothProfile.HID_DEVICE) return
+                if (mine != generation) {
+                    // A stale callback: this session was already stopped. Hand
+                    // the proxy straight back instead of overwriting the live one.
+                    closeProxy(proxy)
+                    return
+                }
                 service = proxy as BluetoothHidDevice
+                if (!hasConnectPermission()) {
+                    listener.onUnavailable("Nearby devices (Bluetooth) permission is not granted")
+                    return
+                }
                 registerApp()
             }
-            override fun onServiceDisconnected(profile: Int) { service = null }
+            override fun onServiceDisconnected(profile: Int) {
+                if (mine == generation) service = null
+            }
         }, BluetoothProfile.HID_DEVICE)
     }
 
+    private fun hasConnectPermission(): Boolean =
+        context.checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT) == PackageManager.PERMISSION_GRANTED
+
+    /** Give a profile proxy back to the system; not doing so leaks the binding. */
+    private fun closeProxy(proxy: BluetoothProfile) {
+        runCatching { adapter?.closeProfileProxy(BluetoothProfile.HID_DEVICE, proxy) }
+    }
+
+    // Reached only after an explicit hasConnectPermission() check in the
+    // ServiceListener callback above; lint cannot follow that across the
+    // asynchronous hop, so this one check is suppressed here.
+    @SuppressLint("MissingPermission")
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     private fun registerApp() {
         val svc = service ?: return
@@ -102,7 +141,14 @@ class BluetoothHidMode(private val context: Context) {
 
     @RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
     fun stop() {
-        service?.unregisterApp()
+        generation++
+        val svc = service
+        if (svc != null) {
+            svc.unregisterApp()
+            // The proxy was never returned before 2026-08-17: every start/stop
+            // cycle leaked a profile binding for the process's lifetime.
+            closeProxy(svc)
+        }
         service = null; host = null
     }
 

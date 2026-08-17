@@ -1,5 +1,6 @@
 package org.conduit.android.capability
 
+import android.annotation.SuppressLint
 import android.Manifest
 import android.bluetooth.BluetoothDevice
 import android.content.Context
@@ -20,6 +21,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
  * into an iPad or a TV with nothing installed. It is also the one capability
  * here that cannot be exercised without two physical devices.
  */
+// Every profile call below goes through runWithPermission, which re-checks
+// BLUETOOTH_CONNECT and catches the SecurityException — but lint cannot see into
+// a lambda, so it reports each one. Suppressed here, deliberately narrowly (this
+// check only), so that `gradlew lintDebug` can be a CI gate for the checks that
+// do matter — NewApi above all, which is how the declared minSdk stayed wrong
+// while an API-33 call sat on the first-launch path (2026-08-17).
+@SuppressLint("MissingPermission")
 class BluetoothHidController(private val context: Context) {
     private val mode = BluetoothHidMode(context)
 
@@ -45,7 +53,11 @@ class BluetoothHidController(private val context: Context) {
             return
         }
         state.value = "Registering as a Bluetooth keyboard…"
-        runWithPermission {
+        // The permission is checked directly above, and a revocation between
+        // that check and this call surfaces as a SecurityException — handled
+        // here explicitly rather than through the runWithPermission helper,
+        // whose lambda lint cannot see into.
+        try {
             mode.start(object : BluetoothHidMode.Listener {
                 override fun onRegistered() {
                     state.value = "Ready — now pair this phone from the other device's Bluetooth settings."
@@ -62,6 +74,8 @@ class BluetoothHidController(private val context: Context) {
                     state.value = "Bluetooth HID unavailable: $reason"
                 }
             })
+        } catch (e: SecurityException) {
+            state.value = "Bluetooth permission was revoked."
         }
     }
 
@@ -90,8 +104,11 @@ class BluetoothHidController(private val context: Context) {
      * the check is real rather than a lint suppression, so a revoked permission
      * mid-session degrades to a status message instead of a SecurityException.
      */
+    // NOT inline: the @Suppress does not travel with an inlined body, so every
+    // call site was reported by `gradlew lintDebug` as MissingPermission even
+    // though the check below is real (2026-08-17).
     @Suppress("MissingPermission")
-    private inline fun runWithPermission(body: () -> Unit) {
+    private fun runWithPermission(body: () -> Unit) {
         if (!hasPermission()) {
             state.value = "Bluetooth permission was revoked."
             return

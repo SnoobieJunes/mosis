@@ -51,7 +51,20 @@ class ConduitRuntime private constructor(
         @Volatile var instance: ConduitRuntime? = null
             private set
 
-        /** Loads or mints the identity + TLS material and builds the node. */
+        /**
+         * Loads or mints the identity + TLS material and builds the node.
+         *
+         * Synchronized since 2026-08-17. It is called from two threads —
+         * MainActivity's `LaunchedEffect` via `Dispatchers.Default`, and
+         * `ConduitService.onCreate` on the main thread — and `ConduitService` is
+         * START_STICKY, so the system can restart it while an Activity is
+         * launching after process death. Unsynchronized, both callers could pass
+         * the null check and mint two identities, racing the writes to
+         * `ed25519.seed` / `tls.p8`: a half-written seed or a key pair that does
+         * not match the advertised public key, on the exact first-launch path
+         * the Conscrypt bug already broke once.
+         */
+        @Synchronized
         fun ensure(context: Context): ConduitRuntime {
             instance?.let { return it }
             val appCtx = context.applicationContext
@@ -78,8 +91,11 @@ class ConduitRuntime private constructor(
                 Identity(seedFile.readBytes(), pubFile.readBytes()).also { it.assertConsistent() }
             } else {
                 Identity.generate().also {
-                    seedFile.writeBytes(it.privateSeed)
-                    pubFile.writeBytes(it.publicKeyRaw)
+                    // Write via a temp file + rename so a kill mid-write cannot
+                    // leave a truncated seed that then fails assertConsistent()
+                    // on every later launch (2026-08-17).
+                    writeAtomically(seedFile, it.privateSeed)
+                    writeAtomically(pubFile, it.publicKeyRaw)
                 }
             }
             // TLS material is persisted too: peers pin the hash of this key at
@@ -90,6 +106,17 @@ class ConduitRuntime private constructor(
                 commonName = "conduit-${identity.deviceId.take(16)}",
             )
             return identity to material
+        }
+
+        private fun writeAtomically(target: File, bytes: ByteArray) {
+            val tmp = File(target.parentFile, target.name + ".tmp")
+            tmp.writeBytes(bytes)
+            if (!tmp.renameTo(target)) {
+                // Same directory, so a rename should not fail; fall back rather
+                // than leaving the identity unwritten.
+                target.writeBytes(bytes)
+                tmp.delete()
+            }
         }
     }
 }

@@ -65,6 +65,14 @@ jobs:
       # the app COMPILES — nothing more (android/README.md).
       - name: Assemble debug APK
         run: cd android && ./gradlew --no-daemon :app:assembleDebug
+      # assembleDebug does NOT run lint, which is exactly how the declared
+      # `minSdk 28` stayed a lie while an API-33 call (EdECPrivateKeySpec) sat on
+      # the first-launch path: the APK built clean and the app died on launch for
+      # every Android 9–12 user. NewApi is the check that matters; the first run
+      # of this gate also found two manifest permissions Wi-Fi Aware needs and
+      # never declared (2026-08-17).
+      - name: Lint debug variant
+        run: cd android && ./gradlew --no-daemon :app:lintDebug
 
   swift:
     name: Swift full suite + conformance + interop

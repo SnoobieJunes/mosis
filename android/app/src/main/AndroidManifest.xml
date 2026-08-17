@@ -10,6 +10,11 @@
     <uses-permission android:name="android.permission.NEARBY_WIFI_DEVICES"
         android:usesPermissionFlags="neverForLocation" tools:targetApi="s" />
     <uses-feature android:name="android.hardware.wifi.aware" android:required="false" />
+    <!-- WifiAwareManager.isAvailable()/attach() require these; without them the
+         Aware backend would throw SecurityException the moment anything wired it
+         up. Found by `gradlew lintDebug`, which nothing ran until 2026-08-17. -->
+    <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
+    <uses-permission android:name="android.permission.CHANGE_WIFI_STATE" />
     <!-- Bluetooth HID peripheral mode (the headline feature) -->
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
     <uses-feature android:name="android.hardware.bluetooth" android:required="false" />
