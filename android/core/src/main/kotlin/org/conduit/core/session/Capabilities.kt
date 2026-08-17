@@ -73,12 +73,23 @@ class FileReceive(private val receiveDir: File) {
             o.getValue("file_id").str(), o.getValue("name").str(), o.getValue("size").long(),
             o.getValue("sha256").str(), o.getValue("chunk_size").int(), o.getValue("chunk_count").long(),
         )
+        // A non-UUID file_id used to throw out of here and kill the whole
+        // session — one malformed offer, every lane gone. Reject the offer
+        // instead, which is what the protocol has a FILE_REJECT for
+        // (2026-08-17). uuidBytes() is also what the chunk index is keyed on,
+        // so this has to be validated before anything is registered.
+        val idBytes = try {
+            uuidBytes(info.fileId)
+        } catch (_: IllegalArgumentException) {
+            conn.send(MessageType.FILE_REJECT, Bodies.fileReject(info.fileId, "file_id is not a UUID"))
+            return
+        }
         receiveDir.mkdirs()
         val partial = File(receiveDir, info.sha256 + ".part")
         val raf = RandomAccessFile(partial, "rw").apply { setLength(0) }
         val token = UUID.randomUUID().toString().replace("-", "")
         byId[info.fileId] = Incoming(info, raf, 0, java.security.MessageDigest.getInstance("SHA-256"), token)
-        byUuid[uuidBytes(info.fileId).toHex()] = info.fileId
+        byUuid[idBytes.toHex()] = info.fileId
         conn.send(MessageType.FILE_ACCEPT, Bodies.fileAccept(info.fileId, 0, token))
     }
 
@@ -116,6 +127,10 @@ class FileReceive(private val receiveDir: File) {
 
     private fun fail(conn: FramedConnection, fileId: String, reason: String) {
         byId.remove(fileId)?.out?.close()
+        // Drop the chunk-index entry too. It used to be left behind, so a
+        // retried transfer with the same file_id found a byUuid mapping whose
+        // byId entry was gone and silently dropped every chunk (2026-08-17).
+        byUuid.entries.removeIf { it.value == fileId }
         conn.send(MessageType.FILE_ACK, Bodies.fileAck(fileId, "error", 0, reason))
     }
 }

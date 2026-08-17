@@ -144,6 +144,10 @@ func (r *FrameReader) Append(data []byte) ([]Frame, error) {
 		payload := append([]byte(nil), r.buf[5:5+length]...)
 		r.buf = r.buf[5+length:]
 
+		// maxAllowed above is only the shared ceiling: it lets a file chunk ride
+		// in at the screen frame's 4 MiB limit, twice the 2 MiB the protocol
+		// documents for chunks. Hold each kind to its own cap (2026-08-17;
+		// Swift and Kotlin do the same).
 		switch kind {
 		case KindControl:
 			if length > MaxControlPayload {
@@ -151,12 +155,18 @@ func (r *FrameReader) Append(data []byte) ([]Frame, error) {
 			}
 			frames = append(frames, Frame{Kind: kind, Control: payload})
 		case KindFileChunk:
+			if length > MaxChunkData+chunkHeaderSize {
+				return frames, ErrOversizedFrame
+			}
 			c, err := decodeChunk(payload)
 			if err != nil {
 				return frames, err
 			}
 			frames = append(frames, Frame{Kind: kind, Chunk: c})
 		case KindScreenFrame:
+			if length > MaxScreenData+screenFrameHeaderSize {
+				return frames, ErrOversizedFrame
+			}
 			s, err := decodeScreen(payload)
 			if err != nil {
 				return frames, err

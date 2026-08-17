@@ -235,11 +235,23 @@ func (n *Node) Close() {
 
 func (n *Node) acceptLoop() {
 	for {
-		conn, err := n.listener.Accept()
+		// AcceptRaw, not Accept: the TLS handshake happens per connection below,
+		// off this loop. It used to happen inside Accept, so one peer that
+		// opened TCP and never sent a ClientHello blocked every later
+		// connection, and any handshake failure looked like a dead listener and
+		// ended this loop for good (2026-08-17).
+		raw, err := n.listener.AcceptRaw()
 		if err != nil {
 			return
 		}
-		go n.routeInbound(NewFramedConn(conn))
+		go func() {
+			conn, err := transport.Authenticate(raw)
+			if err != nil {
+				n.logf("inbound handshake failed: %v", err)
+				return
+			}
+			n.routeInbound(NewFramedConn(conn))
+		}()
 	}
 }
 

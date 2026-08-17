@@ -156,6 +156,10 @@ public struct FrameReader: Sendable {
             let payload = Data(buffer.dropFirst(5).prefix(payloadLength))
             buffer = Data(buffer.dropFirst(5 + payloadLength))
 
+            // The `maxAllowed` check above is only the shared ceiling — it lets a
+            // file chunk ride in at the *screen* frame's 4 MiB limit, twice the
+            // 2 MiB cap the protocol documents for chunks. Each kind is held to
+            // its own cap here (2026-08-17; Go and Kotlin do the same).
             switch FrameKind(rawValue: kindByte) {
             case .control:
                 guard payload.count <= ProtocolConstants.maxControlPayload else {
@@ -163,8 +167,14 @@ public struct FrameReader: Sendable {
                 }
                 frames.append(.control(payload))
             case .fileChunk:
+                guard payloadLength <= ProtocolConstants.maxChunkData + ProtocolConstants.chunkHeaderSize else {
+                    throw FramingError.oversizedFrame(kind: kindByte, length: payloadLength)
+                }
                 frames.append(.fileChunk(try FrameCodec.decodeChunkPayload(payload)))
             case .screenFrame:
+                guard payloadLength <= ProtocolConstants.maxScreenFrameData + ProtocolConstants.screenFrameHeaderSize else {
+                    throw FramingError.oversizedFrame(kind: kindByte, length: payloadLength)
+                }
                 frames.append(.screenFrame(try FrameCodec.decodeScreenPayload(payload)))
             case nil:
                 skippedUnknownFrames += 1

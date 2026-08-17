@@ -6,6 +6,7 @@ package session
 
 import (
 	"sync"
+	"time"
 
 	"github.com/auston/conduit-core/transport"
 	"github.com/auston/conduit-core/wire"
@@ -65,16 +66,25 @@ func (f *FramedConn) NextFrame() (wire.Frame, bool, error) {
 }
 
 // Send encodes and writes one control message, assigning the next seq.
+//
+// Allocate-and-write is ONE critical section (2026-08-17). It used to take
+// sendMu to bump nextSeq, release it, encode, then take it again to write — so
+// two concurrent senders could get seq 1 and 2 and then write them in the other
+// order. The frames themselves never interleaved (writeAll holds the lock for a
+// whole frame), but the envelope seq did go backwards on the wire, which the
+// peer is entitled to treat as a protocol violation. Every capability that
+// sends from its own goroutine — screen ACKs, file progress, input, clipboard —
+// shares one of these.
 func (f *FramedConn) Send(m wire.Message) error {
 	f.sendMu.Lock()
-	seq := f.nextSeq
-	f.nextSeq++
-	f.sendMu.Unlock()
-	payload, err := wire.EncodeMessage(f.sessionID, seq, m)
+	defer f.sendMu.Unlock()
+	payload, err := wire.EncodeMessage(f.sessionID, f.nextSeq, m)
 	if err != nil {
+		// Do not burn a seq on a message that never reached the wire.
 		return err
 	}
-	return f.writeAll(wire.EncodeControl(payload))
+	f.nextSeq++
+	return f.writeLocked(wire.EncodeControl(payload))
 }
 
 func (f *FramedConn) SendChunk(c wire.ChunkFrame) error {
@@ -84,6 +94,28 @@ func (f *FramedConn) SendChunk(c wire.ChunkFrame) error {
 func (f *FramedConn) writeAll(data []byte) error {
 	f.sendMu.Lock()
 	defer f.sendMu.Unlock()
+	return f.writeLocked(data)
+}
+
+// WriteTimeout bounds a single frame write.
+//
+// Added 2026-08-17. There was no deadline anywhere in the send path, so a peer
+// that stopped reading — a viewer whose window froze, a phone that slept, a
+// process suspended in a debugger — filled the socket buffer and then blocked
+// the writer forever *while holding sendMu*. On the control-lane screen
+// fallback that meant one stalled viewer wedged the whole link: no clipboard, no
+// input, no file acks, and no PONG, so the far end eventually declared the
+// session dead for the wrong reason. A peer that cannot absorb one frame in
+// this long is gone, and the screen path already knows how to demote or stop
+// when a send fails.
+const WriteTimeout = 10 * time.Second
+
+// writeLocked requires sendMu to be held by the caller.
+func (f *FramedConn) writeLocked(data []byte) error {
+	if err := f.conn.SetWriteDeadline(time.Now().Add(WriteTimeout)); err != nil {
+		return err
+	}
+	defer func() { _ = f.conn.SetWriteDeadline(time.Time{}) }()
 	for len(data) > 0 {
 		n, err := f.conn.Write(data)
 		if err != nil {

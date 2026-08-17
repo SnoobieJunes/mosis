@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"os"
+	"sync"
 	"syscall"
 
 	"github.com/auston/conduit-core/wire"
@@ -42,7 +43,15 @@ const (
 )
 
 type linuxInjector struct {
-	f *os.File
+	// One mutex per injector: Inject is called from a per-peer goroutine, and a
+	// single event is several writes to one fd (press, SYN, release, SYN). Two
+	// concurrently granted peers used to interleave those writes, so a click
+	// from one could land between another's key-down and key-up — the kernel
+	// sees one device and cannot tell them apart (2026-08-17). Note this makes
+	// input from two peers serialized, not separated: whether a second peer
+	// should be granted control at all is a policy question (todo.md).
+	mu sync.Mutex
+	f  *os.File
 }
 
 // NewInjector opens /dev/uinput and registers a virtual pointer+keyboard.
@@ -115,6 +124,8 @@ func (l *linuxInjector) Available() bool { return l.f != nil }
 func (l *linuxInjector) Backend() string { return "uinput" }
 
 func (l *linuxInjector) Inject(ev wire.InputEventBody) error {
+	l.mu.Lock()
+	defer l.mu.Unlock()
 	switch ev.Kind {
 	case "move":
 		if ev.Dx != nil {
@@ -154,8 +165,108 @@ func (l *linuxInjector) Inject(ev wire.InputEventBody) error {
 			l.emit(evKey, code, 0)
 		}
 		return l.sync()
+	case "key":
+		return l.injectKey(ev)
 	}
 	return nil
+}
+
+// injectKey handles kind:"key" — text, named keys, and modifiers. There was no
+// case for this at all until 2026-08-17: keystrokes were accepted and dropped.
+func (l *linuxInjector) injectKey(ev wire.InputEventBody) error {
+	mods := make([]uint16, 0, len(ev.Modifiers))
+	for _, name := range ev.Modifiers {
+		if code, ok := modifierKeys[name]; ok {
+			mods = append(mods, code)
+		}
+	}
+
+	// Text is a string, not a key: type each character, applying Shift per
+	// character rather than once for the whole run.
+	if ev.Text != nil && *ev.Text != "" {
+		for _, r := range *ev.Text {
+			code, needsShift, ok := keyForRune(r)
+			if !ok {
+				// Nothing on a US layout produces this; say so instead of
+				// pretending the keystroke landed.
+				return fmt.Errorf("uinput: no key for %q on a US layout", r)
+			}
+			extra := mods
+			if needsShift {
+				extra = append(append([]uint16{}, mods...), keyLeftShift)
+			}
+			if err := l.tapWithModifiers(code, extra); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+
+	if ev.Key == nil {
+		return nil
+	}
+	code, ok := namedKeys[*ev.Key]
+	if !ok {
+		// A single character can also arrive as `key`.
+		runes := []rune(*ev.Key)
+		if len(runes) != 1 {
+			return fmt.Errorf("uinput: unknown key %q", *ev.Key)
+		}
+		var needsShift bool
+		code, needsShift, ok = keyForRune(runes[0])
+		if !ok {
+			return fmt.Errorf("uinput: unknown key %q", *ev.Key)
+		}
+		if needsShift {
+			mods = append(mods, keyLeftShift)
+		}
+	}
+
+	// ADR 0015 made `action` meaningful for keys as well as clicks: down/up
+	// carry a real hardware keyboard's press and release; absent or "tap" is a
+	// complete press-and-release.
+	action := "tap"
+	if ev.Action != nil {
+		action = *ev.Action
+	}
+	switch action {
+	case "down":
+		for _, m := range mods {
+			l.emit(evKey, m, 1)
+		}
+		l.emit(evKey, code, 1)
+		return l.sync()
+	case "up":
+		l.emit(evKey, code, 0)
+		for i := len(mods) - 1; i >= 0; i-- {
+			l.emit(evKey, mods[i], 0)
+		}
+		return l.sync()
+	default:
+		return l.tapWithModifiers(code, mods)
+	}
+}
+
+// tapWithModifiers presses the modifiers, taps the key, and releases everything
+// in reverse order — one SYN per state change, as a real keyboard reports.
+func (l *linuxInjector) tapWithModifiers(code uint16, mods []uint16) error {
+	for _, m := range mods {
+		l.emit(evKey, m, 1)
+	}
+	if len(mods) > 0 {
+		if err := l.sync(); err != nil {
+			return err
+		}
+	}
+	l.emit(evKey, code, 1)
+	if err := l.sync(); err != nil {
+		return err
+	}
+	l.emit(evKey, code, 0)
+	for i := len(mods) - 1; i >= 0; i-- {
+		l.emit(evKey, mods[i], 0)
+	}
+	return l.sync()
 }
 
 func (l *linuxInjector) Close() error {

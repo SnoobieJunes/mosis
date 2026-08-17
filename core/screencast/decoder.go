@@ -40,7 +40,24 @@ type Decoder struct {
 	runErr      error
 }
 
+// MaxDecodeDimension bounds the frame size a peer's SCREEN_OFFER may ask this
+// decoder to allocate: 16384 is above any real display and below anything that
+// would allocate a gigabyte per frame (16384×16384×4 ≈ 1 GiB, so this is the
+// ceiling, not a target).
+const MaxDecodeDimension = 16384
+
 func StartDecoder(cfg DecoderConfig) (*Decoder, error) {
+	// Width/Height arrive verbatim from a peer's SCREEN_OFFER and size every
+	// allocation and read below. Unvalidated until 2026-08-17: zero made
+	// frameSize 0, so io.ReadFull returned instantly and readLoop span forever
+	// shovelling empty frames at 100% CPU; negative panicked make() with
+	// "makeslice: len out of range". A paired peer should not be able to do
+	// either by sending one message.
+	if cfg.Width <= 0 || cfg.Height <= 0 ||
+		cfg.Width > MaxDecodeDimension || cfg.Height > MaxDecodeDimension {
+		return nil, fmt.Errorf("decoder: offered frame size %dx%d is out of range (1..%d)",
+			cfg.Width, cfg.Height, MaxDecodeDimension)
+	}
 	demux := "h264"
 	if cfg.Codec == "hevc" {
 		demux = "hevc"

@@ -13,6 +13,7 @@ import (
 	"net"
 	"os"
 	"strconv"
+	"time"
 
 	"github.com/auston/conduit-core/identity"
 )
@@ -159,14 +160,45 @@ func (b *Backend) Listen(policyFn func() PinPolicy) (*Listener, uint16, error) {
 	return &Listener{ln: tlsLn}, port, nil
 }
 
-// Accept returns the next authenticated inbound connection.
-func (l *Listener) Accept() (*Conn, error) {
-	raw, err := l.ln.Accept()
-	if err != nil {
+// HandshakeTimeout bounds how long an inbound peer may take to complete the TLS
+// handshake. A peer that opens TCP and then says nothing is otherwise
+// indistinguishable from a slow one, and used to block the whole listener.
+const HandshakeTimeout = 10 * time.Second
+
+// AcceptRaw returns the next inbound connection with its handshake NOT yet run.
+//
+// Split out from Accept on 2026-08-17. The handshake used to run inside the
+// accept path, and the accept path is a single loop (session.Node.acceptLoop),
+// so one peer that connected and never sent a ClientHello blocked every
+// subsequent connection — with no deadline, indefinitely. Worse, a handshake
+// error surfaced as an Accept error, and the loop treats an Accept error as
+// "listener is gone" and returns: a single malformed connection stopped the
+// daemon from ever accepting again.
+//
+// Callers must run Authenticate on the result, off the accept loop.
+func (l *Listener) AcceptRaw() (net.Conn, error) {
+	return l.ln.Accept()
+}
+
+// Authenticate completes the TLS handshake on a connection from AcceptRaw and
+// extracts the pinned peer key. Safe to call from a per-connection goroutine.
+func Authenticate(raw net.Conn) (*Conn, error) {
+	tlsConn, ok := raw.(*tls.Conn)
+	if !ok {
+		raw.Close()
+		return nil, errors.New("transport: inbound connection is not TLS")
+	}
+	// The deadline covers the handshake only; it is cleared afterwards so it
+	// cannot expire mid-session.
+	if err := tlsConn.SetDeadline(time.Now().Add(HandshakeTimeout)); err != nil {
+		tlsConn.Close()
 		return nil, err
 	}
-	tlsConn := raw.(*tls.Conn)
 	if err := tlsConn.Handshake(); err != nil {
+		tlsConn.Close()
+		return nil, err
+	}
+	if err := tlsConn.SetDeadline(time.Time{}); err != nil {
 		tlsConn.Close()
 		return nil, err
 	}
@@ -176,6 +208,17 @@ func (l *Listener) Accept() (*Conn, error) {
 		return nil, err
 	}
 	return &Conn{Conn: tlsConn, PeerKeyHash: hash}, nil
+}
+
+// Accept returns the next authenticated inbound connection. Convenience for
+// tests and single-connection tools; servers should use AcceptRaw +
+// Authenticate so one stalled peer cannot hold up the listener.
+func (l *Listener) Accept() (*Conn, error) {
+	raw, err := l.AcceptRaw()
+	if err != nil {
+		return nil, err
+	}
+	return Authenticate(raw)
 }
 
 func (l *Listener) Close() error { return l.ln.Close() }

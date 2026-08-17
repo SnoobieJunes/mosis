@@ -76,9 +76,19 @@ func (r *fileReceiver) handleOffer(offer wire.FileOfferBody) {
 // attachFileBulk binds an inbound bulk connection to an accepted transfer and
 // drains its chunk frames.
 func (n *Node) attachFileBulk(framed *FramedConn, attach wire.BulkAttachBody) {
-	// Find the transfer across all active links via a global registry.
+	// Find the transfer across all active links via a global registry, and
+	// CONSUME the token: docs/protocol.md calls bulk_token one-time, and until
+	// 2026-08-17 it was never removed, so a second BULK_ATTACH carrying the same
+	// token got the same receiver and drained concurrently. Two goroutines in
+	// handleChunk then interleaved writes into one file, and two finalize calls
+	// raced — the loser read a nil transfer out of the map and dereferenced it,
+	// panicking the daemon. Deleting under bulkMu makes lookup-and-consume one
+	// atomic step, so exactly one attach can win.
 	n.bulkMu.Lock()
 	rcv := n.pendingBulk[attach.BulkToken]
+	if rcv != nil {
+		delete(n.pendingBulk, attach.BulkToken)
+	}
 	n.bulkMu.Unlock()
 	if rcv == nil {
 		framed.Close()
@@ -144,6 +154,12 @@ func (r *fileReceiver) finalize(fileID string) {
 	r.mu.Lock()
 	t := r.transfers[fileID]
 	delete(r.transfers, fileID)
+	if t == nil {
+		// Belt and braces alongside the one-time-token fix above: whoever
+		// arrives second has nothing to finalize, and reading t.uuid panicked.
+		r.mu.Unlock()
+		return
+	}
 	delete(r.byUUID, t.uuid)
 	r.mu.Unlock()
 	t.file.Close()

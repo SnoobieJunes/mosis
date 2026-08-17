@@ -73,11 +73,27 @@ class FrameReader {
         val maxAllowed = maxOf(MAX_CONTROL, MAX_CHUNK_DATA + CHUNK_HEADER_SIZE, MAX_SCREEN_DATA + SCREEN_HEADER_SIZE)
         while (buf.size >= 5) {
             val kind = buf[0].toInt() and 0xFF
+            // Read the u32be length into a Long. As an Int it sign-flipped for
+            // any length >= 0x80000000: the oversize guard below then *passed*
+            // (a negative is <= maxAllowed) and copyOfRange threw on a negative
+            // range — a peer-controlled crash, and the one check meant to stop
+            // it was the check being bypassed (2026-08-17).
             val len = u32(buf, 1)
-            require(len <= maxAllowed) { "oversized frame ($len)" }
-            if (buf.size < 5 + len) break
-            val payload = buf.copyOfRange(5, 5 + len)
-            buf = buf.copyOfRange(5 + len, buf.size)
+            require(len in 0..maxAllowed.toLong()) { "oversized frame ($len)" }
+            // Per-kind caps, not just the shared ceiling: maxAllowed is the
+            // screen frame's 4 MiB, which would let a file chunk in at twice
+            // the 2 MiB the protocol documents. Swift and Go do the same.
+            val kindCap = when (kind) {
+                FrameKind.CONTROL -> MAX_CONTROL.toLong()
+                FrameKind.FILE_CHUNK -> (MAX_CHUNK_DATA + CHUNK_HEADER_SIZE).toLong()
+                FrameKind.SCREEN_FRAME -> (MAX_SCREEN_DATA + SCREEN_HEADER_SIZE).toLong()
+                else -> maxAllowed.toLong()
+            }
+            require(len <= kindCap) { "oversized frame for kind $kind ($len)" }
+            val length = len.toInt()
+            if (buf.size < 5 + length) break
+            val payload = buf.copyOfRange(5, 5 + length)
+            buf = buf.copyOfRange(5 + length, buf.size)
             when (kind) {
                 FrameKind.CONTROL -> out.add(Frame.Control(payload))
                 FrameKind.FILE_CHUNK -> out.add(Frame.Chunk(decodeChunk(payload)))
@@ -96,11 +112,14 @@ class FrameReader {
     private fun decodeScreen(p: ByteArray): ScreenFrame {
         require(p.size >= SCREEN_HEADER_SIZE) { "malformed screen frame" }
         val sid = (p[0].toInt() and 0xFF shl 8) or (p[1].toInt() and 0xFF)
-        return ScreenFrame(sid, u32(p, 2).toLong(), p[6].toInt() != 0, u64(p, 7), p.copyOfRange(SCREEN_HEADER_SIZE, p.size))
+        return ScreenFrame(sid, u32(p, 2), p[6].toInt() != 0, u64(p, 7), p.copyOfRange(SCREEN_HEADER_SIZE, p.size))
     }
 
-    private fun u32(b: ByteArray, off: Int): Int {
-        var v = 0; for (i in 0 until 4) v = v shl 8 or (b[off + i].toInt() and 0xFF); return v
+    /** u32be as an unsigned value in a Long — never sign-extended (2026-08-17: the
+     *  old Int version turned any seq >= 2^31 negative, and made the frame-length
+     *  oversize guard skippable). */
+    private fun u32(b: ByteArray, off: Int): Long {
+        var v = 0L; for (i in 0 until 4) v = v shl 8 or (b[off + i].toLong() and 0xFF); return v
     }
     private fun u64(b: ByteArray, off: Int): Long {
         var v = 0L; for (i in 0 until 8) v = v shl 8 or (b[off + i].toLong() and 0xFF); return v
